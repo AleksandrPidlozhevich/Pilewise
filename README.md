@@ -13,6 +13,7 @@ progress, and what you never even started.
 [![Latest release](https://img.shields.io/github/v/release/AleksandrPidlozhevich/Pilewise?style=for-the-badge&logo=github&label=Release)](https://github.com/AleksandrPidlozhevich/Pilewise/releases)
 [![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![Avalonia 12](https://img.shields.io/badge/Avalonia-12-8B44AC?style=for-the-badge)](https://avaloniaui.net/)
+[![No telemetry](https://img.shields.io/badge/No%20telemetry-brightgreen?style=for-the-badge)](#privacy)
 [![Platforms](https://img.shields.io/badge/Windows%20%7C%20macOS%20%7C%20Linux-informational?style=for-the-badge&label=Platforms)](#download)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE.txt)
 
@@ -55,7 +56,7 @@ the file for your system:
 
 | System | File |
 | :--- | :--- |
-| Windows | `Pilewise-win-x64-Setup.exe` (installer) or `Pilewise-win-x64-Portable.zip` |
+| Windows | `Pilewise-win-x64-Setup.exe` (per-user installer), `Pilewise-win-x64.msi` (Windows Installer, per-user or per-machine), or `Pilewise-win-x64-Portable.zip` |
 | macOS (Apple Silicon, M1 and later) | `Pilewise-osx-arm64.dmg` (drag to Applications) or `Pilewise-osx-arm64-Portable.zip` |
 | macOS (Intel) | `Pilewise-osx-x64.dmg` (drag to Applications) or `Pilewise-osx-x64-Portable.zip` |
 | Linux | `Pilewise-linux-x64.AppImage` |

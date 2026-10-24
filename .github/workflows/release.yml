@@ -71,7 +71,7 @@ jobs:
           - rid: win-x64
             os: windows-latest
             exe: Pilewise.exe
-            icon: Pilewise/Pilewise.ico
+            icon: Pilewise/Assets/Pilewise.ico
           - rid: linux-x64
             os: ubuntu-latest
             exe: Pilewise
@@ -165,9 +165,28 @@ jobs:
       # that would need a separate "Developer ID Installer" certificate; the .dmg replaces it.
       - name: Pack
         run: |
-          mac_args=()
+          # One argument list, so an empty platform block is never expanded (macOS bash 3.2
+          # turns "${empty[@]}" into a blank argument and vpk rejects it).
+          args=(
+            --packId Pilewise
+            --packVersion "$VERSION"
+            --packTitle Pilewise
+            --packAuthors "Aliaksandr Pidlazhevich"
+            --packDir publish
+            --mainExe ${{ matrix.exe }}
+            --icon ${{ matrix.icon }}
+            --runtime ${{ matrix.rid }}
+            --channel ${{ matrix.rid }}
+            -o releases
+          )
+          # Setup.exe stays the one-click per-user install. --msi adds Pilewise-win-x64.msi
+          # (the user picks per-user or per-machine). vpk derives the MSI product version,
+          # including for a pre-release tag, and upload ships the msi with the channel feed.
+          if [ "$RUNNER_OS" = Windows ]; then
+            args+=(--msi)
+          fi
           if [ "$RUNNER_OS" = macOS ]; then
-            mac_args=(
+            args+=(
               --bundleId com.aleksandrpidlozhevich.pilewise
               --noInst
               --signAppIdentity "$SIGN_IDENTITY"
@@ -176,18 +195,7 @@ jobs:
               --keychain "$KEYCHAIN"
             )
           fi
-          vpk pack \
-            --packId Pilewise \
-            --packVersion "$VERSION" \
-            --packTitle Pilewise \
-            --packAuthors "Aliaksandr Pidlazhevich" \
-            --packDir publish \
-            --mainExe ${{ matrix.exe }} \
-            --icon ${{ matrix.icon }} \
-            --runtime ${{ matrix.rid }} \
-            --channel ${{ matrix.rid }} \
-            -o releases \
-            "${mac_args[@]}"
+          vpk pack "${args[@]}"
 
       - name: Build DMG
         if: runner.os == 'macOS'

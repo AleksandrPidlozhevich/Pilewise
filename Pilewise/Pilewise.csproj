@@ -6,7 +6,7 @@
         <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
         <ApplicationManifest>app.manifest</ApplicationManifest>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-        <ApplicationIcon>Pilewise.ico</ApplicationIcon>
+        <ApplicationIcon>Assets\Pilewise.ico</ApplicationIcon>
         <EnableNETAnalyzers>true</EnableNETAnalyzers>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
         <!-- No generated InitializeComponent / named-control fields: views load their XAML with
@@ -17,10 +17,6 @@
 
     <ItemGroup>
         <AvaloniaResource Include="Assets\**" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <Content Include="Pilewise.ico" />
     </ItemGroup>
 
     <ItemGroup>
