@@ -215,7 +215,7 @@ public partial class MainWindowViewModel
             // Restarts the app into the new version on success.
             await _updates.DownloadAndRestartAsync(reporter, Progress.Token);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (Progress.Token.IsCancellationRequested)
         {
             _log.WriteInfo("Update download cancelled by user.");
         }

@@ -170,9 +170,14 @@ public class EpicApiClient : RefreshTokenStoreClient, IEpicClient
                     ownedGames.Add((orderByCatalogId[game.CatalogItemId], game));
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
+                // Skipping the batch would drop its games from this fetch, and the trackers would then
+                // mark them "no longer owned" — fail the fetch instead, so nothing wrong is written.
                 Log.WriteWarning($"Epic: catalog batch failed for namespace {batch.Namespace}: {ex.Message}");
+                throw new InvalidOperationException(
+                    "Couldn't load the Epic catalog (the game titles), so the Epic library would be incomplete. " +
+                    "Try again in a few minutes.", ex);
             }
             finally
             {
@@ -219,6 +224,12 @@ public class EpicApiClient : RefreshTokenStoreClient, IEpicClient
                 continue;
             }
 
+            // A server error is temporary: the caller fails the fetch rather than lose these games.
+            if ((int)response.StatusCode >= 500)
+                throw new HttpRequestException(
+                    $"Epic catalog request failed for namespace {ns}: {response.StatusCode}.", null, response.StatusCode);
+
+            // A client error (e.g. a delisted namespace) answers the same every time: skip its items.
             if (!response.IsSuccessStatusCode)
             {
                 Log.WriteWarning($"Epic: catalog request failed for namespace {ns}: {response.StatusCode}.");
@@ -228,8 +239,9 @@ public class EpicApiClient : RefreshTokenStoreClient, IEpicClient
             return JObject.Parse(await response.Content.ReadAsStringAsync(ct));
         }
 
-        Log.WriteWarning($"Epic: catalog batch gave up after {CatalogMaxRetries} retries for namespace {ns}.");
-        return null;
+        throw new HttpRequestException(
+            $"Epic catalog is rate-limiting requests (gave up after {CatalogMaxRetries} tries for namespace {ns}).",
+            null, HttpStatusCode.TooManyRequests);
     }
 
     private static bool IsBaseGameCatalogItem(JToken? item)

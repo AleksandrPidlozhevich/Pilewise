@@ -364,3 +364,6 @@ FodyWeavers.xsd
 
 # macOS Finder metadata
 .DS_Store
+
+# JetBrains Rider (local project settings)
+.idea/.idea.Pilewise/.idea/

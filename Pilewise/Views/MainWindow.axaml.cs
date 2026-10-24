@@ -110,7 +110,8 @@ public partial class MainWindow : Window
     /// <summary>Remembers the size / position / maximized state (called when the window closes or hides).</summary>
     public void SavePlacement()
     {
-        if (_state == null || !IsVisible) return;
+        // A minimized window has no useful bounds: keep what was saved before.
+        if (_state == null || !IsVisible || WindowState == WindowState.Minimized) return;
         try
         {
             var maximized = WindowState == WindowState.Maximized;
@@ -119,7 +120,6 @@ public partial class MainWindow : Window
             var placement = maximized && previous != null
                 ? previous with { Maximized = true }
                 : new WindowPlacement(Position.X, Position.Y, Width, Height, maximized);
-            if (WindowState == WindowState.Minimized) return;
             _state.Save(WindowPlacement.StateKey, placement.Serialize());
         }
         catch (Exception ex)

@@ -14,35 +14,42 @@ namespace Pilewise.Models;
 
 public class NotionApiClient : INotionApiClient
 {
-    private const int DelayBetweenRequests = 334;
+    // Notion allows about 3 requests per second on average: every request (reads, writes, retries)
+    // waits for its own slot, at least this far after the previous one, across all parallel writes.
+    private static readonly TimeSpan DefaultDelayBetweenRequests = TimeSpan.FromMilliseconds(334);
     private const int MaxConcurrentRequests = 3;
+    private const int MaxRetries = 3;
 
     // Notion API version. As of 2025-09-03 a database and its data source(s) are distinct: rows are
     // queried and pages are created against a data source, not the database directly.
     private const string NotionVersion = "2025-09-03";
+    private const string ApiBase = "https://api.notion.com/v1";
 
-    private readonly string _apiKey;
     private readonly string _databaseId;
     private readonly HttpClient _httpClient;
-    private readonly SemaphoreSlim _semaphore;
+    private readonly TimeSpan _delayBetweenRequests;
+    private readonly SemaphoreSlim _semaphore = new(MaxConcurrentRequests, MaxConcurrentRequests);
+
+    private readonly object _paceGate = new();
+    private DateTime _nextRequestAt = DateTime.MinValue;
 
     // The database's (first) data source id, resolved lazily from the database id and cached.
     private string? _dataSourceId;
 
     public NotionApiClient(string? apiKey, string? databaseId)
+        : this(apiKey, databaseId, new HttpClientHandler(), DefaultDelayBetweenRequests)
     {
-        _apiKey = apiKey?.Trim() ?? string.Empty;
-        _databaseId = databaseId?.Trim() ?? string.Empty;
-        _httpClient = new HttpClient();
-        _semaphore = new SemaphoreSlim(MaxConcurrentRequests, MaxConcurrentRequests);
-        InitializeHttpClient();
     }
 
-    private void InitializeHttpClient()
+    /// <summary>With a custom transport and pause between requests (tests use a fake handler and no pause).</summary>
+    public NotionApiClient(string? apiKey, string? databaseId, HttpMessageHandler handler, TimeSpan delayBetweenRequests)
     {
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+        _databaseId = databaseId?.Trim() ?? string.Empty;
+        _delayBetweenRequests = delayBetweenRequests;
+        _httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
+        _httpClient.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", apiKey?.Trim() ?? string.Empty);
         _httpClient.DefaultRequestHeaders.Add("Notion-Version", NotionVersion);
-        _httpClient.Timeout = TimeSpan.FromSeconds(30);
     }
 
     // Resolves the data source id behind the configured database id (single-source databases expose
@@ -51,10 +58,7 @@ public class NotionApiClient : INotionApiClient
     {
         if (!string.IsNullOrEmpty(_dataSourceId)) return _dataSourceId;
 
-        var response = await _httpClient.GetAsync($"https://api.notion.com/v1/databases/{_databaseId}", ct);
-        await EnsureNotionSuccessAsync(response, ct);
-
-        var database = JObject.Parse(await response.Content.ReadAsStringAsync(ct));
+        var database = await SendAsync(HttpMethod.Get, $"{ApiBase}/databases/{_databaseId}", null, ct);
         var id = (database["data_sources"] as JArray)?.FirstOrDefault()?["id"]?.Value<string>();
         if (string.IsNullOrEmpty(id))
             throw new InvalidOperationException($"Notion database {_databaseId} exposes no data source.");
@@ -63,38 +67,11 @@ public class NotionApiClient : INotionApiClient
         return id;
     }
 
-    // EnsureSuccessStatusCode hides Notion's response body, which carries the actual reason
-    // (e.g. an invalid token or an unshared database). Surface it so failures are diagnosable.
-    private static async Task EnsureNotionSuccessAsync(HttpResponseMessage response, CancellationToken ct)
-    {
-        if (response.IsSuccessStatusCode) return;
-
-        var body = await response.Content.ReadAsStringAsync(ct);
-        string? notionMessage = null;
-        try
-        {
-            notionMessage = JObject.Parse(body)["message"]?.Value<string>();
-        }
-        catch (JsonReaderException)
-        {
-            // Non-JSON body (e.g. a gateway error page) — fall back to the raw content below.
-        }
-
-        var detail = notionMessage ?? body;
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
-            detail = $"Notion rejected the integration token (401). " +
-                     $"Check the token in settings and that the database is shared with the integration. {detail}";
-
-        throw new HttpRequestException($"Notion API {(int)response.StatusCode} {response.StatusCode}: {detail}");
-    }
-
     public async Task<IReadOnlyDictionary<string, string>> GetPropertyTypesAsync(CancellationToken ct = default)
     {
         var dataSourceId = await ResolveDataSourceIdAsync(ct);
-        var response = await _httpClient.GetAsync($"https://api.notion.com/v1/data_sources/{dataSourceId}", ct);
-        await EnsureNotionSuccessAsync(response, ct);
+        var dataSource = await SendAsync(HttpMethod.Get, $"{ApiBase}/data_sources/{dataSourceId}", null, ct);
 
-        var dataSource = JObject.Parse(await response.Content.ReadAsStringAsync(ct));
         var types = new Dictionary<string, string>();
         if (dataSource["properties"] is JObject properties)
             foreach (var property in properties.Properties())
@@ -111,14 +88,8 @@ public class NotionApiClient : INotionApiClient
         foreach (var (name, type) in properties)
             schema[name] = new JObject { [type] = new JObject() };
 
-        using var request = new HttpRequestMessage(HttpMethod.Patch,
-            $"https://api.notion.com/v1/data_sources/{dataSourceId}")
-        {
-            Content = new StringContent(
-                new JObject { ["properties"] = schema }.ToString(Formatting.None), Encoding.UTF8, "application/json")
-        };
-        var response = await _httpClient.SendAsync(request, ct);
-        await EnsureNotionSuccessAsync(response, ct);
+        await SendAsync(HttpMethod.Patch, $"{ApiBase}/data_sources/{dataSourceId}",
+            new JObject { ["properties"] = schema }, ct);
     }
 
     public async Task<List<JObject>> QueryAllPagesAsync(CancellationToken ct = default)
@@ -129,33 +100,14 @@ public class NotionApiClient : INotionApiClient
 
         do
         {
-            object queryPayload;
-            if (nextCursor != null)
-                queryPayload = new { start_cursor = nextCursor };
-            else
-                queryPayload = new { };
+            var query = nextCursor != null ? new { start_cursor = nextCursor } : (object)new { };
+            var result = await SendAsync(HttpMethod.Post, $"{ApiBase}/data_sources/{dataSourceId}/query", query, ct);
 
-            var queryUrl = $"https://api.notion.com/v1/data_sources/{dataSourceId}/query";
-            var response = await _httpClient.PostAsync(
-                queryUrl,
-                new StringContent(JsonConvert.SerializeObject(queryPayload), Encoding.UTF8, "application/json"),
-                ct
-            );
-
-            await EnsureNotionSuccessAsync(response, ct);
-            var responseContent = await response.Content.ReadAsStringAsync(ct);
-            var result = JObject.Parse(responseContent);
-
-            var pages = result["results"] as JArray;
-            if (pages != null)
-                foreach (var page in pages)
-                    if (page is JObject pageObject)
-                        allPages.Add(pageObject);
+            if (result["results"] is JArray pages)
+                allPages.AddRange(pages.OfType<JObject>());
 
             var hasMore = result["has_more"]?.Value<bool>() ?? false;
             nextCursor = hasMore ? result["next_cursor"]?.Value<string>() : null;
-
-            if (nextCursor != null) await Task.Delay(DelayBetweenRequests, ct);
         } while (nextCursor != null);
 
         return allPages;
@@ -165,131 +117,151 @@ public class NotionApiClient : INotionApiClient
         IEnumerable<NotionPageBody> pages, Action? onPageDone = null, CancellationToken ct = default)
     {
         var dataSourceId = await ResolveDataSourceIdAsync(ct);
-        var tasks = pages
-            .Select(page => AddPageWithThrottling(page, dataSourceId, onPageDone, ct))
-            .ToList();
-        await Task.WhenAll(tasks);
-    }
-
-    private async Task AddPageWithThrottling(
-        NotionPageBody page, string dataSourceId, Action? onPageDone, CancellationToken ct)
-    {
-        await _semaphore.WaitAsync(ct);
-        try
+        await WriteAllAsync(pages, page =>
         {
-            await AddPageToDatabaseWithRetry(page, dataSourceId, ct);
-            onPageDone?.Invoke();
-        }
-        finally
-        {
-            _semaphore.Release();
-            await Task.Delay(DelayBetweenRequests, ct);
-        }
+            var body = page.ToJson();
+            body["parent"] = new { type = "data_source_id", data_source_id = dataSourceId };
+            return SendAsync(HttpMethod.Post, $"{ApiBase}/pages", body, ct);
+        }, onPageDone, ct);
     }
 
-    private async Task AddPageToDatabaseWithRetry(
-        NotionPageBody page, string dataSourceId, CancellationToken ct, int maxRetries = 3)
-    {
-        var newPageData = page.ToJson();
-        newPageData["parent"] = new { type = "data_source_id", data_source_id = dataSourceId };
-
-        for (var retry = 0; retry <= maxRetries; retry++)
-            try
-            {
-                var response = await _httpClient.PostAsync(
-                    "https://api.notion.com/v1/pages",
-                    new StringContent(JsonConvert.SerializeObject(newPageData), Encoding.UTF8, "application/json"),
-                    ct
-                );
-
-                if (response.IsSuccessStatusCode)
-                    return;
-
-                if (response.StatusCode == HttpStatusCode.TooManyRequests)
-                {
-                    var retryAfter = response.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(Math.Pow(2, retry));
-                    await Task.Delay(retryAfter, ct);
-                    continue;
-                }
-
-                var content = await response.Content.ReadAsStringAsync(ct);
-                throw new HttpRequestException($"Status: {response.StatusCode}, Content: {content}");
-            }
-            catch (HttpRequestException) when (retry < maxRetries)
-            {
-                await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, retry)), ct);
-            }
-    }
-
-    public async Task UpdatePagesParallel(
+    public Task UpdatePagesParallel(
         IEnumerable<(string PageId, NotionPageBody Body)> updates,
         Action? onPageDone = null,
-        CancellationToken ct = default)
-    {
-        var tasks = updates.Select(u => UpdatePageWithThrottling(u.PageId, u.Body.ToJson(), onPageDone, ct)).ToList();
-        await Task.WhenAll(tasks);
-    }
+        CancellationToken ct = default) =>
+        WriteAllAsync(updates, u => SendAsync(HttpMethod.Patch, $"{ApiBase}/pages/{u.PageId}", u.Body.ToJson(), ct),
+            onPageDone, ct);
 
-    public async Task TrashPagesParallel(
+    public Task TrashPagesParallel(
         IEnumerable<string> pageIds, Action? onPageDone = null, CancellationToken ct = default)
     {
         var body = new Dictionary<string, object> { ["in_trash"] = true };
-        var tasks = pageIds.Select(id => UpdatePageWithThrottling(id, body, onPageDone, ct)).ToList();
+        return WriteAllAsync(pageIds, id => SendAsync(HttpMethod.Patch, $"{ApiBase}/pages/{id}", body, ct),
+            onPageDone, ct);
+    }
+
+    // Runs the writes with at most MaxConcurrentRequests in flight. The first failure stops the
+    // writes still waiting (so a bad token doesn't run through hundreds of pages); WhenAll then
+    // rethrows that failure (the stopped writes are only cancelled, not faulted).
+    private async Task WriteAllAsync<T>(
+        IEnumerable<T> items, Func<T, Task> write, Action? onDone, CancellationToken ct)
+    {
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var tasks = items.Select(async item =>
+        {
+            await _semaphore.WaitAsync(stop.Token);
+            try
+            {
+                await write(item);
+            }
+            catch
+            {
+                stop.Cancel();
+                throw;
+            }
+            finally
+            {
+                _semaphore.Release();
+            }
+
+            onDone?.Invoke();
+        }).ToList();
+
         await Task.WhenAll(tasks);
     }
 
-    private async Task UpdatePageWithThrottling(
-        string pageId, Dictionary<string, object> body, Action? onPageDone, CancellationToken ct)
+    /// <summary>
+    /// Sends one request (paced, see <see cref="DefaultDelayBetweenRequests"/>) and returns the response
+    /// JSON. Rate limits (429), conflicts (409), server errors and network failures are retried with
+    /// backoff; anything else throws with Notion's own message. A timeout isn't retried: a page
+    /// create that timed out may still have gone through.
+    /// </summary>
+    private async Task<JObject> SendAsync(HttpMethod method, string url, object? body, CancellationToken ct)
     {
-        await _semaphore.WaitAsync(ct);
-        try
+        var json = body == null ? null : JsonConvert.SerializeObject(body);
+        for (var attempt = 0;; attempt++)
         {
-            await UpdatePageWithRetry(pageId, body, ct);
-            onPageDone?.Invoke();
-        }
-        finally
-        {
-            _semaphore.Release();
-            await Task.Delay(DelayBetweenRequests, ct);
-        }
-    }
+            await WaitForTurnAsync(ct);
 
-    private async Task UpdatePageWithRetry(
-        string pageId, Dictionary<string, object> body, CancellationToken ct, int maxRetries = 3)
-    {
-        for (var retry = 0; retry <= maxRetries; retry++)
+            using var request = new HttpRequestMessage(method, url);
+            if (json != null) request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            HttpResponseMessage response;
             try
             {
-                using var request =
-                    new HttpRequestMessage(HttpMethod.Patch, $"https://api.notion.com/v1/pages/{pageId}")
-                    {
-                        Content = new StringContent(
-                            JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json")
-                    };
-                var response = await _httpClient.SendAsync(request, ct);
+                response = await _httpClient.SendAsync(request, ct);
+            }
+            catch (HttpRequestException) when (attempt < MaxRetries)
+            {
+                await Task.Delay(Backoff(attempt), ct);
+                continue;
+            }
 
+            using (response)
+            {
+                var content = await response.Content.ReadAsStringAsync(ct);
                 if (response.IsSuccessStatusCode)
-                    return;
+                    return string.IsNullOrWhiteSpace(content) ? new JObject() : JObject.Parse(content);
 
-                if (response.StatusCode == HttpStatusCode.TooManyRequests)
+                if (attempt < MaxRetries && IsTransient(response.StatusCode))
                 {
-                    var retryAfter = response.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(Math.Pow(2, retry));
-                    await Task.Delay(retryAfter, ct);
+                    await Task.Delay(response.Headers.RetryAfter?.Delta ?? Backoff(attempt), ct);
                     continue;
                 }
 
-                var content = await response.Content.ReadAsStringAsync(ct);
-                throw new HttpRequestException($"Status: {response.StatusCode}, Content: {content}");
+                throw NotionError(response.StatusCode, content);
             }
-            catch (HttpRequestException) when (retry < maxRetries)
-            {
-                await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, retry)), ct);
-            }
+        }
+    }
+
+    private static bool IsTransient(HttpStatusCode status) =>
+        status is HttpStatusCode.TooManyRequests or HttpStatusCode.Conflict ||
+        (int)status >= 500;
+
+    private static TimeSpan Backoff(int attempt) => TimeSpan.FromSeconds(Math.Pow(2, attempt));
+
+    // Waits until this request's slot: each caller reserves the next one under the lock, so parallel
+    // writers line up _delayBetweenRequests apart instead of bursting together.
+    private Task WaitForTurnAsync(CancellationToken ct)
+    {
+        TimeSpan wait;
+        lock (_paceGate)
+        {
+            var now = DateTime.UtcNow;
+            var slot = _nextRequestAt > now ? _nextRequestAt : now;
+            _nextRequestAt = slot + _delayBetweenRequests;
+            wait = slot - now;
+        }
+
+        return wait > TimeSpan.Zero ? Task.Delay(wait, ct) : Task.CompletedTask;
+    }
+
+    // Notion's response body carries the actual reason (e.g. an invalid token, an unshared database or
+    // a bad property value), which a bare status code would hide.
+    private static HttpRequestException NotionError(HttpStatusCode status, string body)
+    {
+        string? notionMessage = null;
+        try
+        {
+            notionMessage = JObject.Parse(body)["message"]?.Value<string>();
+        }
+        catch (JsonReaderException)
+        {
+            // Non-JSON body (e.g. a gateway error page) — fall back to the raw content below.
+        }
+
+        var detail = notionMessage ?? body;
+        if (status == HttpStatusCode.Unauthorized)
+            detail = "Notion rejected the integration token (401). " +
+                     $"Check the token in settings and that the database is shared with the integration. {detail}";
+
+        return new HttpRequestException($"Notion API {(int)status} {status}: {detail}", null, status);
     }
 
     public void Dispose()
     {
-        _httpClient?.Dispose();
-        _semaphore?.Dispose();
+        _httpClient.Dispose();
+        _semaphore.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

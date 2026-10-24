@@ -259,7 +259,9 @@ public class XboxApiClient : IXboxClient
 
         var json = JObject.Parse(body);
         var accessToken = json["access_token"]?.Value<string>();
-        _refreshToken = json["refresh_token"]?.Value<string>();
+        // A rotated refresh token replaces the old one; a response without one keeps the old one
+        // (otherwise the saved session would lose it and expire with the access token).
+        _refreshToken = json["refresh_token"]?.Value<string>() ?? form.GetValueOrDefault("refresh_token");
 
         if (string.IsNullOrEmpty(accessToken))
         {

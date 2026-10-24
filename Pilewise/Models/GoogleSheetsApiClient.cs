@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Pilewise.Services;
@@ -9,7 +9,8 @@ using Google.Apis.Sheets.v4;
 
 namespace Pilewise.Models;
 
-public class GoogleSheetsApiClient
+/// <summary>Google OAuth + the Sheets / Drive services. Disposable: each service owns an HttpClient.</summary>
+public sealed class GoogleSheetsApiClient : IDisposable
 {
     private const string ApplicationName = "Pilewise";
     private const string CLIENT_ID = "400086036961-3uua9rt1oka9r2pahp7a0ljkohd46vhp.apps.googleusercontent.com";
@@ -73,5 +74,11 @@ public class GoogleSheetsApiClient
             _log.WriteError("Google authorization failed: " + ex.Message);
             return false;
         }
+    }
+
+    public void Dispose()
+    {
+        SheetsService?.Dispose();
+        DriveService?.Dispose();
     }
 }

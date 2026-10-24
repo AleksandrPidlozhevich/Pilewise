@@ -12,6 +12,7 @@ using Pilewise.ViewModels;
 using Pilewise.Views;
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Pilewise;
 
@@ -36,6 +37,7 @@ public partial class App : Application
         {
             _desktop = desktop;
             var services = AppServices.Build();
+            HookUnhandledExceptions(services.GetRequiredService<ILogService>(), services.GetRequiredService<IDialogService>());
             var window = services.GetRequiredService<MainWindow>();
             var viewModel = services.GetRequiredService<MainWindowViewModel>();
             window.DataContext = viewModel;
@@ -73,6 +75,27 @@ public partial class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    // Last line of defence: an error that escapes a command or event handler (e.g. a file locked by
+    // Excel) is logged and shown instead of closing the app — and with it the tray and auto-sync.
+    private static void HookUnhandledExceptions(ILogService log, IDialogService dialogs)
+    {
+        Dispatcher.UIThread.UnhandledException += (_, e) =>
+        {
+            log.WriteException(e.Exception, "Unhandled UI error");
+            e.Handled = true;
+            _ = dialogs.ShowErrorAsync("Unexpected error", e.Exception);
+        };
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            log.WriteException(e.Exception, "Unobserved task error");
+            e.SetObserved();
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            if (e.ExceptionObject is Exception ex) log.WriteException(ex, "Fatal error");
+        };
     }
 
     // Tray icon on every platform (Linux needs a desktop with StatusNotifier / AppIndicator support):

@@ -1,6 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Pilewise.Services;
+using System;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Pilewise.ViewModels;
@@ -23,20 +25,40 @@ public partial class MainWindowViewModel
         var file = await _dialogs.PickSaveCsvAsync("pilewise-settings.csv");
         if (file == null) return;
 
-        await _csv.WriteAsync(file, AppSettingsService.Serialize(CurrentSettings()));
-        PersistSettings();
+        try
+        {
+            await _csv.WriteAsync(file, AppSettingsService.Serialize(CurrentSettings()));
+            PersistSettings();
+            ShowResult($"✓ Saved settings to {file.Name}");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _log.WriteException(ex, "Error saving the settings file");
+            await _dialogs.ShowErrorAsync("Save settings", ex);
+        }
     }
 
     [RelayCommand]
     private async Task ImportSettings()
     {
+        // Importing changes the store ticks and credentials, which a running export is still reading.
+        if (Progress.IsBusy) return;
         var file = await _dialogs.PickOpenCsvAsync("Import CSV File");
         if (file == null) return;
 
-        var content = await _csv.ReadAsync(file);
-        if (content == null) return;
+        try
+        {
+            var content = await _csv.ReadAsync(file);
+            if (string.IsNullOrEmpty(content)) return;
 
-        ApplyImportedSettings(content);
+            ApplyImportedSettings(content);
+            ShowResult($"✓ Imported settings from {file.Name}");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _log.WriteException(ex, "Error reading the settings file");
+            await _dialogs.ShowErrorAsync("Import settings", ex);
+        }
     }
 
     /// <summary>Called on shutdown, so values typed into the fields survive a restart.</summary>

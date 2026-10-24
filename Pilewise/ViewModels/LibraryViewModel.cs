@@ -401,9 +401,17 @@ public sealed partial class LibraryViewModel : ViewModelBase
     private async Task CopyList()
     {
         if (_actions.CopyText is not { } copy) return;
-        await copy(ListText(VisibleGames));
         Picked = null;
-        Notice = $"Copied {VisibleGames.Count} games to the clipboard.";
+        try
+        {
+            await copy(ListText(VisibleGames));
+            Notice = $"Copied {VisibleGames.Count} games to the clipboard.";
+        }
+        catch (Exception ex)
+        {
+            // The clipboard can be held by another app (Windows) or missing (headless Linux).
+            Notice = $"⚠ Couldn't copy to the clipboard: {ex.Message}";
+        }
     }
 
     public static string ListText(IEnumerable<LibraryGameItem> games) =>

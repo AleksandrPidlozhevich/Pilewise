@@ -71,7 +71,8 @@ public sealed class HeadlessSync
                     _syncLog?.Add(new SyncLogEntry(DateTimeOffset.Now, SyncHistory.KeyOf(target), true, summary, _source));
                 }
             }
-            catch (OperationCanceledException)
+            // A timeout is an OperationCanceledException too, but only a real cancel stops the run.
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
                 Write("Cancelled.");
                 return 1;
@@ -101,9 +102,9 @@ public sealed class HeadlessSync
 
         int added, total;
         string content;
-        if (File.Exists(path))
+        var existing = File.Exists(path) ? await File.ReadAllTextAsync(path, ct) : null;
+        if (existing != null)
         {
-            var existing = await File.ReadAllTextAsync(path, ct);
             var missing = CsvGameExportService.GetMissingColumns(existing);
             if (missing.Count > 0)
                 throw new InvalidOperationException(
@@ -119,7 +120,8 @@ public sealed class HeadlessSync
 
         if (options.DryRun) return $"Dry run: would add {added} games to {path} ({total} total).";
 
-        var backup = await CsvBackup.WriteAsync(path, File.Exists(path) ? await File.ReadAllTextAsync(path, ct) : null);
+        // The content the merge was based on, not a second read that could differ from it.
+        var backup = await CsvBackup.WriteAsync(path, existing);
 
         // UTF-8 with BOM, like the app, so Excel reads non-ASCII names correctly.
         await File.WriteAllTextAsync(path, content, new UTF8Encoding(true), ct);

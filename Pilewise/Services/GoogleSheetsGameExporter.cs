@@ -58,7 +58,7 @@ public sealed class GoogleSheetsGameExporter
             return new GoogleSheetsExportResult(library, 0, 0, null);
 
         onStatus?.Invoke("Connecting to Google…");
-        var client = new GoogleSheetsApiClient(_secrets, _log);
+        using var client = new GoogleSheetsApiClient(_secrets, _log);
         if (!await client.ConnectAsync(ct) || client.DriveService == null || client.SheetsService == null)
             throw new InvalidOperationException(
                 "Google authorization failed. Please try again; details are in the log.");
@@ -117,7 +117,7 @@ public sealed class GoogleSheetsGameExporter
     public async Task<BacklogSnapshot?> ReadBacklogAsync(
         string? tableName, Func<CsvGameExportRow, bool>? isHidden = null, CancellationToken ct = default)
     {
-        var sheet = await OpenExistingAsync(tableName, ct);
+        using var sheet = await OpenExistingAsync(tableName, ct);
         var contents = GoogleSheetsSyncPlanner.Read(sheet.Values);
         var snapshot = BacklogSnapshot.From(SyncHistory.GoogleSheets, DateTimeOffset.Now,
             contents.Rows.Where(r => isHidden?.Invoke(r.Row) != true).Select(r => (r.Row, r.Completed)));
@@ -128,7 +128,7 @@ public sealed class GoogleSheetsGameExporter
     /// <summary>Read-only: finds rows of the same game in the sheet.</summary>
     public async Task<IReadOnlyList<SheetDuplicateGroup>> FindDuplicatesAsync(string? tableName, CancellationToken ct = default)
     {
-        var sheet = await OpenExistingAsync(tableName, ct);
+        using var sheet = await OpenExistingAsync(tableName, ct);
         var contents = GoogleSheetsSyncPlanner.Read(sheet.Values);
         if (contents.NeedsUpgrade)
             throw new InvalidOperationException(
@@ -146,7 +146,7 @@ public sealed class GoogleSheetsGameExporter
     {
         if (groups.Count == 0) return;
 
-        var sheet = await OpenExistingAsync(tableName, ct);
+        using var sheet = await OpenExistingAsync(tableName, ct);
         var contents = GoogleSheetsSyncPlanner.Read(sheet.Values);
         if (contents.NeedsUpgrade || !SheetDuplicateFinder.StillMatches(contents, groups))
             throw new InvalidOperationException(
@@ -187,6 +187,7 @@ public sealed class GoogleSheetsGameExporter
     }
 
     // The first tab of an existing spreadsheet, with its values; throws when it doesn't exist yet.
+    // The caller disposes the result (it owns the Google client).
     private async Task<OpenedSheet> OpenExistingAsync(string? tableName, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(tableName))
@@ -194,30 +195,42 @@ public sealed class GoogleSheetsGameExporter
         var name = tableName.Trim();
 
         var client = new GoogleSheetsApiClient(_secrets, _log);
-        if (!await client.ConnectAsync(ct) || client.DriveService == null || client.SheetsService == null)
-            throw new InvalidOperationException(
-                "Google authorization failed. Please try again; details are in the log.");
+        try
+        {
+            if (!await client.ConnectAsync(ct) || client.DriveService == null || client.SheetsService == null)
+                throw new InvalidOperationException(
+                    "Google authorization failed. Please try again; details are in the log.");
 
-        var spreadsheetId = await FindSpreadsheetAsync(client.DriveService, name, ct) ??
-                            throw new InvalidOperationException(
-                                $"There's no spreadsheet named \"{name}\" in your Google Drive yet. Export to it first.");
+            var spreadsheetId = await FindSpreadsheetAsync(client.DriveService, name, ct) ??
+                                throw new InvalidOperationException(
+                                    $"There's no spreadsheet named \"{name}\" in your Google Drive yet. Export to it first.");
 
-        var sheets = client.SheetsService;
-        var getRequest = sheets.Spreadsheets.Get(spreadsheetId);
-        getRequest.Fields = "spreadsheetUrl,sheets.properties(sheetId,title)";
-        var spreadsheet = await getRequest.ExecuteAsync(ct);
-        var properties = spreadsheet.Sheets[0].Properties;
-        var sheetRef = QuoteSheetTitle(properties.Title);
+            var sheets = client.SheetsService;
+            var getRequest = sheets.Spreadsheets.Get(spreadsheetId);
+            getRequest.Fields = "spreadsheetUrl,sheets.properties(sheetId,title)";
+            var spreadsheet = await getRequest.ExecuteAsync(ct);
+            var properties = spreadsheet.Sheets[0].Properties;
+            var sheetRef = QuoteSheetTitle(properties.Title);
 
-        var getValues = sheets.Spreadsheets.Values.Get(spreadsheetId, sheetRef);
-        getValues.ValueRenderOption =
-            SpreadsheetsResource.ValuesResource.GetRequest.ValueRenderOptionEnum.FORMULA;
-        var values = await getValues.ExecuteAsync(ct);
-        return new OpenedSheet(sheets, spreadsheetId, properties.SheetId ?? 0, sheetRef, values.Values);
+            var getValues = sheets.Spreadsheets.Values.Get(spreadsheetId, sheetRef);
+            getValues.ValueRenderOption =
+                SpreadsheetsResource.ValuesResource.GetRequest.ValueRenderOptionEnum.FORMULA;
+            var values = await getValues.ExecuteAsync(ct);
+            return new OpenedSheet(client, sheets, spreadsheetId, properties.SheetId ?? 0, sheetRef, values.Values);
+        }
+        catch
+        {
+            client.Dispose();
+            throw;
+        }
     }
 
     private sealed record OpenedSheet(
-        SheetsService Sheets, string SpreadsheetId, int SheetId, string SheetRef, IList<IList<object>>? Values);
+        GoogleSheetsApiClient Client, SheetsService Sheets, string SpreadsheetId, int SheetId, string SheetRef,
+        IList<IList<object>>? Values) : IDisposable
+    {
+        public void Dispose() => Client.Dispose();
+    }
 
     // The spreadsheet with this name in the user's Drive, or null.
     private static async Task<string?> FindSpreadsheetAsync(DriveService drive, string name, CancellationToken ct)

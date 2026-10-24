@@ -41,7 +41,9 @@ public partial class MainWindowViewModel
             _log.WriteException(ex, "Steam API authorization error");
             await _dialogs.ShowErrorAsync("Steam authorization error", ex);
         }
-        catch (OperationCanceledException)
+        // Only the Cancel button counts as a cancel: an HTTP timeout is an OperationCanceledException
+        // too, and must be reported like any other error.
+        catch (OperationCanceledException) when (Progress.Token.IsCancellationRequested)
         {
             _log.WriteInfo($"{operation} cancelled by user.");
         }

@@ -125,14 +125,14 @@ public sealed class CsvGameExportRow
 
     private static string EscapeCsvField(string value)
     {
-        if (!value.Contains(',') && !value.Contains('"') && !value.Contains('\n'))
+        if (value.AsSpan().IndexOfAny(",\"\r\n") < 0)
             return value;
 
         return $"\"{value.Replace("\"", "\"\"")}\"";
     }
 }
 
-public static class CsvGameExportService
+public static partial class CsvGameExportService
 {
     public const string Header = "Platform,Name,ID";
 
@@ -282,7 +282,7 @@ public static class CsvGameExportService
         {
             row.GogId = legacyId;
         }
-        else
+        else if (legacyId is >= 0 and <= int.MaxValue) // anything larger can't be a Steam app id
         {
             row.SteamGameId = (int)legacyId;
             row.HasSteam = true;
@@ -561,14 +561,23 @@ public static class CsvGameExportService
             .Any(part => string.Equals(part, token, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>The name-match key: lower case, ™/®/© dropped, punctuation and runs of spaces
+    /// collapsed to one space ("The Witcher® 3: Wild Hunt" → "the witcher 3 wild hunt").</summary>
     public static string NormalizeGameName(string name)
     {
-        var normalized = name.Trim().ToLowerInvariant();
-        normalized = Regex.Replace(normalized, @"[™®©]", "");
-        normalized = Regex.Replace(normalized, @"[^\w\s]", " ");
-        normalized = Regex.Replace(normalized, @"\s+", " ").Trim();
-        return normalized;
+        var normalized = TrademarkSigns().Replace(name.Trim().ToLowerInvariant(), "");
+        normalized = Punctuation().Replace(normalized, " ");
+        return Whitespace().Replace(normalized, " ").Trim();
     }
+
+    [GeneratedRegex("[™®©]")]
+    private static partial Regex TrademarkSigns();
+
+    [GeneratedRegex(@"[^\w\s]")]
+    private static partial Regex Punctuation();
+
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex Whitespace();
 
     /// <summary>Reusable matcher over a set of rows using the same dedup keys as
     /// <see cref="Merge"/>: Steam id, Epic namespace/catalog id, GOG id, then normalized name.</summary>

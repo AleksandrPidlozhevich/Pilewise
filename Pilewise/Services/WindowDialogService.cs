@@ -90,15 +90,24 @@ public sealed class WindowDialogService : IDialogService
         else window.Show();
     }
 
+    // Called from plain (non-async) commands, so a failure is shown here rather than thrown.
     public void OpenLink(string url)
     {
-        SystemBrowser.Open(url);
+        try
+        {
+            SystemBrowser.Open(url);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _ = ShowErrorAsync("Couldn't open the link", ex);
+        }
     }
 
-    // Modal over the main window; false (nothing confirmed) when there's no window to own it.
+    // Modal over the main window; false (nothing confirmed) when there's no window to own it, or it's
+    // hidden in the tray (Avalonia refuses a dialog over a hidden owner).
     private static async Task<bool> ShowDialogAsync(DialogWindow dialog)
     {
-        if (MainWindow is not { } owner) return false;
+        if (MainWindow is not { IsVisible: true } owner) return false;
         return await dialog.ShowDialog<bool>(owner);
     }
 
