@@ -2,7 +2,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Pilewise.ViewModels"
         xmlns:views="using:Pilewise.Views"
-        xmlns:wv="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.WebView"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="640"
@@ -61,16 +60,7 @@
             </Transitions>
         </Grid.Transitions>
 
-        <!-- Hidden pre-warm WebView2: warms up the runtime at startup, and a few seconds in also
-             loads the GOG login page in the background so the real Connect GOG window opens from
-             cache. Native controls ignore Avalonia's Opacity and paint on top of everything, so it
-             can't simply be made transparent — instead it's parked above the client area. -->
-        <wv:NativeWebView x:Name="PrewarmWebView"
-                          Grid.Column="1" Width="1" Height="1"
-                          Margin="0,-100,0,0"
-                          IsHitTestVisible="False"
-                          HorizontalAlignment="Left" VerticalAlignment="Top"
-                          Source="about:blank" />
+        <!-- On Windows a hidden pre-warm WebView2 is added here in code (MainWindow.axaml.cs). -->
 
         <!-- ===== Sidebar: pages, update, support, theme, version. Collapses to icons (the menu button). ===== -->
         <Border Grid.Column="0" Width="{Binding SidebarWidth}" ClipToBounds="True"

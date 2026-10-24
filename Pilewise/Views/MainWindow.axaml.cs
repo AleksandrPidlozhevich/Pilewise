@@ -22,7 +22,6 @@ public partial class MainWindow : Window
 
     // Named controls from MainWindow.axaml.
     private readonly Border _dropOverlay;
-    private readonly NativeWebView _prewarmWebView;
     private readonly Grid _root;
 
     // Parameterless ctor for the XAML loader / previewer (no pre-warm without DI dependencies).
@@ -30,7 +29,6 @@ public partial class MainWindow : Window
     {
         AvaloniaXamlLoader.Load(this);
         _dropOverlay = this.Named<Border>("DropOverlay");
-        _prewarmWebView = this.Named<NativeWebView>("PrewarmWebView");
         _root = this.Named<Grid>("Root");
 
         // A soft fade-in instead of an instant flash when the theme changes.
@@ -52,7 +50,30 @@ public partial class MainWindow : Window
         _log = log;
         _state = state;
         RestorePlacement();
-        _ = PrewarmGogLoginAsync();
+        if (OperatingSystem.IsWindows()) _ = PrewarmGogLoginAsync(AddPrewarmWebView());
+    }
+
+    // Hidden pre-warm WebView2 (Windows only): warms up the runtime at startup, and a few seconds in
+    // also loads the GOG login page so the real Connect GOG window opens from cache. Native controls
+    // ignore Avalonia's Opacity and paint on top of everything, so it can't simply be made
+    // transparent — instead it's parked above the client area. Not on macOS: WKWebView needs no
+    // runtime warm-up, and a 1x1 off-window WKWebView created before the first layout crashes
+    // AppKit ("Invalid view geometry: y is NaN").
+    private NativeWebView AddPrewarmWebView()
+    {
+        var webView = new NativeWebView
+        {
+            Width = 1,
+            Height = 1,
+            Margin = new Thickness(0, -100, 0, 0),
+            IsHitTestVisible = false,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top,
+            Source = new Uri("about:blank")
+        };
+        Grid.SetColumn(webView, 1);
+        _root.Children.Insert(0, webView);
+        return webView;
     }
 
     // Reopens where it was closed (size, position, maximized), unless that spot is off every screen
@@ -173,13 +194,13 @@ public partial class MainWindow : Window
     // A few seconds after startup, quietly load the GOG login page into the hidden 1x1 pre-warm
     // WebView. It shares the WebView2 profile/cache with the real login window, so Connect GOG then
     // opens from cache. Invisible to the user; failures are non-fatal.
-    private async Task PrewarmGogLoginAsync()
+    private async Task PrewarmGogLoginAsync(NativeWebView webView)
     {
         try
         {
             await Task.Delay(TimeSpan.FromSeconds(3));
             await Dispatcher.UIThread.InvokeAsync(
-                () => { _prewarmWebView.Source = _clients!.CreateGog().LoginRequestUri; });
+                () => { webView.Source = _clients!.CreateGog().LoginRequestUri; });
         }
         catch (Exception ex)
         {

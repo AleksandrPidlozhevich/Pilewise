@@ -76,8 +76,9 @@ public partial class App : Application
     }
 
     // Tray icon on every platform (Linux needs a desktop with StatusNotifier / AppIndicator support):
-    // click to open; menu Open / Sync now / Quit. The tooltip shows the last result, and a failed
-    // (background) sync adds a red dot to the icon until a later result replaces it.
+    // click to open; menu Open / Sync now / Sync history / Update to vX (when one is out) / Quit.
+    // The tooltip shows a newer version and the last result, and a failed (background) sync adds a
+    // red dot to the icon until a later result replaces it.
     private void CreateTrayIcon(MainWindowViewModel viewModel)
     {
         var normalIcon = new WindowIcon(AssetLoader.Open(AppIconUri));
@@ -89,6 +90,13 @@ public partial class App : Application
         syncNow.Click += async (_, _) => await viewModel.SyncNowAsync();
         var history = new NativeMenuItem("Sync history…");
         history.Click += (_, _) => viewModel.ShowSyncHistory();
+        // Opens the window first, so the download progress (and its Cancel) can be seen.
+        var update = new NativeMenuItem { IsVisible = false };
+        update.Click += async (_, _) =>
+        {
+            ShowMainWindow();
+            await viewModel.InstallUpdateCommand.ExecuteAsync(null);
+        };
         var quit = new NativeMenuItem("Quit");
         quit.Click += (_, _) => Quit();
 
@@ -96,23 +104,44 @@ public partial class App : Application
         {
             Icon = normalIcon,
             ToolTipText = "Pilewise",
-            Menu = new NativeMenu { Items = { open, syncNow, history, new NativeMenuItemSeparator(), quit } }
+            Menu = new NativeMenu { Items = { open, syncNow, history, update, new NativeMenuItemSeparator(), quit } }
         };
         _tray.Clicked += (_, _) => ShowMainWindow();
 
+        void RefreshUpdate()
+        {
+            update.Header = viewModel.UpdateButtonText;
+            update.IsVisible = viewModel.IsUpdateAvailable;
+            RefreshTooltip();
+        }
+
+        void RefreshTooltip()
+        {
+            if (_tray != null)
+                _tray.ToolTipText = TraySupport.Tooltip(viewModel.ResultMessage, viewModel.AvailableUpdateVersion);
+        }
+
         viewModel.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName is not nameof(MainWindowViewModel.ResultMessage) || _tray == null) return;
+            if (_tray == null) return;
 
-            _tray.ToolTipText = viewModel.ResultMessage is { } message
-                ? Truncate($"Pilewise — {message}", 120)
-                : "Pilewise";
+            if (e.PropertyName is nameof(MainWindowViewModel.AvailableUpdateVersion))
+            {
+                RefreshUpdate();
+                return;
+            }
+
+            if (e.PropertyName is not nameof(MainWindowViewModel.ResultMessage)) return;
+
+            RefreshTooltip();
             // Results starting with ⚠ are failures (see MainWindowViewModel.RunSyncTargetsAsync).
             var failed = viewModel.ResultMessage?.StartsWith('⚠') == true;
             _tray.Icon = failed ? warningIcon ??= WarningIcon() ?? normalIcon : normalIcon;
         };
 
         TrayIcon.SetIcons(this, [_tray]);
+        // The startup check may already have finished.
+        RefreshUpdate();
     }
 
     private void ShowMainWindow()
@@ -164,7 +193,4 @@ public partial class App : Application
 
         return target;
     }
-
-    // Some platforms cap tray tooltips (Windows: 127 chars).
-    private static string Truncate(string text, int max) => text.Length <= max ? text : text[..(max - 1)] + "…";
 }

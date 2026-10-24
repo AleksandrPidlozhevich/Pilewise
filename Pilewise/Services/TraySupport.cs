@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 
 namespace Pilewise.Services;
 
@@ -28,6 +29,27 @@ public static class TraySupport
 
         // Can't ask (no D-Bus tools): assume a tray rather than take the feature away.
         return ParseNameHasOwner(output) ?? true;
+    }
+
+    /// <summary>Some platforms cap tray tooltips (Windows: 127 chars).</summary>
+    public const int MaxTooltipLength = 120;
+
+    /// <summary>
+    /// The tray tooltip: "Pilewise", then a newer version when one is out, then the last result
+    /// ("Pilewise — new version v2.1.0 is available · ✓ Notion: 12 added"). The version comes first
+    /// so a long result can't cut it off.
+    /// </summary>
+    public static string Tooltip(string? resultMessage, string? availableUpdateVersion)
+    {
+        var parts = new[]
+            {
+                availableUpdateVersion is { } version ? $"new version v{version} is available" : null,
+                resultMessage
+            }
+            .Where(part => !string.IsNullOrWhiteSpace(part))
+            .ToArray();
+        var text = parts.Length == 0 ? "Pilewise" : $"Pilewise — {string.Join(" · ", parts)}";
+        return text.Length <= MaxTooltipLength ? text : text[..(MaxTooltipLength - 1)] + "…";
     }
 
     /// <summary>

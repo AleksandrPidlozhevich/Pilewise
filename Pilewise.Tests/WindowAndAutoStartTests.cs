@@ -79,6 +79,25 @@ public class WindowAndAutoStartTests
     }
 
     [Fact]
+    public void TrayTooltip_ShowsANewVersionBeforeTheResult()
+    {
+        Assert.Equal("Pilewise", TraySupport.Tooltip(null, null));
+        Assert.Equal("Pilewise — ✓ Notion: 12 added", TraySupport.Tooltip("✓ Notion: 12 added", null));
+        Assert.Equal("Pilewise — new version v2.1.0 is available", TraySupport.Tooltip(null, "2.1.0"));
+        Assert.Equal("Pilewise — new version v2.1.0 is available · ✓ Notion: 12 added",
+            TraySupport.Tooltip("✓ Notion: 12 added", "2.1.0"));
+    }
+
+    [Fact]
+    public void TrayTooltip_LongResultKeepsTheVersion()
+    {
+        var tooltip = TraySupport.Tooltip(new string('x', 300), "2.1.0");
+        Assert.Equal(TraySupport.MaxTooltipLength, tooltip.Length);
+        Assert.StartsWith("Pilewise — new version v2.1.0 is available · x", tooltip);
+        Assert.EndsWith("…", tooltip);
+    }
+
+    [Fact]
     public void CloseToTray_IsSavedOnlyWhenOn()
     {
         Assert.DoesNotContain("Close To Tray",
