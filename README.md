@@ -10,12 +10,12 @@ Pull your owned games from **Steam, Epic, GOG and Xbox** and sync them into **No
 **Google Sheets** or a local **CSV**, so you can see what you've completed, what's in
 progress, and what you never even started.
 
-[![Latest release](https://img.shields.io/github/v/release/AleksandrPidlozhevich/Pilewise?style=for-the-badge&logo=github&label=Release)](https://github.com/AleksandrPidlozhevich/Pilewise/releases)
-[![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
-[![Avalonia 12](https://img.shields.io/badge/Avalonia-12-8B44AC?style=for-the-badge)](https://avaloniaui.net/)
-[![No telemetry](https://img.shields.io/badge/No%20telemetry-brightgreen?style=for-the-badge)](#privacy)
-[![Platforms](https://img.shields.io/badge/Windows%20%7C%20macOS%20%7C%20Linux-informational?style=for-the-badge&label=Platforms)](#download)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE.txt)
+[![Download](https://img.shields.io/github/v/release/AleksandrPidlozhevich/Pilewise?label=download&color=2f6fed)](https://github.com/AleksandrPidlozhevich/Pilewise/releases)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-2f6fed)](#download)
+[![.NET](https://img.shields.io/badge/.NET-10-512bd4)](https://dotnet.microsoft.com/)
+[![UI](https://img.shields.io/badge/UI-Avalonia-8b5cf6)](https://avaloniaui.net/)
+[![Telemetry](https://img.shields.io/badge/telemetry-none-16a34a)](#privacy)
+[![License](https://img.shields.io/badge/license-MIT-64748b)](LICENSE.txt)
 
 [**Download**](#download) · [**Features**](#features) · [**Connect stores**](#connecting-your-stores) · [**Export**](#export-targets) · [**Privacy**](#privacy)
 
@@ -33,6 +33,25 @@ progress, and what you never even started.
 
 ---
 
+## Screenshots
+
+<div align="center">
+
+| Light | Dark |
+| :---: | :---: |
+| ![Sources: light theme](docs/images/main-sources.png) | ![Sources: dark theme](docs/images/main-sources-dark.png) |
+| **Sources**: Steam, Epic, GOG and Xbox in one place | |
+| ![Library viewer: light theme](docs/images/library.png) | ![Library viewer: dark theme](docs/images/library-dark.png) |
+| **Library viewer**: search, filters, playtime, backlog progress, Pick for me | |
+| ![Notion preview: light theme](docs/images/notion-preview.png) | ![Notion preview: dark theme](docs/images/notion-preview-dark.png) |
+| **Preview before Notion**: see every change before it's written | |
+| ![Automation: light theme](docs/images/main-automation.png) | ![Automation: dark theme](docs/images/main-automation-dark.png) |
+| **Automation**: scheduled sync, tray and start at login | |
+
+</div>
+
+---
+
 ## Why Pilewise?
 
 You buy games during sales, and then you forget what you already own and where you bought it.
@@ -45,9 +64,9 @@ game you own on two stores becomes one row, tagged with both platforms.
 
 <div align="center">
 
-[![Windows](https://img.shields.io/badge/Download-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/AleksandrPidlozhevich/Pilewise/releases)
-[![macOS](https://img.shields.io/badge/Download-macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/AleksandrPidlozhevich/Pilewise/releases)
-[![Linux](https://img.shields.io/badge/Download-Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/AleksandrPidlozhevich/Pilewise/releases)
+[![Windows](https://img.shields.io/badge/Download-Windows-0078D4?logo=windows&logoColor=white)](https://github.com/AleksandrPidlozhevich/Pilewise/releases)
+[![macOS](https://img.shields.io/badge/Download-macOS-000000?logo=apple&logoColor=white)](https://github.com/AleksandrPidlozhevich/Pilewise/releases)
+[![Linux](https://img.shields.io/badge/Download-Linux-FCC624?logo=linux&logoColor=black)](https://github.com/AleksandrPidlozhevich/Pilewise/releases)
 
 </div>
 
@@ -399,7 +418,7 @@ See [PRIVACY_POLICY.md](PRIVACY_POLICY.md).
 
 If Pilewise saved your backlog, you can buy me a coffee:
 
-<a href="https://ko-fi.com/aliaksandrpidlazhevich"><img src="https://img.shields.io/badge/Support%20on-Ko--fi-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Support on Ko-fi"></a>
+<a href="https://ko-fi.com/aliaksandrpidlazhevich"><img src="https://img.shields.io/badge/Support%20on-Ko--fi-FF5E5B?logo=ko-fi&logoColor=white" alt="Support on Ko-fi"></a>
 
 ---
 

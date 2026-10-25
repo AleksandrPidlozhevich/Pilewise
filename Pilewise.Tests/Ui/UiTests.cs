@@ -213,9 +213,9 @@ public class UiTests
     });
 
     /// <summary>
-    /// Regenerates the README's main-window screenshots (made-up data, no real keys or ids) when
+    /// Regenerates the README's screenshots (made-up data, no real keys or ids) when
     /// <c>PILEWISE_README_SCREENSHOTS</c> names the output folder, e.g. <c>docs/images</c>; otherwise it
-    /// does nothing.
+    /// does nothing. Each window is saved as <c>&lt;name&gt;.png</c> (light) and <c>&lt;name&gt;-dark.png</c>.
     /// </summary>
     [Fact]
     public Task ReadmeScreenshots_WhenAsked()
@@ -223,28 +223,96 @@ public class UiTests
         var folder = Environment.GetEnvironmentVariable("PILEWISE_README_SCREENSHOTS");
         if (string.IsNullOrWhiteSpace(folder)) return Task.CompletedTask;
 
+        var shots = new (string Name, Func<Window> Create)[]
+        {
+            ("main-window", () => ReadmeMainWindow(MainTab.Export)),
+            ("main-sources", () => ReadmeMainWindow(MainTab.Sources)),
+            ("main-automation", () => ReadmeMainWindow(MainTab.Automation)),
+            ("library", () => new LibraryWindow { DataContext = ReadmeLibrary(), Width = 900, Height = 880 }),
+            ("notion-preview", () => new NotionExportPreviewWindow { DataContext = ReadmeNotionPreview() })
+        };
+
         return UiSession.RunAsync(() =>
         {
-            foreach (var (variant, file) in new[] { (ThemeVariant.Light, "main-window.png"), (ThemeVariant.Dark, "main-window-dark.png") })
+            foreach (var (name, create) in shots)
+            foreach (var (variant, suffix) in new[] { (ThemeVariant.Light, ""), (ThemeVariant.Dark, "-dark") })
             {
                 UiSession.UseTheme(variant);
-                var viewModel = new MainWindowViewModel
-                {
-                    SelectedTab = (int)MainTab.Export,
-                    SteamApiKey = "0123456789ABCDEF0123456789ABCDEF",
-                    SteamId = "76561198000000000",
-                    NotionToken = "ntn_example_integration_token",
-                    DbId = "0123456789abcdef0123456789abcdef",
-                    GoogleSheetsTableName = "My game backlog",
-                    CsvLastSync = "Last sync: today 14:20",
-                    NotionLastSync = "Last sync: today 14:20",
-                    NotionProgress = "Completed 137 of 386 (35%)"
-                };
-                var window = UiSession.Show(new MainWindow { DataContext = viewModel, Width = 900, Height = 640 });
-                Assert.True(UiSession.SaveFrame(window, System.IO.Path.Combine(folder, file)));
+                var window = UiSession.Show(create());
+                Assert.True(UiSession.SaveFrame(window, System.IO.Path.Combine(folder, $"{name}{suffix}.png")));
                 window.Close();
             }
         });
+    }
+
+    private static MainWindow ReadmeMainWindow(MainTab tab)
+    {
+        var viewModel = new MainWindowViewModel
+        {
+            SelectedTab = (int)tab,
+            SteamApiKey = "0123456789ABCDEF0123456789ABCDEF",
+            SteamId = "76561198000000000",
+            NotionToken = "ntn_example_integration_token",
+            DbId = "0123456789abcdef0123456789abcdef",
+            GoogleSheetsTableName = "My game backlog",
+            CsvLastSync = "Last sync: today 14:20",
+            NotionLastSync = "Last sync: today 14:20",
+            NotionProgress = "Completed 137 of 386 (35%)",
+            AutoSyncIntervalIndex = 2,
+            AutoSyncNotion = true,
+            AutoSyncSheets = true
+        };
+        viewModel.Epic.IsConnected = true;
+        viewModel.Gog.IsConnected = true;
+        return new MainWindow { DataContext = viewModel, Width = 900, Height = 640 };
+    }
+
+    private static NotionExportPreviewViewModel ReadmeNotionPreview()
+    {
+        var created = new[]
+        {
+            ("Hades", "Steam"), ("Alan Wake 2", "Epic"), ("Cyberpunk 2077", "GOG"), ("Starfield", "Xbox/Game Pass"),
+            ("Control", "Epic"), ("Celeste", "Steam"), ("Forza Horizon 5", "Xbox"), ("Disco Elysium", "GOG")
+        };
+        var plan = new NotionExportPlan(
+            new GameLibraryResult([], false, false, false, false, false, false),
+            [],
+            created.Select(g => new NotionPageCreate(g.Item1, g.Item2, new object())).ToList(),
+            [
+                new NotionPageUpdate("p1", "The Witcher 3: Wild Hunt", "Steam · Steam:292030",
+                    "Steam/GOG · Steam:292030; GOG:1207664643", new object()),
+                new NotionPageUpdate("p2", "Hollow Knight", "Steam · Steam:367520",
+                    "Steam/Epic · Steam:367520; Epic:ns/hk", new object())
+            ],
+            378,
+            [new NotionGoneGame("Refunded Game", "Steam")],
+            true);
+        return new NotionExportPreviewViewModel(plan);
+    }
+
+    private static LibraryViewModel ReadmeLibrary()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var rows = new[]
+        {
+            Row("Steam/GOG", "The Witcher 3: Wild Hunt", "Steam:292030; GOG:1207664643", 6200),
+            Row("Steam", "Portal 2", "Steam:620", 750),
+            Row("Steam", "Hades", "Steam:1145360", 0),
+            Row("Steam/Epic", "Hollow Knight", "Steam:367520; Epic:ns/hk", 1840),
+            Row("Epic", "Alan Wake 2", "Epic:ns/cat"),
+            Row("GOG", "Disco Elysium", "GOG:1771589310", 2100),
+            Row("Xbox/Game Pass", "Starfield", "Xbox:1234", 300),
+            Row("Steam", "Stardew Valley", "Steam:413150", 9100),
+            Row("Epic", "Control", "Epic:ns/control", 960),
+            Row("GOG", "Cyberpunk 2077", "GOG:1423049311"),
+            Row("Steam", "Celeste", "Steam:504230", 640),
+            Row("Xbox", "Forza Horizon 5", "Xbox:5678", 1250)
+        };
+        var backlog = new BacklogSnapshot("Notion", DateTimeOffset.Now, 4, 12,
+            ["Steam:620", "Steam:413150", "Steam:504230", "GOG:1771589310"]);
+        return new LibraryViewModel(rows, [Row("Steam", "Test Server", "Steam:1")], new IgnoredGames(), backlog,
+            new LibraryActions(_ => { }, _ => Task.CompletedTask, _ => Task.FromResult<BacklogSnapshot?>(backlog), "Notion"),
+            addedOn: r => r.Name is "Hades" or "Cyberpunk 2077" ? today : null);
     }
 
     // ---- windows with sample data ---------------------------------------------------------------
