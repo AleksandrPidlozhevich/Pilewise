@@ -93,26 +93,26 @@ warnings.
 
 | | |
 | --- | --- |
-| 🎮 **Four stores, one list** | Fetches owned games from Steam, Epic, GOG and Xbox and merges duplicates across stores. Untick a store to leave it out of exports. |
+| 🎮 **Four stores, one list** | Pulls the games you own on Steam, Epic, GOG and Xbox and merges copies of the same game. Untick a store to leave it out of exports. |
 | 📤 **Three export targets** | A Notion database, Google Sheets, or a local CSV file. |
-| 📚 **Library viewer** | Browse the merged library before exporting: search by name, filter by store, sort by playtime or last played, and spot games you **never played** or own on two stores. **Hide** demos, test servers or tools to leave them out of every export. A footer sums it up: share of games played, total hours, most played. Double-click a game to open its store page. |
-| 🆕 **Recently added** | Pilewise remembers when it first saw each game, so the library viewer marks new games **NEW** and can filter / sort by *recently added* (stores don't report purchase dates; games you owned before Pilewise tracked a store don't count). |
+| 📚 **Library viewer** | Browse the merged library before exporting: search by name, filter by store, sort by playtime or last played, and spot games you **never played** or own on two stores. **Hide** demos, test servers or tools to leave them out of every export. The footer shows how much of the library you've played, your total hours, and your most-played game. Double-click a game to open its store page. |
+| 🆕 **Recently added** | The library marks new games **NEW**, and you can filter or sort by *recently added*. Stores don't say when you bought a game, so this only covers games that appeared after you connected that store. |
 | 🎲 **Pick for me** | Can't decide? The library viewer suggests a game from the list shown, skipping completed and hidden ones and preferring games you've barely touched. |
-| ✅ **Backlog progress** | After an export to Notion or Google Sheets, the card shows *Completed 120 of 640 (19%)*, and the library viewer marks completed games ✓ with **Completed / Not completed** filters. **Refresh** in the library re-reads the ✓ from Notion or Google Sheets right away (read-only). |
-| 📋 **Copy list** | Copies the games shown in the library (search and filter apply) — pastes into a spreadsheet as columns. |
-| ⬇️ **Updates** | A new version shows up in the sidebar and under *Settings → Updates* (**Check for updates**, **Download & restart**); a long-running app re-checks every 12 hours. |
+| ✅ **Backlog progress** | After an export to Notion or Google Sheets, that panel shows *Completed 120 of 640 (19%)*, and the library marks finished games with a ✓. Filter by **Completed** or **Not completed**. **Refresh** in the library updates the ✓ from Notion or Google Sheets without exporting again. |
+| 📋 **Copy list** | Copies the games currently on screen, including whatever search and filters you've set. Paste into a spreadsheet and they land in columns. |
+| ⬇️ **Updates** | A new version shows up in the sidebar and under *Settings → Updates* (**Check for updates**, **Download & restart**). If you leave the app open, it looks again every 12 hours. |
 | 🖼️ **Covers & store links** | New Notion pages get the game's cover image and a `Store link`; existing pages without one are filled in. |
 | 🧹 **Duplicate finder** | **Find duplicates…** spots Notion pages or Google Sheets rows of the same game and merges them (you confirm first; extra Notion pages go to the trash, extra sheet rows are deleted — Sheets' version history can bring them back). |
 | ⌨️ **Shortcuts** | Ctrl+1–4 (⌘ on macOS) switch pages, Ctrl+L opens the library; in the library Ctrl+F searches and Esc clears the search or closes it. |
 | 🗑️ **No longer owned** | Spots games in your tracker that left your library (refunds, delistings). They're never deleted. An optional `Owned` checkbox column gets unticked for them. |
 | ⏰ **Scheduled sync** | **Auto-sync** keeps Notion, Google Sheets and your CSV up to date (hourly, every 6 hours or daily) while the app runs; with **Close to tray** and **Start at login** it keeps going in the background on Windows, macOS and Linux. `Pilewise --sync notion,sheets` syncs without opening the window, ready for Task Scheduler or cron. **History…** (also in the tray menu) lists every recent sync and its result. |
 | ⏱️ **Playtime** | Optional `Playtime` and `Last played` columns in Notion and Google Sheets are filled from Steam (last played from Xbox too). |
-| 🔁 **Incremental sync** | Re-running an export reconciles with what's already there. It adds new games and updates platform tags without creating duplicates. |
+| 🔁 **Incremental sync** | Run the export again and it matches what's already in your tracker. New games are added, platform tags are updated, and you don't get a second copy of a game. |
 | 👀 **Preview before Notion** | See exactly which games will be added or updated, and confirm before anything is written. |
 | 🪟 **Remembers the window** | Size, position and maximized state are restored on the next start. |
 | 🖱️ **Drag & drop** | Drop a Pilewise `.csv` onto the window to update it with your current library, or a saved settings file to import it. |
 | ⏹️ **Cancellable** | Every export shows a progress bar with a **Cancel** button. |
-| 🔒 **Secure by default** | Store tokens and remembered credentials are cached **encrypted** (DPAPI on Windows, Keychain on macOS, libsecret on Linux) and refreshed automatically. |
+| 🔒 **Secure by default** | Store logins and saved credentials stay **encrypted** on your computer and refresh on their own. |
 | 🌗 **Light & dark themes** | Switch with one click. |
 | 💻 **Cross-platform** | One app for Windows, macOS and Linux. |
 
@@ -140,8 +140,8 @@ warnings.
 | <picture><source media="(prefers-color-scheme: dark)" srcset="Pilewise/Assets/xbox-dark.svg"><img src="Pilewise/Assets/xbox-light.svg" width="20" align="center"></picture> **Xbox** | Automatic | **Embedded** in the app |
 
 > [!TIP]
-> Once connected, each store's session is cached **encrypted** and refreshed automatically,
-> so you won't need to log in again every time.
+> Once a store is connected, the login stays **encrypted** on your computer and renews
+> on its own, so you don't sign in every time.
 
 ### Steam
 
@@ -154,7 +154,7 @@ Steam needs your **Steam ID** and a **Steam Web API key**. You don't log in thro
 
 The quickest way: **paste your Steam profile link** into the Steam ID field, e.g.
 `https://steamcommunity.com/id/yourname` or `https://steamcommunity.com/profiles/7656119…`.
-Just the custom name (`yourname`) works too, and so do `[U:1:…]` / `STEAM_0:…` ids.
+The custom name on its own (`yourname`) works too, and so does an id like `[U:1:…]` or `STEAM_0:…`.
 
 Or look up the number:
 
@@ -176,19 +176,20 @@ In the Steam desktop app:
 2. Sign in to your Steam account if prompted.
 3. Accept the **Steam Web API Terms of Use**.
 4. Enter a domain name (any name works, e.g. `pilewise-local`) and click **Register**.
-5. Your **API key** is displayed as a long alphanumeric string. Copy and save it.
+5. Copy the **API key** shown on the page.
 
-📘 Reference: [Official Steam Web API documentation](https://developer.valvesoftware.com/wiki/Steam_Web_API)
+If the key page is confusing, [Steam's own write-up](https://developer.valvesoftware.com/wiki/Steam_Web_API) walks through it.
 
 </details>
 
 > [!WARNING]
-> **Keep your Steam ID and API key private.** Never share them publicly or commit them to
-> version control.
+> **Don't share your API key.** Leave it out of screenshots, chats and public posts. Anyone
+> who has it can look through your Steam library. Your Steam ID is already visible in your
+> profile link.
 
 ### Epic Games
 
-Epic's login blocks embedded webviews (CAPTCHA), so you log in in your **system browser**:
+Epic won't show its login inside the app (the page asks for a CAPTCHA), so you sign in in your **usual browser**:
 
 1. Click **Connect** on the Epic card. Your default browser opens Epic's login page.
 2. Sign in. Epic then shows a page with an **authorization code**.
@@ -197,19 +198,18 @@ Epic's login blocks embedded webviews (CAPTCHA), so you log in in your **system 
 
 ### GOG
 
-GOG logs in through an **embedded WebView** inside the app:
+GOG opens its login inside the app:
 
 1. Click **Connect** on the GOG card. A login window opens.
-2. Sign in. The app reads the authorization code from the redirect and closes the window.
+2. Sign in. When that's done, the window closes on its own.
 
 ### Xbox
 
-Xbox also logs in through an **embedded WebView**:
+Xbox opens its login inside the app too:
 
 1. Click **Connect** on the Xbox card. A Microsoft login window opens.
-2. Sign in with your Microsoft account. The app reads the token from the redirect and closes
-   the window.
-3. Game Pass titles are flagged on a best-effort basis.
+2. Sign in with your Microsoft account. When that's done, the window closes on its own.
+3. Game Pass games are marked when Xbox says they are. A few may be missed.
 
 ---
 
@@ -228,10 +228,10 @@ The simplest target. No account or token needed.
 - **Export to CSV** writes the full merged library to a CSV file you pick.
 - **Update CSV** merges the current library into an existing CSV. It keeps your completion
   status and doesn't create duplicates. The previous version is saved next to it as
-  `<name>.csv.bak`, and **Undo** in the result banner puts it back (by hand: delete the CSV and
-  rename the `.bak`).
+  `<name>.csv.bak`. **Undo** in the result banner puts the old file back. If you've already
+  closed that banner, delete the new CSV and rename the `.bak`.
 
-The file is written as UTF-8 with a BOM so it opens cleanly in Excel.
+The file is saved so Excel opens game names correctly.
 
 ### Notion
 
@@ -278,19 +278,12 @@ person. Otherwise the app can't see or write to it.
 
 1. Open your Notion workspace and go to the target database.
 2. Look at the URL in your browser.
-3. The **database ID** is the part after the last slash and before the question mark `?`.
-   It's a 32-character alphanumeric string.
+3. The **database ID** is the 32-character code after the last `/` and before `?`.
 
 ![Database ID example](docs/images/notion-database-id.png)
 
 > [!NOTE]
-> You copy the **database ID** from the URL, as before. Internally the app uses Notion API
-> version `2025-09-03`, which finds the database's data source automatically, so you don't
-> need any extra setup.
-
-📘 Reference: [Retrieve a database](https://developers.notion.com/reference/retrieve-database)
-· [Retrieve a data source](https://developers.notion.com/reference/retrieve-a-data-source)
-· [Upgrading to 2025-09-03](https://developers.notion.com/guides/get-started/upgrade-guide-2025-09-03)
+> Paste that ID into the app. You don't need to look up a second ID anywhere else on the page.
 
 </details>
 
@@ -301,52 +294,52 @@ person. Otherwise the app can't see or write to it.
 
 The target database **must** have these properties (names are case-sensitive):
 
-| Property | Type | Holds |
+| Property | Type | What's in it |
 | :--- | :--- | :--- |
 | `Name` | Title | The game's title |
-| `Platform's` | Multi-select | The store(s) the game is owned on (Steam, Epic, GOG, Xbox) |
-| `GameID` | Text | Platform-prefixed id(s), e.g. `Steam:236870; GOG:123` |
-| `Store link` | URL | The game's store page (filled only while empty, so your own links stay) |
+| `Platform's` | Multi-select | Stores you own it on (Steam, Epic, GOG, Xbox) |
+| `GameID` | Text | Store and game id, for example `Steam:236870` or `Steam:236870; GOG:123` |
+| `Store link` | URL | The game's store page. Filled only while empty, so a link you set yourself stays |
 
 Each page also gets the game's **cover image** (Steam's header image; the GOG, Epic or Xbox art for
 games not on Steam). A cover you set yourself is never replaced.
 
 Optional: add any of these and Pilewise keeps them up to date too:
 
-| Property | Type | Holds |
+| Property | Type | What's in it |
 | :--- | :--- | :--- |
 | `Playtime` | Number | Hours played (Steam), e.g. `12.5` |
 | `Last played` | Date | Date of the last session (Steam / Xbox) |
 | `Owned` | Checkbox | Ticked while the game is in your library, unticked once it's gone |
 
-A game only counts as "no longer owned" when every store it's tagged with was loaded in that run,
-so an expired Epic or GOG session never marks those games as gone.
+A game is marked "no longer owned" only after Pilewise has checked every store listed on it.
+If Epic or GOG asks you to sign in again, games from that store are left as they are.
 
-**Backlog progress** is read from your own completion column, which Pilewise never changes: a
-checkbox named `Completed`, `Done`, `Finished` or `Beaten`, or a `Status` (status or select)
-property set to `Done`, `Completed`, `Finished`, `Beaten` or `Played`.
+**Backlog progress** comes from a column you maintain yourself. Pilewise never changes it.
+Use a checkbox named `Completed`, `Done`, `Finished` or `Beaten`, or a `Status` field set to
+`Done`, `Completed`, `Finished`, `Beaten` or `Played`. A dropdown (Select) with that name works too.
 
 ![Required Notion properties](docs/images/notion-properties.png)
 
 </details>
 
-When you click **Export to Notion**, Pilewise first checks the database. A missing `Platform's`,
-`GameID` or `Store link` property is added for you (the preview says so). The first export after
-updating Pilewise also adds covers and links to your existing pages, so it updates many pages once. A misnamed title column or a wrong
-property type is reported with what to change. Then it shows a **preview**: the games it will add
-and the rows it will update (before → after). Nothing is written until you click **Export**.
+When you click **Export to Notion**, Pilewise first checks the database. If `Platform's`,
+`GameID` or `Store link` is missing, it adds that column and says so in the preview. The first
+export after an app update can also fill in covers and store links on pages that don't have
+them yet, so that run may update a lot of pages. If the title column has the wrong name, or a
+column has the wrong type, Pilewise tells you what to fix. Then it shows a **preview**: games
+to add, and rows to update (before → after). Nothing is written until you click **Export**.
 
-**Find duplicates…** looks for pages of the same game (same store id, or the same name without a
-conflicting id). For each, the oldest page is kept and gets every store tag and id; the others are
-moved to Notion's trash (restorable for 30 days). Other columns of the kept page aren't touched, so
-copy any notes from the extra pages first.
+**Find duplicates…** looks for pages that are the same game: the same store id, or the same
+title when the store ids match or one page has no store id yet. The oldest page is kept and
+receives the stores and ids from the others. Those other pages go to Notion's trash, where
+you can restore them for 30 days. Notes on the kept page stay as they are, so copy anything
+you want off the extra pages first.
 
 ### Google Sheets (beta)
 
-Authorization with Google Sheets uses standard Google OAuth.
-
-1. Enter a **table name** and click **Export to Google Sheets**. On first use, sign in to Google in
-   the browser that opens.
+1. Enter a **table name** and click **Export to Google Sheets**. The first time, your browser
+   opens so you can sign in to Google.
 2. Pilewise finds the spreadsheet with that name in your Google Drive, or creates it, and opens it
    when the sync is done.
 
@@ -372,15 +365,15 @@ other rows are deleted after you confirm. If the sheet changed since the search,
 written. *File → Version history* in Google Sheets brings deleted rows back.
 
 > [!CAUTION]
-> This integration is in **beta**. The authentication flow may sometimes fail, and some
-> features may be unstable or unavailable. We're working on it. Thank you for your patience!
+> Google Sheets support is still a **beta**. Signing in sometimes fails, and a few things
+> may not work yet.
 
 ---
 
 ## Sync from the command line
 
-Once the app is set up (credentials filled in, stores connected), Pilewise can sync without opening
-its window, e.g. on a schedule:
+Once you've connected your stores in the app, Pilewise can sync without opening the window,
+for example on a schedule:
 
 ```
 Pilewise --sync notion
@@ -390,16 +383,18 @@ Pilewise --sync notion,sheets --dry-run   # show what would change, write nothin
 Pilewise --help
 ```
 
-- Credentials, the Google Sheets table name, the ticked stores and store logins are the ones saved
-  by the app.
-  Settings are saved when you start an export and when you close the window.
-- `--file` can be left out: `--sync csv` then updates the CSV you last exported or updated in the app.
-- Notion changes are applied **without** the preview window. Run with `--dry-run` first to check.
-- Each run (not `--dry-run`) also shows up in the app's **History…** window.
-- Output goes to the console and to the log. Exit code: `0` success, `1` a sync failed, `2` bad arguments.
-- On Windows the app installs to `%LocalAppData%\Pilewise\current\Pilewise.exe`. It's a GUI app, so
-  from a terminal start it with `Start-Process … -Wait -NoNewWindow` (PowerShell) or
-  `start /wait …` (cmd) to see its output. Task Scheduler waits for it on its own.
+- It uses the stores, logins and Google Sheets name you already saved in the app. Those are
+  saved when you start an export, and again when you close the window, so run the app once
+  and export before you rely on the command.
+- You can leave out `--file`. `--sync csv` then updates the CSV you last exported or updated.
+- Notion is updated **without** the preview. Use `--dry-run` first if you want to see what
+  would change.
+- Every real run (not `--dry-run`) also shows up in **History…**.
+- The result is printed in the terminal and written to the log. The command exits with `0`
+  when it worked, `1` when a sync failed, and `2` when the arguments don't make sense.
+- On Windows the app is at `%LocalAppData%\Pilewise\current\Pilewise.exe`. From PowerShell,
+  start it with `Start-Process … -Wait -NoNewWindow` so the output stays in that window.
+  From cmd, use `start /wait …`. Task Scheduler waits on its own, so the extra flags aren't needed there.
 
 **Windows Task Scheduler**: *Create Basic Task* → trigger *Daily* → action *Start a program* →
 program `%LocalAppData%\Pilewise\current\Pilewise.exe`, arguments `--sync notion`.
