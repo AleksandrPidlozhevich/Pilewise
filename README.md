@@ -341,7 +341,9 @@ you want off the extra pages first.
 1. Enter a **table name** and click **Export to Google Sheets**. The first time, your browser
    opens so you can sign in to Google.
 2. Pilewise finds the spreadsheet with that name in your Google Drive, or creates it, and opens it
-   when the sync is done.
+   when the sync is done. It only asks for access to files it created itself (the `drive.file`
+   permission), so a spreadsheet you made by hand isn't found: Pilewise creates a new one with
+   that name instead. To keep using your own sheet, copy its contents into the one Pilewise made.
 
 The first tab gets the same columns as the CSV, plus a checkbox to mark games as done:
 
@@ -404,7 +406,8 @@ program `%LocalAppData%\Pilewise\current\Pilewise.exe`, arguments `--sync notion
 ## Privacy
 
 🔐 Pilewise does **not** collect, store or send any personal data to its developer. Logs and
-cached credentials stay on your device, and credentials are encrypted.
+cached credentials stay on your device, and credentials are encrypted. Google Sheets access is
+limited to spreadsheets Pilewise created itself (`drive.file`).
 See [PRIVACY_POLICY.md](PRIVACY_POLICY.md).
 
 ---

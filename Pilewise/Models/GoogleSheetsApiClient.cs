@@ -15,11 +15,7 @@ public sealed class GoogleSheetsApiClient : IDisposable
     private const string ApplicationName = "Pilewise";
     private const string CLIENT_ID = "400086036961-3uua9rt1oka9r2pahp7a0ljkohd46vhp.apps.googleusercontent.com";
 
-    private readonly string[] _scopes =
-    {
-        SheetsService.Scope.Spreadsheets,
-        DriveService.Scope.Drive
-    };
+    private readonly string[] _scopes = { DriveService.Scope.DriveFile };
 
     private readonly ISecretStore _secrets;
     private readonly ILogService _log;
