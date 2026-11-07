@@ -121,12 +121,7 @@ public sealed class NotionGameExporter
         if (linuxLabels != null)
             LinuxRating.Apply(existing.Where(e => !hiddenRows.Contains(e.Row)).Select(e => e.Row), linuxLabels);
 
-        // Update any existing page whose stored value no longer matches the desired one.
-        // This covers merged-in platforms AND normalising legacy bare ids to the prefixed
-        // form (e.g. "1920490" → "Steam:1920490") — even for games no longer owned, since
-        // the row's own Platform's tag already tells us the platform.
-        // Rows matched by nothing, from stores that were all fetched, are no longer owned.
-
+.
         var fetched = library.FetchedStores;
         var owned = existing.ToDictionary(
             e => e.PageId, e => CsvGameExportService.Ownership(e.Row, matched.Contains(e.Row), fetched));

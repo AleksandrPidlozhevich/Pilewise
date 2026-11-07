@@ -347,6 +347,14 @@ public static partial class CsvGameExportService
         return builder.ToString();
     }
 
+    public static (string Content, int Added, int Updated, int Total) MergeToCsv(
+        string? existingContent, IEnumerable<CsvGameExportRow> incomingRows, bool includeLinux)
+    {
+        var (rows, added, updated) = Merge(Parse(existingContent ?? string.Empty), incomingRows);
+        var content = Serialize(rows, includeLinux || HasLinuxColumn(existingContent));
+        return (content, added, updated, rows.Count);
+    }
+
     public static (List<CsvGameExportRow> Rows, int Added, int Updated) Merge(
         IEnumerable<CsvGameExportRow> existingRows,
         IEnumerable<CsvGameExportRow> incomingRows)

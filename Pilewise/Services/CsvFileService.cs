@@ -26,32 +26,27 @@ public sealed class CsvFileService
     public async Task WriteAsync(IStorageFile file, string content)
     {
         await using var stream = await file.OpenWriteAsync();
-        // Write a UTF-8 BOM so Excel opens the file as UTF-8 (otherwise it assumes the
-        // system ANSI codepage and garbles non-ASCII game names). Notepad is fine either way.
+
         using var writer = new StreamWriter(stream, new UTF8Encoding(true));
         await writer.WriteAsync(content);
     }
 
-    /// <summary>Merges incoming games into the existing CSV content and writes the result. The file's
-    /// previous content is first saved next to it as <c>&lt;name&gt;.bak</c>, so a bad update can be undone.
-    /// Returns how many rows were added, the file's total row count and the backup path (null when the
-    /// file isn't a local file or was empty).</summary>
+
     public async Task<(int Added, int Total, string? BackupPath)> WriteMergedAsync(
         IStorageFile file,
         string? existingContent,
         List<CsvGameExportRow> incomingRows,
         bool includeLinux = false)
     {
-        var existingRows = CsvGameExportService.Parse(existingContent ?? string.Empty);
-        var (mergedRows, added, updated) = CsvGameExportService.Merge(existingRows, incomingRows);
-        var writeLinux = includeLinux || CsvGameExportService.HasLinuxColumn(existingContent);
+        var (content, added, updated, total) =
+            CsvGameExportService.MergeToCsv(existingContent, incomingRows, includeLinux);
 
         var backup = await CsvBackup.WriteAsync(file.TryGetLocalPath(), existingContent);
         if (backup != null) _log.WriteInfo($"CSV backup written to {backup}.");
 
-        await WriteAsync(file, CsvGameExportService.Serialize(mergedRows, writeLinux));
+        await WriteAsync(file, content);
 
-        _log.WriteInfo($"CSV updated: {added} new, {updated} changed, {mergedRows.Count} total rows.");
-        return (added, mergedRows.Count, backup);
+        _log.WriteInfo($"CSV updated: {added} new, {updated} changed, {total} total rows.");
+        return (added, total, backup);
     }
 }

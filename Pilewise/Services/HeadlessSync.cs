@@ -116,10 +116,8 @@ public sealed class HeadlessSync
                 throw new InvalidOperationException(
                     $"{path} is not a Pilewise CSV (missing columns: {string.Join(", ", missing)}).");
 
-            var (merged, mergedAdded, _) = CsvGameExportService.Merge(CsvGameExportService.Parse(existing), library.Rows);
-            (added, total, content) = (mergedAdded, merged.Count,
-                CsvGameExportService.Serialize(
-                    merged, _linux is { Enabled: true } || CsvGameExportService.HasLinuxColumn(existing)));
+            (content, added, _, total) =
+                CsvGameExportService.MergeToCsv(existing, library.Rows, _linux is { Enabled: true });
         }
         else
         {

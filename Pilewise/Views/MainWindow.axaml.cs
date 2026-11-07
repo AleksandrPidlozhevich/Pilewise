@@ -71,6 +71,7 @@ public partial class MainWindow : Window
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top,
             Source = new Uri("about:blank")
         };
+        WebViewSetup.Configure(webView);
         Grid.SetColumn(webView, 1);
         _root.Children.Insert(0, webView);
         return webView;

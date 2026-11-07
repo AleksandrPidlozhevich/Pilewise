@@ -34,6 +34,7 @@ public partial class WebLoginWindow : Window
     {
         AvaloniaXamlLoader.Load(this);
         _webView = this.Named<NativeWebView>("WebView");
+        WebViewSetup.Configure(_webView);
     }
 
     /// <summary>Shows the login window and resolves with the captured redirect URL (or null if closed).</summary>
