@@ -19,6 +19,9 @@ public partial class MainWindowViewModel
 
     [ObservableProperty] private bool includeXbox = true;
 
+    /// <summary>Adds a Linux column to CSV, Notion and Sheets (Steam: Native or a ProtonDB rating).</summary>
+    [ObservableProperty] private bool includeLinuxColumn;
+
     [RelayCommand]
     private async Task SaveSettings()
     {
@@ -84,6 +87,7 @@ public partial class MainWindowViewModel
         CsvFilePath = settings.CsvFile;
         ThemeIndex = ThemeIndexFor(settings.Theme);
         IsSidebarCollapsed = settings.SidebarCollapsed ?? false;
+        IncludeLinuxColumn = settings.LinuxColumn == true;
     }
 
     // Only overwrites the fields actually present in the settings file, then remembers them.
@@ -96,6 +100,7 @@ public partial class MainWindowViewModel
         if (settings.CloseToTray != null) CloseToTray = settings.CloseToTray.Value;
         if (settings.CsvFile != null) CsvFilePath = settings.CsvFile;
         if (settings.Theme != null) ThemeIndex = ThemeIndexFor(settings.Theme);
+        if (settings.LinuxColumn != null) IncludeLinuxColumn = settings.LinuxColumn.Value;
         PersistSettings();
     }
 
@@ -111,7 +116,8 @@ public partial class MainWindowViewModel
 
     private AppSettings CurrentSettings() =>
         new(SteamApiKey, SteamId, NotionToken, DbId, GoogleSheetsTableName, _selection.Serialize(),
-            CurrentAutoSync().Serialize(), CloseToTray, CsvFilePath, ThemeSetting, IsSidebarCollapsed);
+            CurrentAutoSync().Serialize(), CloseToTray, CsvFilePath, ThemeSetting, IsSidebarCollapsed,
+            IncludeLinuxColumn);
 
     private void ApplyExcludedStores(string? excluded)
     {
@@ -129,6 +135,8 @@ public partial class MainWindowViewModel
     partial void OnIncludeGogChanged(bool value) => OnIncludeChanged(Platforms.Gog, value);
 
     partial void OnIncludeXboxChanged(bool value) => OnIncludeChanged(Platforms.Xbox, value);
+
+    partial void OnIncludeLinuxColumnChanged(bool value) => _linux.Enabled = value;
 
     private void OnIncludeChanged(string store, bool included)
     {

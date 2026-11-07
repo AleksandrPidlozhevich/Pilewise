@@ -135,6 +135,39 @@ public class GoogleSheetsSyncPlannerTests
     }
 
     [Fact]
+    public void Plan_IncludeLinux_AddsTheColumnAndFillsEveryRow()
+    {
+        var sheet = Sheet(
+            ["Platform", "Name", "ID", "Completed"],
+            ["Steam", "Portal", "Steam:400", true],
+            ["Xbox", "Halo", "Xbox:123", false]);
+
+        var plan = GoogleSheetsSyncPlanner.Plan(sheet,
+            [Steam("Portal", "400"), CsvGameExportService.CreateRow("Xbox", "Halo", "Xbox:123")],
+            includeLinux: true, linuxByAppId: new Dictionary<int, string> { [400] = "Native" });
+
+        Assert.Equal(4, plan.Columns.Linux);
+        Assert.Contains(plan.HeaderCells, c => c.Column == 4 && c.Text == "Linux");
+        Assert.Contains(plan.Updates, u => u.RowIndex == 1 && u.Linux == "Native");
+        Assert.Contains(plan.Updates, u => u.RowIndex == 2 && u.Linux == "Unknown");
+    }
+
+    [Fact]
+    public void Plan_IncludeLinux_AlreadyFilled_DoesNotRewrite()
+    {
+        var sheet = Sheet(
+            ["Platform", "Name", "ID", "Completed", "Linux"],
+            ["Steam", "Portal", "Steam:400", true, "Gold"]);
+
+        var plan = GoogleSheetsSyncPlanner.Plan(sheet, [Steam("Portal", "400")],
+            includeLinux: true, linuxByAppId: new Dictionary<int, string> { [400] = "Gold" });
+
+        Assert.Empty(plan.HeaderCells);
+        Assert.Empty(plan.Updates);
+        Assert.Equal(4, plan.Columns.Linux);
+    }
+
+    [Fact]
     public void Plan_UnrelatedSheet_Throws()
     {
         var sheet = Sheet(["Budget", "Amount"], ["Rent", "abc"]);

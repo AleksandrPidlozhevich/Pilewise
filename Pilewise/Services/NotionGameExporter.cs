@@ -21,10 +21,13 @@ public sealed class NotionGameExporter
     private readonly INotionGateway _notion;
     private readonly ILogService _log;
     private readonly BacklogProgress? _backlog;
+    private readonly SteamLinuxLookup? _linux;
 
     public NotionGameExporter(
-        IGameLibraryService library, INotionGateway notion, ILogService log, BacklogProgress? backlog = null)
+        IGameLibraryService library, INotionGateway notion, ILogService log, BacklogProgress? backlog = null,
+        SteamLinuxLookup? linux = null)
     {
+        _linux = linux;
         _backlog = backlog;
         _library = library;
         _notion = notion;
@@ -57,7 +60,8 @@ public sealed class NotionGameExporter
         // Check the schema first: a misnamed title or wrong type fails here, before the (slow)
         // library fetch, with a message saying exactly what to fix in Notion.
         onStatus?.Invoke("Checking the Notion database…");
-        var schema = NotionSchemaCheck.Check(await notionApiClient.GetPropertyTypesAsync(ct));
+        var includeLinux = _linux is { Enabled: true };
+        var schema = NotionSchemaCheck.Check(await notionApiClient.GetPropertyTypesAsync(ct), includeLinux);
         if (!schema.IsUsable)
             throw new InvalidOperationException(
                 "The Notion database needs a fix before Pilewise can export to it:\n• " +
@@ -71,6 +75,19 @@ public sealed class NotionGameExporter
         var existing = await existingTask;
 
         var optional = schema.Optional;
+        // Seed stored Linux so a failed lookup doesn't wipe a known rating on an unrelated update.
+        foreach (var page in existing)
+            page.Row.Linux = page.Linux;
+
+        IReadOnlyDictionary<int, string>? linuxLabels = null;
+        if (includeLinux)
+        {
+            onStatus?.Invoke("Checking Linux support…");
+            var ids = library.Rows.Concat(existing.Select(e => e.Row)).Select(r => r.SteamGameId).OfType<int>();
+            linuxLabels = await _linux!.LookupAsync(ids, progress, ct);
+            LinuxRating.Apply(library.Rows, linuxLabels);
+        }
+
         var matcher = new CsvGameExportService.RowMatcher(existing.Select(e => e.Row));
         var matched = new HashSet<CsvGameExportRow>(ReferenceEqualityComparer.Instance);
         var hiddenRows = new HashSet<CsvGameExportRow>(ReferenceEqualityComparer.Instance);
@@ -101,11 +118,15 @@ public sealed class NotionGameExporter
                 hiddenRows.Add(hidden);
             }
 
+        if (linuxLabels != null)
+            LinuxRating.Apply(existing.Where(e => !hiddenRows.Contains(e.Row)).Select(e => e.Row), linuxLabels);
+
         // Update any existing page whose stored value no longer matches the desired one.
         // This covers merged-in platforms AND normalising legacy bare ids to the prefixed
         // form (e.g. "1920490" → "Steam:1920490") — even for games no longer owned, since
         // the row's own Platform's tag already tells us the platform.
         // Rows matched by nothing, from stores that were all fetched, are no longer owned.
+
         var fetched = library.FetchedStores;
         var owned = existing.ToDictionary(
             e => e.PageId, e => CsvGameExportService.Ownership(e.Row, matched.Contains(e.Row), fetched));
@@ -126,13 +147,18 @@ public sealed class NotionGameExporter
                 Describe(string.Join("/", e.Platforms.OrderBy(PlatformOrder)), e.GameId,
                     Wanted(optional.Playtime, e.Row.PlaytimeHours, e.PlaytimeHours),
                     Wanted(optional.LastPlayed, e.Row.LastPlayedDate, e.LastPlayed),
-                    Wanted(optional.Owned, owned[e.PageId], e.Owned)),
+                    Wanted(optional.Owned, owned[e.PageId], e.Owned),
+                    linux: optional.Linux ? e.Linux : null),
                 Describe(e.Row.PlatformText, e.Row.IdText,
                     Wanted(optional.Playtime, e.Row.PlaytimeHours, e.Row.PlaytimeHours),
                     Wanted(optional.LastPlayed, e.Row.LastPlayedDate, e.Row.LastPlayedDate),
                     Wanted(optional.Owned, owned[e.PageId], owned[e.PageId]),
-                    NeedsCover(e), NeedsLink(e)),
-                BuildProperties(e.Row, false, optional, owned[e.PageId], NeedsLink(e)),
+                    NeedsCover(e), NeedsLink(e),
+                    linux: optional.Linux ? e.Row.Linux : null),
+                BuildProperties(e.Row, false,
+                    // Hidden pages keep their Linux cell even if something else on the page changes.
+                    hiddenRows.Contains(e.Row) ? optional with { Linux = false } : optional,
+                    owned[e.PageId], NeedsLink(e)),
                 NeedsCover(e) ? e.Row.CoverUrl : null))
             .ToList();
 
@@ -258,7 +284,7 @@ public sealed class NotionGameExporter
     // "Steam/GOG · Steam:1; GOG:2 · 12.5 h · last played 2024-05-01" — preview before/after text.
     private static string Describe(
         string platforms, string gameId, double? hours = null, string? lastPlayed = null, bool? owned = null,
-        bool addsCover = false, bool addsLink = false) =>
+        bool addsCover = false, bool addsLink = false, string? linux = null) =>
         string.Join(" · ", new[]
         {
             platforms, gameId,
@@ -266,7 +292,8 @@ public sealed class NotionGameExporter
             lastPlayed != null ? $"last played {lastPlayed}" : null,
             owned switch { true => "owned", false => "not owned", null => null },
             addsCover ? "+ cover" : null,
-            addsLink ? "+ store link" : null
+            addsLink ? "+ store link" : null,
+            linux
         }.Where(part => !string.IsNullOrEmpty(part)));
 
     // A page gets a cover only when it has none (a cover the user picked is never replaced) …
@@ -294,7 +321,8 @@ public sealed class NotionGameExporter
         return $"{tags}{row.IsGamePass}|{row.IdText}" +
                $"|{Format(Wanted(optional.Playtime, row.PlaytimeHours, row.PlaytimeHours))}" +
                $"|{Wanted(optional.LastPlayed, row.LastPlayedDate, row.LastPlayedDate)}" +
-               $"|{Wanted(optional.Owned, owned, owned)}";
+               $"|{Wanted(optional.Owned, owned, owned)}" +
+               $"|{(optional.Linux ? row.Linux : null)}";
     }
 
     // What is currently stored on the Notion page (raw tags + raw GameID text), in the same
@@ -306,7 +334,8 @@ public sealed class NotionGameExporter
                $"|{Format(Wanted(optional.Playtime, info.Row.PlaytimeHours, info.PlaytimeHours))}" +
                $"|{Wanted(optional.LastPlayed, info.Row.LastPlayedDate, info.LastPlayed)}" +
                // An unticked checkbox reads back as false; an unknown ownership never rewrites it.
-               $"|{Wanted(optional.Owned, owned, info.Owned ?? false)}";
+               $"|{Wanted(optional.Owned, owned, info.Owned ?? false)}" +
+               $"|{(optional.Linux ? info.Linux : null)}";
     }
 
     private static string? Format(double? hours) => hours?.ToString(CultureInfo.InvariantCulture);
@@ -340,6 +369,9 @@ public sealed class NotionGameExporter
             properties[NotionDataFetcher.OwnedProperty] = new { checkbox = isOwned };
         if (setLink && row.StoreUrl is { } link)
             properties[NotionDataFetcher.StoreLinkProperty] = new { url = link };
+        if (optional.Linux)
+            properties[NotionDataFetcher.LinuxProperty] =
+                new { select = new { name = row.Linux ?? LinuxRating.Unknown } };
 
         return properties;
     }

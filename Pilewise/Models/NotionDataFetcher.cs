@@ -21,7 +21,8 @@ public sealed record NotionGameRow(
     bool HasCover = false,
     string? StoreLink = null,
     DateTimeOffset? CreatedTime = null,
-    bool? Completed = null);
+    bool? Completed = null,
+    string? Linux = null);
 
 public class NotionDataFetcher : INotionDataFetcher
 {
@@ -37,6 +38,9 @@ public class NotionDataFetcher : INotionDataFetcher
 
     // Created automatically like Platform's / GameID; filled only while empty (user edits are kept).
     public const string StoreLinkProperty = "Store link";
+
+    /// <summary>Select column written when the Linux tick is on: Native, a ProtonDB medal, or Unknown.</summary>
+    public const string LinuxProperty = LinuxRating.Column;
 
     private readonly INotionApiClient _notionApiClient;
     private readonly ILogService _log;
@@ -93,7 +97,8 @@ public class NotionDataFetcher : INotionDataFetcher
                     page["created_time"]?.Type == JTokenType.Date
                         ? page["created_time"]!.Value<DateTime>()
                         : DateTimeOffset.TryParse(page["created_time"]?.Value<string>(), out var created) ? created : null,
-                    NotionCompletion.Read(properties))
+                    NotionCompletion.Read(properties),
+                    properties?[LinuxProperty]?["select"]?["name"]?.Value<string>())
                 : null;
         }
         catch (Exception ex)

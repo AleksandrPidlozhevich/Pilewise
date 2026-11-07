@@ -31,10 +31,13 @@ public sealed class GoogleSheetsGameExporter
     private readonly IGameLibraryService _library;
     private readonly ILogService _log;
     private readonly BacklogProgress? _backlog;
+    private readonly SteamLinuxLookup? _linux;
 
     public GoogleSheetsGameExporter(
-        ISecretStore secrets, IGameLibraryService library, ILogService log, BacklogProgress? backlog = null)
+        ISecretStore secrets, IGameLibraryService library, ILogService log, BacklogProgress? backlog = null,
+        SteamLinuxLookup? linux = null)
     {
+        _linux = linux;
         _backlog = backlog;
         _secrets = secrets;
         _library = library;
@@ -69,8 +72,8 @@ public sealed class GoogleSheetsGameExporter
         var spreadsheetId = await FindSpreadsheetAsync(client.DriveService, spreadsheetName, ct);
         if (dryRun && spreadsheetId == null)
         {
-            var fresh = GoogleSheetsSyncPlanner.Plan(null, library.Rows, library.FetchedStores);
-            return new GoogleSheetsExportResult(library, fresh.NewRows.Count, 0, null, 0, DryRun: true);
+            var planPreview = await PlanAsync(library, null, progress, onStatus, ct);
+            return new GoogleSheetsExportResult(library, planPreview.NewRows.Count, 0, null, 0, DryRun: true);
         }
 
         spreadsheetId ??= await CreateSpreadsheetAsync(client.DriveService, spreadsheetName, ct);
@@ -89,7 +92,7 @@ public sealed class GoogleSheetsGameExporter
         getValues.ValueRenderOption =
             SpreadsheetsResource.ValuesResource.GetRequest.ValueRenderOptionEnum.FORMULA;
         var existing = await getValues.ExecuteAsync(ct);
-        var plan = GoogleSheetsSyncPlanner.Plan(existing.Values, library.Rows, library.FetchedStores, library.Ignored);
+        var plan = await PlanAsync(library, existing.Values, progress, onStatus, ct);
         if (dryRun)
             return new GoogleSheetsExportResult(library, plan.NewRows.Count, plan.Updates.Count,
                 spreadsheet.SpreadsheetUrl, plan.NoLongerOwned.Count, DryRun: true);
@@ -184,6 +187,25 @@ public sealed class GoogleSheetsGameExporter
             .ExecuteAsync(ct);
 
         _log.WriteInfo($"Google Sheets: merged {groups.Count} duplicate games, deleted {deletes.Count} rows.");
+    }
+
+    private async Task<GoogleSheetsSyncPlan> PlanAsync(
+        GameLibraryResult library, IList<IList<object>>? values, IProgress<StoreFetchProgress>? progress,
+        Action<string>? onStatus, CancellationToken ct)
+    {
+        IReadOnlyDictionary<int, string>? labels = null;
+        if (_linux is { Enabled: true })
+        {
+            onStatus?.Invoke("Checking Linux support…");
+            var ids = library.Rows.Select(r => r.SteamGameId).OfType<int>();
+            if (values != null)
+                ids = ids.Concat(GoogleSheetsSyncPlanner.Read(values).Rows.Select(r => r.Row.SteamGameId).OfType<int>());
+            labels = await _linux.LookupAsync(ids, progress, ct);
+        }
+
+        return GoogleSheetsSyncPlanner.Plan(
+            values, library.Rows, library.FetchedStores, library.Ignored,
+            includeLinux: labels != null, linuxByAppId: labels);
     }
 
     // The first tab of an existing spreadsheet, with its values; throws when it doesn't exist yet.
@@ -319,6 +341,8 @@ public sealed class GoogleSheetsGameExporter
                 data.Add(CellValue(sheetRef, plan.Columns.Owned, update.RowIndex, owned));
             if (update.StoreLink is { } link)
                 data.Add(CellValue(sheetRef, plan.Columns.StoreLink, update.RowIndex, link));
+            if (update.Linux is { } linux)
+                data.Add(CellValue(sheetRef, plan.Columns.Linux, update.RowIndex, linux));
         }
 
         if (plan.NewRows.Count > 0)
@@ -349,6 +373,7 @@ public sealed class GoogleSheetsGameExporter
         if (columns.LastPlayed >= 0 && row.LastPlayedDate is { } lastPlayed) cells[columns.LastPlayed] = lastPlayed;
         if (columns.Owned >= 0) cells[columns.Owned] = true;
         if (columns.StoreLink >= 0 && row.StoreUrl is { } link) cells[columns.StoreLink] = link;
+        if (columns.Linux >= 0) cells[columns.Linux] = row.Linux ?? LinuxRating.Unknown;
         return cells;
     }
 

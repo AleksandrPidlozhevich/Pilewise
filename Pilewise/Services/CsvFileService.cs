@@ -39,15 +39,17 @@ public sealed class CsvFileService
     public async Task<(int Added, int Total, string? BackupPath)> WriteMergedAsync(
         IStorageFile file,
         string? existingContent,
-        List<CsvGameExportRow> incomingRows)
+        List<CsvGameExportRow> incomingRows,
+        bool includeLinux = false)
     {
         var existingRows = CsvGameExportService.Parse(existingContent ?? string.Empty);
         var (mergedRows, added, updated) = CsvGameExportService.Merge(existingRows, incomingRows);
+        var writeLinux = includeLinux || CsvGameExportService.HasLinuxColumn(existingContent);
 
         var backup = await CsvBackup.WriteAsync(file.TryGetLocalPath(), existingContent);
         if (backup != null) _log.WriteInfo($"CSV backup written to {backup}.");
 
-        await WriteAsync(file, CsvGameExportService.Serialize(mergedRows));
+        await WriteAsync(file, CsvGameExportService.Serialize(mergedRows, writeLinux));
 
         _log.WriteInfo($"CSV updated: {added} new, {updated} changed, {mergedRows.Count} total rows.");
         return (added, mergedRows.Count, backup);

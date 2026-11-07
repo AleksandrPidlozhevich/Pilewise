@@ -323,6 +323,16 @@
                         <TextBlock Classes="page-subtitle"
                                    Text="Send your library to a tracker. Exports merge: your ticks, notes and extra columns are kept." />
 
+                        <Border Classes="panel" Margin="0,0,0,12">
+                            <StackPanel Spacing="2">
+                                <CheckBox Classes="include" Content="Linux column"
+                                          IsChecked="{Binding IncludeLinuxColumn}"
+                                          IsEnabled="{Binding !Progress.IsBusy}" />
+                                <TextBlock Classes="hint" Margin="28,0,0,0" TextWrapping="Wrap"
+                                           Text="Adds a Linux column to CSV, Notion and Sheets: Native or a ProtonDB rating for Steam, Unknown otherwise. The first check is slow; results are reused for a week." />
+                            </StackPanel>
+                        </Border>
+
                         <Border Classes="banner warning" Margin="0,0,0,12" Padding="12,6"
                                 IsVisible="{Binding HasNoSource}">
                             <Grid ColumnDefinitions="*,Auto">

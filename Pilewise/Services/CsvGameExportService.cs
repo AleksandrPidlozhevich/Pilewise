@@ -43,6 +43,9 @@ public sealed class CsvGameExportRow
     /// <summary>Cover image / store page reported by the fetch (Epic / GOG / Xbox). Not in the CSV.</summary>
     public string? FetchedCoverUrl { get; set; }
 
+    /// <summary>Opt-in Linux column value. Not part of row identity.</summary>
+    public string? Linux { get; set; }
+
     public string? FetchedStoreUrl { get; set; }
 
     /// <summary>Cover for the Notion page: Steam's header image (from the id), else the fetched one.</summary>
@@ -77,6 +80,10 @@ public sealed class CsvGameExportRow
             EscapeCsvField(Name),
             EscapeCsvField(BuildIdField()));
     }
+
+    /// <summary>The three identity cells plus the Linux column. A 4-field line still parses as the current format.</summary>
+    public string ToCsvLineWithLinux() =>
+        ToCsvLine() + "," + EscapeCsvField(Linux ?? LinuxRating.Unknown);
 
     private string BuildPlatformField()
     {
@@ -118,6 +125,7 @@ public sealed class CsvGameExportRow
 
         FetchedCoverUrl ??= other.FetchedCoverUrl;
         FetchedStoreUrl ??= other.FetchedStoreUrl;
+        if (!string.IsNullOrEmpty(other.Linux)) Linux = other.Linux;
 
         if (!string.IsNullOrEmpty(other.Name))
             Name = other.Name;
@@ -152,6 +160,10 @@ public static partial class CsvGameExportService
 
         return missing;
     }
+
+    /// <summary>Whether this CSV already has the optional Linux column.</summary>
+    public static bool HasLinuxColumn(string? content) =>
+        HasColumn(ReadHeaderFields(content), LinuxRating.Column);
 
     private static List<string> ReadHeaderFields(string? content)
     {
@@ -305,15 +317,17 @@ public static partial class CsvGameExportService
             return rows;
 
         var lines = content.Split(["\r\n", "\r", "\n"], StringSplitOptions.RemoveEmptyEntries);
-        foreach (var line in lines)
+        var header = lines.Length > 0 ? ParseCsvFields(lines[0]) : [];
+        var hasHeader = header.Count > 0 &&
+                        string.Equals(header[0].Trim(), "Platform", StringComparison.OrdinalIgnoreCase);
+        // Headerless files are the old wide layout; a Platform header picks current vs legacy by column names.
+        var legacyWide = !hasHeader || IsLegacyWideHeader(header);
+        var linuxColumn = hasHeader ? IndexOfHeader(header, LinuxRating.Column) : -1;
+
+        foreach (var line in lines.Skip(hasHeader ? 1 : 0))
         {
             var fields = ParseCsvFields(line);
-
-            // Skip the header row of any format (no game's platform is literally "Platform").
-            if (fields.Count > 0 && string.Equals(fields[0].Trim(), "Platform", StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            var row = ParseLine(fields);
+            var row = ParseLine(fields, legacyWide, linuxColumn);
             if (row is { HasContent: true })
                 rows.Add(row);
         }
@@ -321,14 +335,14 @@ public static partial class CsvGameExportService
         return rows;
     }
 
-    public static string Serialize(IEnumerable<CsvGameExportRow> rows)
+    public static string Serialize(IEnumerable<CsvGameExportRow> rows, bool includeLinux = false)
     {
         var builder = new StringBuilder();
-        builder.AppendLine(Header);
+        builder.AppendLine(includeLinux ? Header + "," + LinuxRating.Column : Header);
 
         foreach (var row in rows.Where(row => row.HasContent)
                      .OrderBy(row => row.Name, StringComparer.OrdinalIgnoreCase))
-            builder.AppendLine(row.ToCsvLine());
+            builder.AppendLine(includeLinux ? row.ToCsvLineWithLinux() : row.ToCsvLine());
 
         return builder.ToString();
     }
@@ -361,13 +375,26 @@ public static partial class CsvGameExportService
         return (rows, added, updated);
     }
 
-    private static CsvGameExportRow? ParseLine(List<string> fields)
+    private static bool IsLegacyWideHeader(List<string> header) =>
+        header.Count >= 5 &&
+        string.Equals(header[2].Trim(), "Game ID", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(header[3].Trim(), "Catalog Item Id", StringComparison.OrdinalIgnoreCase);
+
+    private static int IndexOfHeader(List<string> header, string name)
+    {
+        for (var i = 0; i < header.Count; i++)
+            if (string.Equals(header[i].Trim(), name, StringComparison.OrdinalIgnoreCase))
+                return i;
+        return -1;
+    }
+
+    private static CsvGameExportRow? ParseLine(List<string> fields, bool legacyWide, int linuxColumn)
     {
         if (fields.Count == 0)
             return null;
 
         // Legacy wide format: Platform, Name, Game ID, Catalog Item Id, Namespace.
-        if (fields.Count >= 5)
+        if (legacyWide && fields.Count >= 5)
         {
             var platform = fields[0];
             var gameId = ParseInt(fields[^3]);
@@ -394,6 +421,8 @@ public static partial class CsvGameExportService
             var row = new CsvGameExportRow { Name = fields[1] };
             ApplyIdField(row, fields[2]);
             ApplyPlatformFlags(row, fields[0]);
+            ApplyLegacyBareId(row, fields[2]);
+            if (linuxColumn >= 0 && linuxColumn < fields.Count) row.Linux = NullIfEmpty(fields[linuxColumn]);
             return row;
         }
 
@@ -541,7 +570,8 @@ public static partial class CsvGameExportService
             PlaytimeMinutes = row.PlaytimeMinutes,
             LastPlayed = row.LastPlayed,
             FetchedCoverUrl = row.FetchedCoverUrl,
-            FetchedStoreUrl = row.FetchedStoreUrl
+            FetchedStoreUrl = row.FetchedStoreUrl,
+            Linux = row.Linux
         };
     }
 

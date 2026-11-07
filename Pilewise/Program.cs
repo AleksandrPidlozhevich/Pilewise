@@ -78,7 +78,8 @@ internal sealed class Program
             services.GetRequiredService<ILogService>(),
             Console.Out,
             services.GetRequiredService<StoreSelection>(),
-            services.GetRequiredService<SyncLog>());
+            services.GetRequiredService<SyncLog>(),
+            linux: services.GetRequiredService<SteamLinuxLookup>());
         return sync.RunAsync(command.Options, cancel.Token).GetAwaiter().GetResult();
     }
 

@@ -75,7 +75,8 @@ public partial class MainWindowViewModel
             if (file == null) return;
 
             // Export just writes a fresh file with the fetched games — no merging.
-            await _csv.WriteAsync(file, CsvGameExportService.Serialize(result.Rows));
+            await _linux.StampAsync(result.Rows, Progress.CreateReporter(), Progress.Token);
+            await _csv.WriteAsync(file, CsvGameExportService.Serialize(result.Rows, _linux.Enabled));
             _log.WriteInfo($"CSV created with {result.Rows.Count} rows.");
             ShowResult($"✓ Saved {result.Rows.Count} games to {file.Name}", "Open file", OpenFileAction(file));
             RememberCsvFile(file);
@@ -109,7 +110,9 @@ public partial class MainWindowViewModel
             var result = await FetchLibraryAsync();
             if (!await HandleFetchedLibraryAsync(result, "Update CSV")) return;
 
-            var (added, total, backup) = await _csv.WriteMergedAsync(file, existingContent, result.Rows);
+            await _linux.StampAsync(result.Rows, Progress.CreateReporter(), Progress.Token);
+            var (added, total, backup) =
+                await _csv.WriteMergedAsync(file, existingContent, result.Rows, _linux.Enabled);
             var backupNote = backup != null ? $" · previous version saved as {Path.GetFileName(backup)}" : "";
             ShowResult(
                 (added == 0

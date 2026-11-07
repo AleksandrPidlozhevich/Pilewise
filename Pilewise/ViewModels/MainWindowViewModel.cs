@@ -64,6 +64,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly SyncLog _syncLog;
     private readonly SyncHistory _syncHistory;
     private readonly FirstSeenGames _firstSeen;
+    private readonly SteamLinuxLookup _linux;
 
     public MainWindowViewModel(
         ISecretStore secrets,
@@ -82,8 +83,10 @@ public partial class MainWindowViewModel : ViewModelBase
         IAutoStart autoStart,
         BacklogProgress backlog,
         SyncLog syncLog,
-        FirstSeenGames firstSeen)
+        FirstSeenGames firstSeen,
+        SteamLinuxLookup linux)
     {
+        _linux = linux;
         _firstSeen = firstSeen;
         _secrets = secrets;
         _state = state;
@@ -179,7 +182,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private MainWindowViewModel(Dependencies d)
         : this(d.Secrets, d.State, d.WebAuth, d.Clients, d.Library, d.NotionExporter, d.SheetsExporter, d.Dialogs,
-            d.Csv, d.Log, d.Updates, d.Selection, d.Ignored, d.AutoStart, d.Backlog, d.SyncLog, d.FirstSeen)
+            d.Csv, d.Log, d.Updates, d.Selection, d.Ignored, d.AutoStart, d.Backlog, d.SyncLog, d.FirstSeen,
+            d.Linux)
     {
     }
 
@@ -196,14 +200,15 @@ public partial class MainWindowViewModel : ViewModelBase
         var backlog = new BacklogProgress(state);
         var firstSeen = new FirstSeenGames(state);
         var library = new GameLibraryService(clients, selection, ignored, firstSeen);
+        var linux = new SteamLinuxLookup(state, log);
         return new Dependencies(
             secrets,
             state,
             new EmbeddedWebViewAuthenticator(DefaultTopLevel),
             clients,
             library,
-            new NotionGameExporter(library, new NotionGateway(log), log, backlog),
-            new GoogleSheetsGameExporter(secrets, library, log, backlog),
+            new NotionGameExporter(library, new NotionGateway(log), log, backlog, linux),
+            new GoogleSheetsGameExporter(secrets, library, log, backlog, linux),
             new WindowDialogService(),
             new CsvFileService(log),
             log,
@@ -213,7 +218,8 @@ public partial class MainWindowViewModel : ViewModelBase
             new AutoStart(log),
             backlog,
             new SyncLog(state),
-            firstSeen);
+            firstSeen,
+            linux);
     }
 
     private sealed record Dependencies(
@@ -233,7 +239,8 @@ public partial class MainWindowViewModel : ViewModelBase
         IAutoStart AutoStart,
         BacklogProgress Backlog,
         SyncLog SyncLog,
-        FirstSeenGames FirstSeen);
+        FirstSeenGames FirstSeen,
+        SteamLinuxLookup Linux);
 
     private static TopLevel? DefaultTopLevel() =>
         (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;

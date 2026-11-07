@@ -30,6 +30,23 @@ public class NotionSchemaCheckTests
     }
 
     [Fact]
+    public void Check_IncludeLinux_PlansASelect_AndRejectsTheWrongType()
+    {
+        var missing = NotionSchemaCheck.Check(Schema(("Name", "title"), ("Platform's", "multi_select"),
+            ("GameID", "rich_text"), ("Store link", "url")), includeLinux: true);
+
+        Assert.True(missing.IsUsable);
+        Assert.Equal(("Linux", "select"), Assert.Single(missing.ToCreate.Select(p => (p.Name, p.Type))));
+        Assert.True(missing.Optional.Linux);
+
+        var wrong = NotionSchemaCheck.Check(Schema(("Name", "title"), ("Platform's", "multi_select"),
+            ("GameID", "rich_text"), ("Store link", "url"), ("Linux", "number")), includeLinux: true);
+
+        Assert.False(wrong.IsUsable);
+        Assert.Contains("Change the type of \"Linux\" to Select (it is number).", wrong.Problems);
+    }
+
+    [Fact]
     public void Check_LegacyNumberGameId_IsAProblem()
     {
         var result = NotionSchemaCheck.Check(Schema(("Name", "title"), ("Platform's", "multi_select"),

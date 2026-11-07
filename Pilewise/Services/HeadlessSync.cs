@@ -1,4 +1,6 @@
+using Pilewise.Models;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -24,14 +26,16 @@ public sealed class HeadlessSync
     private readonly StoreSelection? _selection;
     private readonly SyncLog? _syncLog;
     private readonly string _source;
+    private readonly SteamLinuxLookup? _linux;
 
     /// <param name="syncLog">Where each run is listed for the Sync history window (null: not listed).</param>
     /// <param name="source">What started the run, as shown in the history ("Auto-sync", "Command line"…).</param>
     public HeadlessSync(
         ISecretStore secrets, IStateStore state, IGameLibraryService library, NotionGameExporter notion,
         GoogleSheetsGameExporter sheets, ILogService log, TextWriter output, StoreSelection? selection = null,
-        SyncLog? syncLog = null, string source = SyncLog.CommandLine)
+        SyncLog? syncLog = null, string source = SyncLog.CommandLine, SteamLinuxLookup? linux = null)
     {
+        _linux = linux;
         _syncLog = syncLog;
         _source = source;
         _selection = selection;
@@ -51,6 +55,7 @@ public sealed class HeadlessSync
         var history = new SyncHistory(_state);
         // Same stores as the app: the ones unticked there are skipped here too.
         _selection?.Load(settings.ExcludedStores);
+        if (_linux != null) _linux.Enabled = settings.LinuxColumn == true;
         var failed = false;
 
         foreach (var target in options.Targets)
@@ -98,6 +103,7 @@ public sealed class HeadlessSync
                 "No CSV file: pass --file <path>, or export / update a CSV once in the app so it's remembered.");
 
         var library = await FetchAsync(settings, ct);
+        await StampLinuxAsync(library.Rows, ct);
         var path = Path.GetFullPath(file);
 
         int added, total;
@@ -111,11 +117,14 @@ public sealed class HeadlessSync
                     $"{path} is not a Pilewise CSV (missing columns: {string.Join(", ", missing)}).");
 
             var (merged, mergedAdded, _) = CsvGameExportService.Merge(CsvGameExportService.Parse(existing), library.Rows);
-            (added, total, content) = (mergedAdded, merged.Count, CsvGameExportService.Serialize(merged));
+            (added, total, content) = (mergedAdded, merged.Count,
+                CsvGameExportService.Serialize(
+                    merged, _linux is { Enabled: true } || CsvGameExportService.HasLinuxColumn(existing)));
         }
         else
         {
-            (added, total, content) = (library.Rows.Count, library.Rows.Count, CsvGameExportService.Serialize(library.Rows));
+            (added, total, content) = (library.Rows.Count, library.Rows.Count,
+                CsvGameExportService.Serialize(library.Rows, _linux is { Enabled: true }));
         }
 
         if (options.DryRun) return $"Dry run: would add {added} games to {path} ({total} total).";
@@ -169,6 +178,12 @@ public sealed class HeadlessSync
                    (result.SpreadsheetUrl == null ? $" (\"{sheet?.Trim()}\" would be created)." : ".");
         return $"Done: {result.Added} added, {result.Updated} updated{gone}. {result.SpreadsheetUrl}";
     }
+
+    private Task StampLinuxAsync(IEnumerable<CsvGameExportRow> rows, CancellationToken ct) =>
+        _linux == null
+            ? Task.CompletedTask
+            : _linux.StampAsync(rows, new Progress<StoreFetchProgress>(p =>
+                Write($"{p.Stage} {p.Completed}/{p.Total}")), ct);
 
     private async Task<GameLibraryResult> FetchAsync(AppSettings settings, CancellationToken ct)
     {

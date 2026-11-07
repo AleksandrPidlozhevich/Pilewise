@@ -17,7 +17,7 @@ public sealed record NotionPropertyToCreate(string Name, string Type)
 }
 
 /// <summary>Which opt-in columns the database has (and the export therefore fills).</summary>
-public sealed record NotionOptionalColumns(bool Playtime, bool LastPlayed, bool Owned = false);
+public sealed record NotionOptionalColumns(bool Playtime, bool LastPlayed, bool Owned = false, bool Linux = false);
 
 /// <summary>Outcome of <see cref="NotionSchemaCheck.Check"/>.</summary>
 public sealed record NotionSchemaResult(
@@ -36,7 +36,7 @@ public sealed record NotionSchemaResult(
 /// </summary>
 public static class NotionSchemaCheck
 {
-    public static NotionSchemaResult Check(IReadOnlyDictionary<string, string> propertyTypes)
+    public static NotionSchemaResult Check(IReadOnlyDictionary<string, string> propertyTypes, bool includeLinux = false)
     {
         var toCreate = new List<NotionPropertyToCreate>();
         var problems = new List<string>();
@@ -58,10 +58,15 @@ public static class NotionSchemaCheck
         Require(NotionDataFetcher.GameIdProperty, "rich_text", "Text");
         Require(NotionDataFetcher.StoreLinkProperty, "url", "URL");
 
+        // Created and filled only while the Linux column tick is on. Off: leave a column the user
+        // already has exactly as it is.
+        var linux = includeLinux && Require(NotionDataFetcher.LinuxProperty, "select", "Select");
+
         var optional = new NotionOptionalColumns(
             Optional(NotionDataFetcher.PlaytimeProperty, "number", "Number"),
             Optional(NotionDataFetcher.LastPlayedProperty, "date", "Date"),
-            Optional(NotionDataFetcher.OwnedProperty, "checkbox", "Checkbox"));
+            Optional(NotionDataFetcher.OwnedProperty, "checkbox", "Checkbox"),
+            linux);
 
         return new NotionSchemaResult(toCreate, problems, optional);
 
@@ -74,12 +79,18 @@ public static class NotionSchemaCheck
             return false;
         }
 
-        void Require(string name, string type, string typeLabel)
+        // True when the property is the right type, or missing (it will be created before the writes).
+        bool Require(string name, string type, string typeLabel)
         {
             if (!propertyTypes.TryGetValue(name, out var actual))
+            {
                 toCreate.Add(new NotionPropertyToCreate(name, type));
-            else if (actual != type)
-                problems.Add($"Change the type of \"{name}\" to {typeLabel} (it is {actual}).");
+                return true;
+            }
+
+            if (actual == type) return true;
+            problems.Add($"Change the type of \"{name}\" to {typeLabel} (it is {actual}).");
+            return false;
         }
     }
 }
