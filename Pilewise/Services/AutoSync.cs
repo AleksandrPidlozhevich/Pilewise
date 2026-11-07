@@ -5,11 +5,6 @@ using System.Linq;
 
 namespace Pilewise.Services;
 
-/// <summary>
-/// The in-app auto-sync choice: how often (hours, 0 = off) and which targets. Saved in the remembered
-/// settings as <c>Auto Sync: 24h Notion, Sheets, CSV</c>. CSV updates the file last written by
-/// Export / Update .csv (remembered as <c>CSV File</c>).
-/// </summary>
 public sealed record AutoSyncSettings(int IntervalHours, IReadOnlyList<SyncTarget> Targets)
 {
     /// <summary>The intervals offered in the UI, in hours (index = combo box position).</summary>
@@ -21,7 +16,6 @@ public sealed record AutoSyncSettings(int IntervalHours, IReadOnlyList<SyncTarge
 
     public bool IsOn => IntervalHours > 0 && Targets.Count > 0;
 
-    /// <summary>The settings-file value, or null when off (so the line is omitted).</summary>
     public string? Serialize() =>
         IsOn ? $"{IntervalHours}h {string.Join(", ", Targets.Select(Name))}" : null;
 
@@ -59,15 +53,10 @@ public sealed record AutoSyncSettings(int IntervalHours, IReadOnlyList<SyncTarge
     };
 }
 
-/// <summary>Decides which auto-sync targets are due. Pure, so it's unit-tested.</summary>
 public static class AutoSyncPlanner
 {
-    /// <summary>After a failed auto-sync, wait this long before trying that target again.</summary>
     public static readonly TimeSpan RetryAfterFailure = TimeSpan.FromHours(1);
 
-    /// <param name="lastSuccess">When the target last synced (manual, auto or <c>--sync</c>), or null.</param>
-    /// <param name="lastFailure">When an auto-sync of the target last failed in this session.</param>
-    /// <param name="canRun">Whether the target has what it needs (credentials / table name).</param>
     public static IReadOnlyList<SyncTarget> Due(
         AutoSyncSettings settings,
         Func<SyncTarget, DateTimeOffset?> lastSuccess,

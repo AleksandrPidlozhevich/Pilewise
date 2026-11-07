@@ -17,10 +17,6 @@ using Xunit;
 
 namespace Pilewise.Tests.Ui;
 
-/// <summary>
-/// Renders every window headlessly in both themes (snapshots in <c>ui-snapshots/</c>) and checks layout
-/// and keyboard behaviour that unit tests of the view models can't see.
-/// </summary>
 public class UiTests
 {
     public static TheoryData<string> Windows => new()
@@ -315,8 +311,6 @@ public class UiTests
             addedOn: r => r.Name is "Hades" or "Cyberpunk 2077" ? today : null);
     }
 
-    // ---- windows with sample data ---------------------------------------------------------------
-
     private static Window Create(string name) => name switch
     {
         "library" => new LibraryWindow { DataContext = Library() },
@@ -386,8 +380,6 @@ public class UiTests
         row.PlaytimeMinutes = minutes;
         return row;
     }
-
-    // ---- helpers --------------------------------------------------------------------------------
 
     private static List<string> OverflowsOutOfPanels(Window window)
     {

@@ -79,7 +79,6 @@ public class GameLibraryServiceTests
         Assert.Equal(4, result.Rows.Count);
         Assert.True(result.Rows.Single(r => r.Name == "Xbox Game").IsGamePass);
 
-        // Authenticated stores were actually queried.
         Assert.True(((FakeEpicClient)factory.Epic).GamesFetched);
         Assert.True(((FakeGogClient)factory.Gog).GamesFetched);
         Assert.True(((FakeXboxClient)factory.Xbox).GamesFetched);
@@ -189,8 +188,6 @@ public class GameLibraryServiceTests
         });
     }
 }
-
-// ---- Fakes -----------------------------------------------------------------------------
 
 file sealed class FakeFactory : IStoreClientFactory
 {

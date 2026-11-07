@@ -5,9 +5,10 @@ using System.Linq;
 namespace Pilewise.Services;
 
 /// <summary>
-/// Reads whether a Notion page is marked as completed. Pilewise never writes this — it's the user's
-/// own column, so a few common shapes are recognised: a checkbox named Completed / Done / Finished /
-/// Beaten, or a Status / select property (named Status or one of those) set to a "done" option.
+/// Reads whether a Notion page is marked as completed. A few common shapes are recognised: a checkbox
+/// named Completed / Done / Finished / Beaten (which the export also writes, see
+/// <see cref="NotionSchemaCheck"/>), or a Status / select property (named Status or one of those) set
+/// to a "done" option — those are only read, never written.
 /// </summary>
 public static class NotionCompletion
 {
@@ -21,7 +22,6 @@ public static class NotionCompletion
     {
         if (properties is not JObject all) return null;
 
-        // A checkbox wins: it's the clearest signal.
         foreach (var property in all.Properties())
             if (IsCompletionName(property.Name) && Type(property) == "checkbox")
                 return property.Value["checkbox"]?.Value<bool?>() ?? false;

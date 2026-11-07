@@ -24,7 +24,6 @@ public static class EpicAuthCodeParser
         }
         catch (JsonReaderException)
         {
-            // Not JSON — fall through to the regex patterns below.
         }
 
         var match = Regex.Match(

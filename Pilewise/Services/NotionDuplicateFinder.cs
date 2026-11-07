@@ -16,13 +16,10 @@ public sealed record NotionDuplicateGroup(NotionGameRow Keep, IReadOnlyList<Noti
 
     public string ResultText => DuplicateFinder.Describe(Merged.PlatformText, Merged.IdText);
 
-    /// <summary>"Witcher 3 (GOG · GOG:2)" for each page that goes to the trash.</summary>
     public string RemoveText => string.Join(", ", Remove.Select(r =>
         $"{r.Row.Name} ({DuplicateFinder.Describe(string.Join("/", r.Platforms), r.GameId)})"));
 }
 
-/// <summary>Duplicate pages in the Notion database (see <see cref="DuplicateFinder"/>); the oldest page of
-/// each game is kept.</summary>
 public static class NotionDuplicateFinder
 {
     public static IReadOnlyList<NotionDuplicateGroup> Find(IReadOnlyList<NotionGameRow> pages)

@@ -8,8 +8,6 @@ namespace Pilewise.Tests;
 
 public class CsvGameExportServiceTests
 {
-    // ---- Parse: current 3-column format (Platform, Name, ID) -------------------------
-
     [Fact]
     public void Parse_CurrentFormat_ReadsPlatformPrefixedIds()
     {
@@ -50,8 +48,6 @@ public class CsvGameExportServiceTests
         Assert.Equal("9PXYZ", row.XboxTitleId);
     }
 
-    // ---- Parse: legacy formats -------------------------------------------------------
-
     [Fact]
     public void Parse_LegacyWideFormat_ReadsSteamAndEpicColumns()
     {
@@ -88,12 +84,9 @@ public class CsvGameExportServiceTests
         Assert.Empty(rows);
     }
 
-    // ---- ParseCsvFields: quoting (tested via Parse) ----------------------------------
-
     [Fact]
     public void Parse_HandlesQuotedFieldWithCommaAndEscapedQuotes()
     {
-        // Name field is quoted, contains a comma and an escaped double-quote.
         var rows = CsvGameExportService.Parse("Platform,Name,ID\nSteam,\"Portal 2, the \"\"sequel\"\"\",Steam:620");
 
         var row = Assert.Single(rows);
@@ -128,7 +121,7 @@ public class CsvGameExportServiceTests
         var lines = CsvGameExportService.Serialize(rows)
             .Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries);
 
-        Assert.Equal("Platform,Name,ID", lines[0]);
+        Assert.Equal("Platform,Name,ID,Completed", lines[0]);
         Assert.StartsWith("Steam,Amnesia,", lines[1]);
         Assert.StartsWith("Steam,Zelda,", lines[2]);
     }
@@ -159,8 +152,6 @@ public class CsvGameExportServiceTests
     {
         Assert.Empty(CsvGameExportService.Parse(content));
     }
-
-    // ---- CreateRow / ApplyIdField ----------------------------------------------------
 
     [Fact]
     public void CreateRow_ParsesAllPlatformIdsFromCombinedField()
@@ -193,8 +184,6 @@ public class CsvGameExportServiceTests
         var row = CsvGameExportService.CreateRow("Steam/GOG", "X", "Steam:10; GOG:20");
         Assert.Equal("Steam:10; GOG:20", row.IdText);
     }
-
-    // ---- Merge / dedup ---------------------------------------------------------------
 
     [Fact]
     public void Merge_SameSteamId_MergesIntoOneRow()
@@ -283,8 +272,6 @@ public class CsvGameExportServiceTests
         Assert.Null(existing.GogId);
     }
 
-    // ---- BuildFromLibraries ----------------------------------------------------------
-
     [Fact]
     public void BuildFromLibraries_MergesSameTitleAcrossStores()
     {
@@ -300,8 +287,6 @@ public class CsvGameExportServiceTests
         Assert.Equal(1423049311, row.GogId);
     }
 
-    // ---- RowMatcher (the public matching API used by the Notion export) --------------
-
     [Fact]
     public void RowMatcher_MatchesByIdAndOnlyAfterRegister()
     {
@@ -314,15 +299,12 @@ public class CsvGameExportServiceTests
         // so the match is by id rather than the name fallback.
         Assert.NotNull(matcher.Match(CsvGameExportService.CreateRow("Steam", "Portal (2007)", "Steam:400")));
 
-        // A previously unseen game is unmatched until it's registered.
         var newGame = CsvGameExportService.CreateRow("GOG", "Bastion", "GOG:99");
         Assert.Null(matcher.Match(newGame));
 
         matcher.Register(newGame);
         Assert.NotNull(matcher.Match(CsvGameExportService.CreateRow("GOG", "Bastion", "GOG:99")));
     }
-
-    // ---- NormalizeGameName -----------------------------------------------------------
 
     [Theory]
     [InlineData("The Witcher 3: Wild Hunt™", "the witcher 3 wild hunt")]
@@ -333,8 +315,6 @@ public class CsvGameExportServiceTests
     {
         Assert.Equal(expected, CsvGameExportService.NormalizeGameName(input));
     }
-
-    // ---- GetMissingColumns -----------------------------------------------------------
 
     [Fact]
     public void GetMissingColumns_ValidHeader_ReturnsEmpty()

@@ -9,11 +9,6 @@ using System.Threading.Tasks;
 
 namespace Pilewise.Models;
 
-/// <summary>
-/// Minimal client for GOG's (unofficial) Galaxy OAuth API. The shared refresh-token bearer
-/// plumbing lives in <see cref="RefreshTokenStoreClient"/>; this adds the GOG endpoints, the
-/// GET-query-string token request, and the paginated owned-games fetch.
-/// </summary>
 public class GogApiClient : RefreshTokenStoreClient, IGogClient
 {
     // Well-known GOG Galaxy client credentials (used by Heroic / gogdl / Lutris).
@@ -28,7 +23,6 @@ public class GogApiClient : RefreshTokenStoreClient, IGogClient
         "&redirect_uri=https%3A%2F%2Fembed.gog.com%2Fon_login_success%3Forigin%3Dclient" +
         "&response_type=code&layout=client2";
 
-    // Owned games with titles, paginated.
     private const string FilteredProductsUrlTemplate =
         "https://embed.gog.com/account/getFilteredProducts?mediaType=1&page={0}";
 

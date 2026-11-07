@@ -6,20 +6,14 @@ using System.Threading.Tasks;
 
 namespace Pilewise.ViewModels;
 
-// What the window reports: the result banner, the "Last sync" / backlog lines under the cards, the
-// sync history, and app updates.
 public partial class MainWindowViewModel
 {
-    // ---- result banner -------------------------------------------------------------------------
-
-    /// <summary>Outcome of the last export ("✓ Notion: 12 added, 3 updated"), shown as a banner.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasResult))]
     private string? resultMessage;
 
     public bool HasResult => ResultMessage is not null;
 
-    /// <summary>Label of the banner's follow-up action ("Open file", "Open database"), or null.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasResultAction))]
     private string? resultActionLabel;
@@ -28,7 +22,6 @@ public partial class MainWindowViewModel
 
     private Action? _resultAction;
 
-    /// <summary>A second banner action (e.g. "Undo" after Update .csv), or null.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasResultSecondaryAction))]
     private string? resultSecondaryLabel;
@@ -67,16 +60,12 @@ public partial class MainWindowViewModel
         _resultSecondaryAction = null;
     }
 
-    // ---- last sync, backlog progress, history --------------------------------------------------
-
-    /// <summary>"Last sync: today 14:20" under each export button; null when never synced.</summary>
     [ObservableProperty] private string? csvLastSync;
 
     [ObservableProperty] private string? notionLastSync;
 
     [ObservableProperty] private string? sheetsLastSync;
 
-    /// <summary>"Completed 120 of 640 (19%)" from the last Notion / Sheets export; null before one.</summary>
     [ObservableProperty] private string? notionProgress;
 
     [ObservableProperty] private string? sheetsProgress;
@@ -91,7 +80,6 @@ public partial class MainWindowViewModel
         SheetsProgress = _backlog.Get(SyncHistory.GoogleSheets)?.Text;
     }
 
-    // A manual export succeeded: timestamp it and list it in the history with the banner's text.
     private void RecordSync(string target)
     {
         _syncHistory.Record(target, DateTimeOffset.Now);
@@ -103,23 +91,17 @@ public partial class MainWindowViewModel
     private void LogFailure(string target, Exception ex) =>
         _syncLog.Add(new SyncLogEntry(DateTimeOffset.Now, target, false, ex.Message, SyncLog.Manual));
 
-    /// <summary>Opens the list of recent sync runs (manual, auto-sync, tray and command line).</summary>
     [RelayCommand]
     public void ShowSyncHistory() => _dialogs.ShowSyncLog(new SyncLogViewModel(_syncLog));
 
-    // ---- app updates ---------------------------------------------------------------------------
-
-    /// <summary>The running version, shown in the window corner (e.g. <c>v1.1.0</c>).</summary>
     public string AppVersion => $"v{_updates.CurrentVersion}";
 
-    /// <summary>A newer version found on GitHub Releases at startup, or null.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsUpdateAvailable), nameof(UpdateStatus), nameof(UpdateButtonText))]
     private string? availableUpdateVersion;
 
     public bool IsUpdateAvailable => AvailableUpdateVersion is not null;
 
-    /// <summary>"Update to v2.1.0" on the sidebar button.</summary>
     public string UpdateButtonText => $"Update to v{AvailableUpdateVersion}";
 
     [ObservableProperty]
@@ -130,17 +112,14 @@ public partial class MainWindowViewModel
     [NotifyPropertyChangedFor(nameof(UpdateStatus))]
     private DateTimeOffset? lastUpdateCheck;
 
-    /// <summary>Only the installed app can update itself (not a development build).</summary>
     public bool CanCheckForUpdates => _updates.IsInstalled;
 
     public string CheckUpdatesLabel => IsCheckingForUpdate ? "Checking…" : "Check for updates";
 
-    /// <summary>The ⟳ button's tooltip (it stays visible, disabled, in a development build).</summary>
     public string CheckUpdatesTip => CanCheckForUpdates
         ? CheckUpdatesLabel
         : "Only the installed app can check for updates";
 
-    /// <summary>The Updates panel's line: up to date / a version is available / why it can't tell.</summary>
     public string UpdateStatus =>
         !_updates.IsInstalled ? $"Pilewise {AppVersion}. Updates work in the installed app (from the GitHub release), not in a development build."
         : IsCheckingForUpdate ? "Checking GitHub for a newer version…"
@@ -149,7 +128,6 @@ public partial class MainWindowViewModel
         : LastUpdateCheck is { } checkedAt ? $"You're up to date ({AppVersion}), checked at {checkedAt:HH:mm}."
         : $"You have {AppVersion}.";
 
-    /// <summary>How often a long-running app (in the tray) looks for a new version.</summary>
     private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromHours(12);
 
     /// <summary>A check started from the ⟳ button spins at least this long, so a quick answer from
@@ -172,12 +150,10 @@ public partial class MainWindowViewModel
         }
     }
 
-    /// <summary>Settings → Updates → ⟳.</summary>
     [RelayCommand]
     private Task CheckForUpdates() =>
         IsCheckingForUpdate ? Task.CompletedTask : CheckForUpdateAsync(MinManualCheckDuration);
 
-    // Called from the minute timer: re-check when the last check is older than UpdateCheckInterval.
     private async Task CheckForUpdatesIfStaleAsync()
     {
         if (!_updates.IsInstalled || IsCheckingForUpdate || IsUpdateAvailable) return;
@@ -185,7 +161,6 @@ public partial class MainWindowViewModel
         await CheckForUpdateAsync();
     }
 
-    // Once after an update: "Updated to v1.2.0" with a link to its release notes.
     private void ShowWhatsNew()
     {
         var current = _updates.CurrentVersion;
@@ -212,7 +187,6 @@ public partial class MainWindowViewModel
                 Progress.Value = percent;
                 Progress.Status = $"Downloading update {AvailableUpdateVersion}… {percent}%";
             });
-            // Restarts the app into the new version on success.
             await _updates.DownloadAndRestartAsync(reporter, Progress.Token);
         }
         catch (OperationCanceledException) when (Progress.Token.IsCancellationRequested)

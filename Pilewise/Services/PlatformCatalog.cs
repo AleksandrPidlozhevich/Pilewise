@@ -2,7 +2,6 @@ using System;
 
 namespace Pilewise.Services;
 
-/// <summary>Canonical store identifiers, shared as constants to avoid stringly-typed typos.</summary>
 public static class Platforms
 {
     public const string Steam = "Steam";
@@ -14,10 +13,6 @@ public static class Platforms
     public const string GamePass = "Game Pass";
 }
 
-/// <summary>
-/// Per-platform behavior — label, id format/parse, merge, and dedup key — for one store. Steam /
-/// Epic / GOG / Xbox each have one of these; "Game Pass" is a tag (no id) handled separately.
-/// </summary>
 internal sealed record PlatformDescriptor(
     string Label,
     Func<CsvGameExportRow, bool> Has,
@@ -28,11 +23,6 @@ internal sealed record PlatformDescriptor(
     Action<CsvGameExportRow, CsvGameExportRow> MergeId,
     Func<CsvGameExportRow, string?> MatchKey);
 
-/// <summary>
-/// The per-platform behavior in one place, so adding a store is a single entry here instead of
-/// edits scattered across <see cref="CsvGameExportRow"/>, <see cref="CsvGameExportService"/> and
-/// <c>NotionGameExporter</c>. Iterate <see cref="All"/> wherever per-store logic is needed.
-/// </summary>
 internal static class PlatformCatalog
 {
     public static readonly PlatformDescriptor[] All =

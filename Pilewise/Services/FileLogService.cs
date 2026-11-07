@@ -18,7 +18,6 @@ public sealed class FileLogService : ILogService
     private const string Rule = "====================================================================================";
     private const int WriteAttempts = 3;
 
-    /// <summary>Folder holding the daily log files (opened by the "Logs" link).</summary>
     public static string LogDirectory => Path.Combine(AppPaths.DataDirectory, LogFolderName);
 
     private readonly object _lock = new();
@@ -28,7 +27,6 @@ public sealed class FileLogService : ILogService
     {
     }
 
-    /// <param name="directory">Where the daily files go (tests pass a temporary folder).</param>
     public FileLogService(string directory)
     {
         _directory = directory;
@@ -47,7 +45,6 @@ public sealed class FileLogService : ILogService
 
     public void WriteError(string message) => WriteLog(message, LogLevel.Error);
 
-    // ToString: the type, message, inner exceptions and stack traces, all of which help in a bug report.
     public void WriteException(Exception ex, string additionalMessage = "") =>
         WriteLog(string.IsNullOrEmpty(additionalMessage) ? ex.ToString() : $"{additionalMessage}\n{ex}", LogLevel.Error);
 

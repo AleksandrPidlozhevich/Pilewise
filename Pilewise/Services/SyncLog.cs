@@ -7,22 +7,13 @@ using System.Linq;
 
 namespace Pilewise.Services;
 
-/// <summary>One sync run of one target, as shown in the Sync history window.</summary>
-/// <param name="Source">What started it: <see cref="SyncLog.Manual"/>, "Auto-sync", "Sync" (tray) or
-/// <see cref="SyncLog.CommandLine"/>.</param>
 public sealed record SyncLogEntry(DateTimeOffset When, string Target, bool Ok, string Summary, string Source)
 {
-    /// <summary>"17 Oct 16:23" (local time).</summary>
     public string WhenText => When.ToLocalTime().ToString("d MMM HH:mm", CultureInfo.CurrentCulture);
 
     public string StatusIcon => Ok ? "✓" : "⚠";
 }
 
-/// <summary>
-/// The last <see cref="MaxEntries"/> sync runs (manual exports, auto-sync, tray "Sync now" and
-/// <c>--sync</c>), newest first, so what happened while the app sat in the tray can be looked up.
-/// JSON in the state store (key <c>sync-log</c>), re-read on every access like <see cref="SyncHistory"/>.
-/// </summary>
 public sealed class SyncLog
 {
     public const string Manual = "Manual";
@@ -69,7 +60,6 @@ public sealed class SyncLog
         Changed?.Invoke();
     }
 
-    /// <summary>Newest first, at most <see cref="MaxEntries"/>.</summary>
     public static List<SyncLogEntry> Trim(IEnumerable<SyncLogEntry> entries) =>
         entries.OrderByDescending(e => e.When).Take(MaxEntries).ToList();
 

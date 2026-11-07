@@ -9,11 +9,6 @@ using Pilewise.Views;
 
 namespace Pilewise;
 
-/// <summary>
-/// Composition root: wires the app's services and view models into a DI container. The store
-/// clients themselves are created on demand through <see cref="IStoreClientFactory"/> (a fresh
-/// client per operation), so they aren't registered individually.
-/// </summary>
 public static class AppServices
 {
     public static ServiceProvider Build()
@@ -36,6 +31,7 @@ public static class AppServices
         services.AddSingleton<BacklogProgress>(sp => new BacklogProgress(sp.GetRequiredService<IStateStore>()));
         services.AddSingleton<SyncLog>(sp => new SyncLog(sp.GetRequiredService<IStateStore>()));
         services.AddSingleton<FirstSeenGames>(sp => new FirstSeenGames(sp.GetRequiredService<IStateStore>()));
+        services.AddSingleton<CompletedGames>(sp => new CompletedGames(sp.GetRequiredService<IStateStore>()));
         services.AddSingleton<IGameLibraryService, GameLibraryService>();
         services.AddSingleton<SteamLinuxLookup>();
         services.AddSingleton<INotionGateway, NotionGateway>();

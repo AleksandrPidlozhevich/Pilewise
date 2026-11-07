@@ -10,8 +10,6 @@ public enum LogLevel
     Error
 }
 
-/// <summary>Application logger. The default implementation (<see cref="FileLogService"/>) writes daily
-/// files to the per-user data folder.</summary>
 public interface ILogService
 {
     void WriteLog(string message, LogLevel level = LogLevel.Info);

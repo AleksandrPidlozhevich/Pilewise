@@ -25,7 +25,7 @@ public class NotionSchemaCheckTests
 
         Assert.True(result.IsUsable);
         Assert.Equal(
-            [("Platform's", "multi_select"), ("GameID", "rich_text"), ("Store link", "url")],
+            [("Platform's", "multi_select"), ("GameID", "rich_text"), ("Store link", "url"), ("Completed", "checkbox")],
             result.ToCreate.Select(p => (p.Name, p.Type)));
     }
 
@@ -33,7 +33,7 @@ public class NotionSchemaCheckTests
     public void Check_IncludeLinux_PlansASelect_AndRejectsTheWrongType()
     {
         var missing = NotionSchemaCheck.Check(Schema(("Name", "title"), ("Platform's", "multi_select"),
-            ("GameID", "rich_text"), ("Store link", "url")), includeLinux: true);
+            ("GameID", "rich_text"), ("Store link", "url"), ("Done", "checkbox")), includeLinux: true);
 
         Assert.True(missing.IsUsable);
         Assert.Equal(("Linux", "select"), Assert.Single(missing.ToCreate.Select(p => (p.Name, p.Type))));

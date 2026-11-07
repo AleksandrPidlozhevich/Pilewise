@@ -18,8 +18,6 @@ public class HeadlessSyncTests : IDisposable
 
     public void Dispose() => Directory.Delete(_dir, recursive: true);
 
-    // ---- command line --------------------------------------------------------------------
-
     [Fact]
     public void Parse_MultipleTargets_AndOptions()
     {
@@ -54,8 +52,6 @@ public class HeadlessSyncTests : IDisposable
         Assert.Equal(0, SyncCommandLine.Parse(["--help"]).ExitCode);
     }
 
-    // ---- settings --------------------------------------------------------------------------
-
     [Fact]
     public void Settings_SheetName_RoundTrips_AndIsOmittedWhenEmpty()
     {
@@ -65,8 +61,6 @@ public class HeadlessSyncTests : IDisposable
         var without = AppSettingsService.Serialize(new AppSettings("k", "i", "t", "d"));
         Assert.DoesNotContain("Google Sheets", without);
     }
-
-    // ---- CSV sync ------------------------------------------------------------------------
 
     [Fact]
     public async Task Csv_NewFile_IsCreated_AndSyncRecorded()
@@ -95,7 +89,6 @@ public class HeadlessSyncTests : IDisposable
         Assert.Equal(["Gwent", "Portal"], rows.Select(r => r.Name).Order());
         Assert.Contains("(2 total)", output.ToString());
 
-        // The previous version is kept next to it, so the update can be undone.
         Assert.Equal("Platform,Name,ID\nGOG,Gwent,GOG:9\n", await File.ReadAllTextAsync(path + ".bak"));
         Assert.Contains("games.csv.bak", output.ToString());
     }
@@ -226,8 +219,6 @@ public class HeadlessSyncTests : IDisposable
         Assert.Equal(0, command.ExitCode);
         Assert.Null(command.Options!.CsvFile);
     }
-
-    // ---- helpers -------------------------------------------------------------------------
 
     private static HeadlessSync CreateWith(
         MemorySecrets secrets, StringWriter output, SyncLog syncLog, string source, params CsvGameExportRow[] rows)

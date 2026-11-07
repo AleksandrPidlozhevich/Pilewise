@@ -4,10 +4,8 @@ using Avalonia.Markup.Xaml;
 
 namespace Pilewise.Views;
 
-/// <summary>Modal error dialog: the message (inner exceptions included) with Copy and OK.</summary>
 public partial class ErrorWindow : DialogWindow
 {
-    /// <summary>For the XAML loader / previewer.</summary>
     public ErrorWindow()
         : this("Error", "")
     {

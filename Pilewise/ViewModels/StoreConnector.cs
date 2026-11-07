@@ -6,12 +6,6 @@ using System.Threading.Tasks;
 
 namespace Pilewise.ViewModels;
 
-/// <summary>
-/// Drives the shared "connect to a store" flow (Epic / GOG): restore a cached session,
-/// open the login page, watch the clipboard, and authorize automatically once a valid
-/// authorization code is pasted/typed. State lives in the ViewModel and is read/written
-/// through the supplied callbacks so it stays bindable.
-/// </summary>
 public sealed class StoreConnector
 {
     private readonly string _name;
@@ -54,7 +48,6 @@ public sealed class StoreConnector
         _webAuth = webAuth;
     }
 
-    /// <summary>Restore a previously cached session (called on startup).</summary>
     public async Task InitializeFromCacheAsync()
     {
         try
@@ -69,26 +62,22 @@ public sealed class StoreConnector
         }
     }
 
-    /// <summary>Step 1: open the login page and reveal the code field (or finish if cached).</summary>
     public async Task StartConnectAsync()
     {
         try
         {
             var client = _clientFactory();
 
-            // Already authorized in a previous session — nothing to do.
             if (await client.TryAuthenticateFromCacheAsync() == StoreAuthFromCacheStatus.Authenticated)
             {
                 _setConnected(true);
                 return;
             }
 
-            // WebView flow: log in inside an embedded window and read the code/token from the
-            // redirect URL — no browser hop, no manual paste.
             if (_webAuth != null)
             {
                 var payload = await _webAuth.AuthenticateAsync(client.LoginRequestUri, client.LoginRedirectUri);
-                if (payload == null) return; // user closed the login window
+                if (payload == null) return;
 
                 var webCode = _extractCode(payload);
                 if (string.IsNullOrEmpty(webCode))
@@ -118,7 +107,6 @@ public sealed class StoreConnector
         }
     }
 
-    /// <summary>Forget the cached session so the store shows as disconnected again.</summary>
     public void SignOut()
     {
         try
@@ -135,7 +123,6 @@ public sealed class StoreConnector
         _setCode(null);
     }
 
-    /// <summary>Step 2: as soon as a valid code is present, authorize automatically.</summary>
     public void OnCodeChanged(string? value)
     {
         if (_isConnected() || _authInProgress) return;
@@ -173,8 +160,6 @@ public sealed class StoreConnector
         }
     }
 
-    // Watches the clipboard for new text and returns the first value from which
-    // the extractor can pull an authorization code.
     private static async Task<string?> WaitForCodeFromClipboardAsync(
         IClipboard clipboard, Func<string?, string?> extract, int timeoutSeconds = 180)
     {

@@ -4,7 +4,6 @@ using System.Linq;
 
 namespace Pilewise.Services;
 
-/// <summary>Export targets the command-line sync can run.</summary>
 public enum SyncTarget
 {
     Csv,
@@ -12,23 +11,17 @@ public enum SyncTarget
     Sheets
 }
 
-/// <summary>A parsed <c>--sync</c> invocation.</summary>
 public sealed record SyncOptions(
     IReadOnlyList<SyncTarget> Targets,
     string? CsvFile,
     string? SheetName,
     bool DryRun);
 
-/// <summary>Result of <see cref="SyncCommandLine.Parse"/>: options, or the text to print and exit with.</summary>
 public sealed record SyncCommand(SyncOptions? Options, string? Message, int ExitCode)
 {
     public static SyncCommand Error(string message) => new(null, message + "\n\n" + SyncCommandLine.Usage, 2);
 }
 
-/// <summary>
-/// Parses the headless sync command line, e.g. <c>Pilewise --sync notion,sheets --sheet "My games"</c>.
-/// Pure, so it's unit-tested; <see cref="HeadlessSync"/> runs the result.
-/// </summary>
 public static class SyncCommandLine
 {
     public const string Usage =
@@ -46,7 +39,6 @@ public static class SyncCommandLine
         and connect your stores. Exit code: 0 = success, 1 = a sync failed, 2 = bad arguments.
         """;
 
-    /// <summary>True when the app should run headless instead of opening its window.</summary>
     public static bool IsHeadless(IReadOnlyList<string> args) =>
         args.Any(a => a is "--sync" or "--help" or "-h" or "/?");
 

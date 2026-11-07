@@ -20,7 +20,6 @@ public partial class MainWindow : Window
     private readonly ILogService? _log;
     private readonly IStateStore? _state;
 
-    // Named controls from MainWindow.axaml.
     private readonly Border _dropOverlay;
     private readonly Grid _root;
 
@@ -31,11 +30,9 @@ public partial class MainWindow : Window
         _dropOverlay = this.Named<Border>("DropOverlay");
         _root = this.Named<Grid>("Root");
 
-        // A soft fade-in instead of an instant flash when the theme changes.
         if (Application.Current is { } app)
             app.ActualThemeVariantChanged += (_, _) => FadeIn();
 
-        // Drop a game list / settings file anywhere on the window.
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
         AddHandler(DragDrop.DragLeaveEvent, (_, _) => _dropOverlay.IsVisible = false);
         AddHandler(DragDrop.DropEvent, OnDrop);
@@ -108,7 +105,6 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>Remembers the size / position / maximized state (called when the window closes or hides).</summary>
     public void SavePlacement()
     {
         // A minimized window has no useful bounds: keep what was saved before.
@@ -139,7 +135,6 @@ public partial class MainWindow : Window
         Dispatcher.UIThread.Post(() => _root.Opacity = 1, DispatcherPriority.Render);
     }
 
-    // Ctrl+1…4 (⌘ on macOS): switch page. Ctrl+L: open the library.
     private void OnShortcut(object? sender, KeyEventArgs e)
     {
         if (DataContext is not MainWindowViewModel viewModel) return;

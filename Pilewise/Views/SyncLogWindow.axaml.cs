@@ -3,7 +3,6 @@ using Avalonia.Markup.Xaml;
 
 namespace Pilewise.Views;
 
-/// <summary>Non-modal list of recent sync runs (see <see cref="ViewModels.SyncLogViewModel"/>).</summary>
 public partial class SyncLogWindow : Window
 {
     public SyncLogWindow()

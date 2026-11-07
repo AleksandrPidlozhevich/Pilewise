@@ -6,10 +6,8 @@ using System.Text;
 
 namespace Pilewise.Services;
 
-/// <summary>Starts Pilewise (hidden in the tray) when the user logs in.</summary>
 public interface IAutoStart
 {
-    /// <summary>False where it isn't supported (e.g. the exe path is unknown).</summary>
     bool IsSupported { get; }
 
     bool IsEnabled { get; }
@@ -17,11 +15,6 @@ public interface IAutoStart
     void SetEnabled(bool enabled);
 }
 
-/// <summary>
-/// Login-item registration per OS, always launching with <see cref="MinimizedArgument"/>:
-/// Windows — <c>HKCU\…\Run</c> value; macOS — a LaunchAgent plist in <c>~/Library/LaunchAgents</c>;
-/// Linux — an XDG autostart <c>.desktop</c> file. The file contents are built by pure, tested helpers.
-/// </summary>
 public sealed class AutoStart : IAutoStart
 {
     public const string MinimizedArgument = "--minimized";
@@ -87,12 +80,8 @@ public sealed class AutoStart : IAutoStart
         _log.WriteInfo($"Auto-start {(enabled ? "enabled" : "disabled")} ({_executable}).");
     }
 
-    // ---- pure builders (tested) -------------------------------------------------------------
-
-    /// <summary>The Run-key command: the quoted exe plus the minimized flag.</summary>
     public static string WindowsCommand(string executable) => $"\"{executable}\" {MinimizedArgument}";
 
-    /// <summary>An XDG autostart entry (Exec quoted per the Desktop Entry spec).</summary>
     public static string DesktopEntry(string executable) =>
         "[Desktop Entry]\n" +
         "Type=Application\n" +
@@ -102,7 +91,6 @@ public sealed class AutoStart : IAutoStart
         "Terminal=false\n" +
         "X-GNOME-Autostart-enabled=true\n";
 
-    /// <summary>A launchd agent that runs the app once at login.</summary>
     public static string LaunchAgentPlist(string label, string executable) =>
         $"""
          <?xml version="1.0" encoding="UTF-8"?>
@@ -135,8 +123,6 @@ public sealed class AutoStart : IAutoStart
 
         return $"\"{escaped}\"";
     }
-
-    // ---- platform plumbing ------------------------------------------------------------------
 
     // The AppImage itself on Linux (the running binary sits in a temporary mount); otherwise the exe.
     // Velopack keeps the install path stable across updates (Windows: …\Pilewise\current\Pilewise.exe).

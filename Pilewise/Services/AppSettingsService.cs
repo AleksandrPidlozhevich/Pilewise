@@ -2,7 +2,6 @@ using System;
 
 namespace Pilewise.Services;
 
-/// <summary>Credentials persisted to / loaded from the plaintext settings file.</summary>
 public sealed record AppSettings(
     string? SteamApiKey, string? SteamId, string? NotionToken, string? DbId, string? GoogleSheetsTableName = null,
     string? ExcludedStores = null, string? AutoSync = null, bool? CloseToTray = null, string? CsvFile = null,
@@ -10,7 +9,6 @@ public sealed record AppSettings(
 
 public static class AppSettingsService
 {
-    /// <summary>Secret-store key of the remembered settings (shared by the app and <c>--sync</c>).</summary>
     public const string SecretKey = "app-settings";
 
     public static string Serialize(AppSettings settings)

@@ -10,20 +10,10 @@ using System.Threading.Tasks;
 
 namespace Pilewise.ViewModels;
 
-// The export commands: CSV, Notion (preview first), Google Sheets, the library viewer, Notion
-// duplicates and files dropped on the window.
 public partial class MainWindowViewModel
 {
     private const string FetchingGames = "Fetching games…";
 
-    /// <summary>
-    /// The frame every export shares: one at a time, busy bar on, previous result cleared, settings
-    /// remembered; cancel is logged quietly, any other error is logged, listed in the sync history
-    /// (when <paramref name="historyTarget"/> is set) and shown.
-    /// </summary>
-    /// <param name="operation">For the log ("CSV export cancelled by user.").</param>
-    /// <param name="catchSteamAuth">Show a 401 from Steam as "Steam authorization error" (exports that
-    /// fetch the library directly).</param>
     private async Task RunOperationAsync(
         string busyStatus, string operation, string errorTitle, Func<Task> work,
         string? historyTarget = null, bool catchSteamAuth = false)
@@ -62,8 +52,6 @@ public partial class MainWindowViewModel
     private Task<GameLibraryResult> FetchLibraryAsync() =>
         _library.FetchAsync(SteamApiKey, SteamId, Progress.CreateReporter(), Progress.SetIndeterminate, Progress.Token);
 
-    // ---- CSV -----------------------------------------------------------------------------------
-
     [RelayCommand(CanExecute = nameof(CanFetchLibrary))]
     private Task ExportToCsv() =>
         RunOperationAsync(FetchingGames, "CSV export", "CSV export error", async () =>
@@ -74,10 +62,8 @@ public partial class MainWindowViewModel
             var file = await _dialogs.PickSaveCsvAsync("dbgame.csv");
             if (file == null) return;
 
-            // Export just writes a fresh file with the fetched games — no merging.
             await _linux.StampAsync(result.Rows, Progress.CreateReporter(), Progress.Token);
-            await _csv.WriteAsync(file, CsvGameExportService.Serialize(result.Rows, _linux.Enabled));
-            _log.WriteInfo($"CSV created with {result.Rows.Count} rows.");
+            await _csv.WriteMergedAsync(file, null, result, _linux.Enabled);
             ShowResult($"✓ Saved {result.Rows.Count} games to {file.Name}", "Open file", OpenFileAction(file));
             RememberCsvFile(file);
             RecordSync(SyncHistory.Csv);
@@ -94,7 +80,6 @@ public partial class MainWindowViewModel
     private Task UpdateCsvFileAsync(IStorageFile file) =>
         RunOperationAsync(FetchingGames, "CSV update", "CSV update error", async () =>
         {
-            // Validate the chosen file is a Pilewise CSV before touching it.
             var existingContent = await _csv.ReadAsync(file);
             var missingColumns = CsvGameExportService.GetMissingColumns(existingContent);
             if (missingColumns.Count > 0)
@@ -111,20 +96,19 @@ public partial class MainWindowViewModel
             if (!await HandleFetchedLibraryAsync(result, "Update CSV")) return;
 
             await _linux.StampAsync(result.Rows, Progress.CreateReporter(), Progress.Token);
-            var (added, total, backup) =
-                await _csv.WriteMergedAsync(file, existingContent, result.Rows, _linux.Enabled);
+            var (merged, backup) = await _csv.WriteMergedAsync(file, existingContent, result, _linux.Enabled);
+            var (added, total) = (merged.Added, merged.Total);
             var backupNote = backup != null ? $" · previous version saved as {Path.GetFileName(backup)}" : "";
             ShowResult(
-                (added == 0
-                    ? $"✓ {file.Name} is already up to date ({total} games)"
+                (!merged.Changed ? $"✓ {file.Name} is already up to date ({total} games)"
+                    : added == 0 ? $"✓ Updated {file.Name} ({total} games)"
                     : $"✓ Added {added} new games to {file.Name} ({total} total)") + backupNote,
                 "Open file", OpenFileAction(file),
-                "Undo", added > 0 ? UndoCsvUpdateAction(file, backup) : null);
+                "Undo", merged.Changed ? UndoCsvUpdateAction(file, backup) : null);
             RememberCsvFile(file);
             RecordSync(SyncHistory.Csv);
         }, SyncHistory.Csv, catchSteamAuth: true);
 
-    // Undo for Update .csv: the .bak written just before goes back over the file.
     private Func<Task>? UndoCsvUpdateAction(IStorageFile file, string? backup)
     {
         var path = file.TryGetLocalPath();
@@ -160,10 +144,6 @@ public partial class MainWindowViewModel
         PersistSettings();
     }
 
-    /// <summary>
-    /// Handles a file dropped onto the window: a Pilewise game list is updated like
-    /// <c>Update .csv</c>, a settings file is imported, anything else is explained.
-    /// </summary>
     public async Task OpenDroppedFileAsync(IStorageFile file)
     {
         if (Progress.IsBusy) return;
@@ -211,8 +191,6 @@ public partial class MainWindowViewModel
         }
     }
 
-    // ---- library viewer ------------------------------------------------------------------------
-
     [RelayCommand(CanExecute = nameof(CanFetchLibrary))]
     private Task ViewLibrary() =>
         RunOperationAsync(FetchingGames, "Library fetch", "Library error", async () =>
@@ -220,9 +198,13 @@ public partial class MainWindowViewModel
             var result = await FetchLibraryAsync();
             if (!await HandleFetchedLibraryAsync(result, "Game library")) return;
 
+            if (_backlog.Latest() is { } snapshot)
+                _completed.SeedOnce(snapshot.Target == SyncHistory.GoogleSheets
+                    ? GoogleSheetsGameExporter.TargetOf(GoogleSheetsTableName)
+                    : NotionGameExporter.TargetOf(DbId), snapshot.CompletedKeys);
             _dialogs.ShowLibrary(new LibraryViewModel(
                 result.Rows, result.Ignored, _ignored, _backlog.Latest(), LibraryActions(),
-                addedOn: _firstSeen.AddedOn));
+                addedOn: _firstSeen.AddedOn, completed: _completed));
         }, catchSteamAuth: true);
 
     // Store pages, clipboard, and re-reading the ✓ marks from the tracker they came from (Notion or
@@ -254,8 +236,6 @@ public partial class MainWindowViewModel
                 },
             useSheets ? SyncHistory.GoogleSheets : "Notion");
     }
-
-    // ---- Notion --------------------------------------------------------------------------------
 
     [RelayCommand(CanExecute = nameof(CanExportNotion))]
     private Task ExportToNotion() =>
@@ -296,7 +276,6 @@ public partial class MainWindowViewModel
             RecordSync(SyncHistory.Notion);
         }, SyncHistory.Notion);
 
-    /// <summary>Finds pages of the same game in Notion and, after confirmation, merges them.</summary>
     [RelayCommand(CanExecute = nameof(CanFindNotionDuplicates))]
     private Task FindNotionDuplicates() =>
         RunOperationAsync("Reading the Notion database…", "Notion duplicate search", "Notion duplicates error",
@@ -323,7 +302,6 @@ public partial class MainWindowViewModel
                     "Open database", NotionDatabaseAction());
             });
 
-    /// <summary>Finds rows of the same game in the Google Sheet and, after confirmation, merges them.</summary>
     [RelayCommand(CanExecute = nameof(CanFindSheetsDuplicates))]
     private Task FindSheetsDuplicates() =>
         RunOperationAsync("Reading the Google Sheet…", "Google Sheets duplicate search", "Google Sheets duplicates error",
@@ -354,8 +332,6 @@ public partial class MainWindowViewModel
         return string.IsNullOrEmpty(id) ? null : () => _dialogs.OpenLink($"https://www.notion.so/{id}");
     }
 
-    // ---- Google Sheets -------------------------------------------------------------------------
-
     [RelayCommand(CanExecute = nameof(CanExportSheets))]
     private Task ExportToGoogleSheets() =>
         RunOperationAsync(FetchingGames, "Google Sheets export", "Google Sheets export error", async () =>
@@ -375,19 +351,14 @@ public partial class MainWindowViewModel
             RecordSync(SyncHistory.GoogleSheets);
         }, SyncHistory.GoogleSheets);
 
-    // ---- shared post-fetch handling ------------------------------------------------------------
-
     private static string GoneSuffix(int count) => count > 0 ? $" · {count} no longer owned" : string.Empty;
 
-    // Opens a just-written file in its default app (Excel etc.); null when it has no local path.
     private Action? OpenFileAction(IStorageFile file)
     {
         var path = file.TryGetLocalPath();
         return path != null ? () => _dialogs.OpenLink(path) : null;
     }
 
-    // Syncs the connect rows, warns about expired sessions and, when nothing was fetched, explains
-    // why. Returns false when there is nothing to export.
     private async Task<bool> HandleFetchedLibraryAsync(GameLibraryResult result, string title)
     {
         ApplyStoreStatuses(result);
@@ -402,7 +373,6 @@ public partial class MainWindowViewModel
         return false;
     }
 
-    // Reflects the latest cached-session outcome from a library fetch back onto the connect buttons.
     private void ApplyStoreStatuses(GameLibraryResult result)
     {
         Epic.IsConnected = result.EpicAuthenticated;
@@ -410,8 +380,6 @@ public partial class MainWindowViewModel
         Xbox.IsConnected = result.XboxAuthenticated;
     }
 
-    // Surfaces a clear message when a previously connected store session has expired,
-    // so the export isn't silently missing that store's games.
     private Task NotifyExpiredSessionsAsync(GameLibraryResult result)
     {
         var expired = new[]
@@ -425,7 +393,6 @@ public partial class MainWindowViewModel
         foreach (var store in expired)
             _log.WriteWarning($"{store}: session expired — {store} games were skipped.");
 
-        // One dialog for all of them, rather than one per store.
         var stores = expired.Count == 1 ? expired[0] : string.Join(", ", expired[..^1]) + " and " + expired[^1];
         var connect = string.Join(" / ", expired.Select(s => $"\"Connect {s}\""));
         return _dialogs.ShowErrorAsync(expired.Count == 1 ? $"{stores} session expired" : "Store sessions expired",

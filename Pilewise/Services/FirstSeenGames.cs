@@ -19,10 +19,8 @@ namespace Pilewise.Services;
 /// </remarks>
 public sealed class FirstSeenGames
 {
-    /// <summary>"Added recently" means within this many days.</summary>
     public const int RecentDays = 30;
 
-    /// <summary>Baseline for games known only by name (no store id): the earliest store baseline.</summary>
     private const string NameKeyPrefix = "Name:";
 
     private const string StateKey = "first-seen";
@@ -37,8 +35,6 @@ public sealed class FirstSeenGames
         Reload();
     }
 
-    /// <summary>Remembers today's date for every game not seen before, and starts the baseline of
-    /// each store fetched for the first time.</summary>
     public void Record(IEnumerable<CsvGameExportRow> rows, IReadOnlySet<string> fetchedStores, DateOnly today)
     {
         Reload();
@@ -118,10 +114,8 @@ public sealed class FirstSeenGames
 
     private sealed class State
     {
-        /// <summary>Store label → the day it was first fetched.</summary>
         public Dictionary<string, string> Baselines { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>Game key (<c>Steam:400</c>, <c>Name:portal</c>) → the day it was first seen.</summary>
         public Dictionary<string, string> Keys { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     }
 }

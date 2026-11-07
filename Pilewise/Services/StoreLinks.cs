@@ -4,11 +4,6 @@ using System.Linq;
 
 namespace Pilewise.Services;
 
-/// <summary>
-/// Builds cover-image and store-page URLs from what each store returns. Steam needs only the app id
-/// (so it also works for rows read back from Notion); Epic / GOG / Xbox use fields from the fetch.
-/// Pure, so it's unit-tested.
-/// </summary>
 public static class StoreLinks
 {
     public static string SteamCover(int appId) => $"https://cdn.akamai.steamstatic.com/steam/apps/{appId}/header.jpg";
@@ -42,7 +37,6 @@ public static class StoreLinks
     private static readonly string[] EpicImageTypes =
         ["DieselGameBox", "DieselStoreFrontWide", "OfferImageWide", "Thumbnail", "DieselGameBoxTall"];
 
-    /// <summary>Picks a cover from an Epic catalog item's <c>keyImages</c>.</summary>
     public static string? EpicCover(JToken? catalogItem)
     {
         if (catalogItem?["keyImages"] is not JArray images) return null;
@@ -55,7 +49,6 @@ public static class StoreLinks
         return null;
     }
 
-    /// <summary>An Epic store page from the catalog item's product slug, when it has one.</summary>
     public static string? EpicStore(JToken? catalogItem)
     {
         var slug = catalogItem?["customAttributes"]?["com.epicgames.app.productSlug"]?["value"]?.Value<string>();

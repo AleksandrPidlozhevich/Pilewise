@@ -124,6 +124,58 @@ public class NotionGameExporterTests
     }
 
     [Fact]
+    public async Task Plan_SyncsCompletedTicks_BothWays()
+    {
+        var completed = new CompletedGames(new CompletedStore());
+        completed.Set(CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400"), true); // ticked in the app
+        var portal = Existing("p1", CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400"),
+            gameId: "Steam:400", platforms: "Steam") with { Completed = false };
+        var hades = Existing("p2", CsvGameExportService.CreateRow("Steam", "Hades", "Steam:1145360"),
+            gameId: "Steam:1145360", platforms: "Steam") with { Completed = true }; // ticked in Notion
+        var client = new FakeNotionApiClient();
+        var exporter = new NotionGameExporter(
+            new FakeGameLibraryService(Library(
+                CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400"),
+                CsvGameExportService.CreateRow("Steam", "Hades", "Steam:1145360"))),
+            new FakeNotionGateway(client, new FakeNotionDataFetcher([portal, hades])), new NullLogService(),
+            completed: completed);
+
+        var plan = await exporter.PlanAsync("key", "id", "token", "db");
+        var update = Assert.Single(plan.ToUpdate);
+        Assert.Equal("p1", update.PageId);
+        Assert.Contains("✓ completed", update.After);
+        Assert.Equal(2, plan.Backlog!.Completed);
+
+        await exporter.ApplyAsync("token", "db", plan);
+
+        completed.Reload();
+        Assert.True(completed.IsCompleted(CsvGameExportService.CreateRow("Steam", "Hades", "Steam:1145360")));
+        Assert.Contains(client.Updated, u => u.PageId == "p1" &&
+            ((Dictionary<string, object>)u.Body.Properties).ContainsKey("Completed"));
+    }
+
+    [Fact]
+    public void Schema_StatusColumn_IsReadOnly_AndNoCompletedIsAdded()
+    {
+        var result = NotionSchemaCheck.Check(new Dictionary<string, string>
+        {
+            ["Name"] = "title", ["Platform's"] = "multi_select", ["GameID"] = "rich_text", ["Store link"] = "url",
+            ["Status"] = "status"
+        });
+
+        Assert.Null(result.Optional.Completed);
+        Assert.Empty(result.ToCreate);
+    }
+
+    private sealed class CompletedStore : IStateStore
+    {
+        private readonly Dictionary<string, string> _values = new();
+        public string? Load(string key) => _values.GetValueOrDefault(key);
+        public void Save(string key, string value) => _values[key] = value;
+        public void Delete(string key) => _values.Remove(key);
+    }
+
+    [Fact]
     public async Task Plan_MissingGameIdProperty_IsPlanned_AndAddedOnlyOnApply()
     {
         var client = new FakeNotionApiClient();
@@ -336,8 +388,6 @@ public class NotionGameExporterTests
         Assert.Equal(["p2"], client.Trashed);
     }
 
-    // ---- helpers ---------------------------------------------------------------------
-
     [Fact]
     public async Task Backlog_IsReadInThePlan_AndRecordedOnlyOnApply()
     {
@@ -431,8 +481,6 @@ public class NotionGameExporterTests
             HasCover: true, StoreLink: row.StoreUrl ?? "https://example.com");
 }
 
-// ---- fakes -----------------------------------------------------------------------------
-
 file sealed class FakeGameLibraryService(GameLibraryResult result) : IGameLibraryService
 {
     public Task<GameLibraryResult> FetchAsync(
@@ -465,7 +513,8 @@ file sealed class FakeNotionApiClient : INotionApiClient
     // A correctly set-up database by default; tests replace it to simulate a broken schema.
     public Dictionary<string, string> PropertyTypes { get; set; } = new()
     {
-        ["Name"] = "title", ["Platform's"] = "multi_select", ["GameID"] = "rich_text", ["Store link"] = "url"
+        ["Name"] = "title", ["Platform's"] = "multi_select", ["GameID"] = "rich_text", ["Store link"] = "url",
+        ["Completed"] = "checkbox"
     };
 
     public List<IReadOnlyDictionary<string, string>> AddedProperties { get; } = [];

@@ -4,7 +4,6 @@
              Name="Pilewise"
              xmlns:local="using:Pilewise"
              RequestedThemeVariant="Default">
-    <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
     <Application.DataTemplates>
         <local:ViewLocator />
@@ -37,7 +36,6 @@
 
     <Application.Styles>
         <FluentTheme />
-        <!-- The app's shared look: icons, ⓘ buttons, cards, banners, dialogs (all windows). -->
         <StyleInclude Source="/Styles/Common.axaml" />
     </Application.Styles>
 </Application>

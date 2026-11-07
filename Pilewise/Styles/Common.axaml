@@ -1,10 +1,7 @@
-<!-- Styles shared by every window (included in App.axaml). Window-specific layout stays in the
-     window; anything used in two places, or that defines the app's look, lives here. -->
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <Styles.Resources>
-        <!-- Sidebar icons (24×24 paths, filled with the text colour). -->
         <StreamGeometry x:Key="NavSourcesIcon">M4,4H10V10H4Z M14,4H20V10H14Z M4,14H10V20H4Z M14,14H20V20H14Z</StreamGeometry>
         <StreamGeometry x:Key="NavExportIcon">M11,16V7.83L7.41,11.41L6,10L12,4L18,10L16.59,11.41L13,7.83V16Z M5,18H19V20H5Z</StreamGeometry>
         <StreamGeometry x:Key="NavAutomationIcon">F0 M12,2A10,10 0 1,1 11.99,2Z M12,4A8,8 0 1,0 12.01,4Z M11,7H13V11.6L16.4,13.6L15.4,15.3L11,12.7Z</StreamGeometry>
@@ -20,15 +17,11 @@
         <StreamGeometry x:Key="NavSettingsIcon">M3,6H13V8H3Z M17,6H21V8H17Z M13,4H15V10H13Z M3,16H7V18H3Z M11,16H21V18H11Z M7,14H9V20H7Z</StreamGeometry>
     </Styles.Resources>
 
-    <!-- ===== Icons ===== -->
-
-    <!-- Store / target icons in a panel header. -->
     <Style Selector="Svg.icon, Image.icon">
         <Setter Property="Width" Value="32" />
         <Setter Property="Height" Value="32" />
     </Style>
 
-    <!-- A transparent icon button (theme toggle, Ko-fi). -->
     <Style Selector="Button.icon-button">
         <Setter Property="Width" Value="36" />
         <Setter Property="Height" Value="36" />
@@ -67,7 +60,6 @@
         </Style.Animations>
     </Style>
 
-    <!-- A single gentle scale-up on hover (no looping animation). -->
     <Style Selector="Button.animated-button, Button.info">
         <Setter Property="RenderTransformOrigin" Value="50%,50%" />
         <Setter Property="Transitions">
@@ -100,16 +92,12 @@
         </Setter>
     </Style>
 
-    <!-- ===== Inputs ===== -->
-
-    <!-- Credential / name fields. -->
     <Style Selector="TextBox.field">
         <Setter Property="Width" Value="240" />
         <Setter Property="UseFloatingPlaceholder" Value="True" />
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
-    <!-- A field with its ⓘ. -->
     <Style Selector="StackPanel.field-row">
         <Setter Property="Orientation" Value="Horizontal" />
         <Setter Property="Spacing" Value="6" />
@@ -121,8 +109,6 @@
         <Setter Property="Padding" Value="6,0,0,0" />
     </Style>
 
-    <!-- ===== Pages (main window) ===== -->
-
     <Style Selector="TextBlock.page-title">
         <Setter Property="FontSize" Value="22" />
         <Setter Property="FontWeight" Value="SemiBold" />
@@ -133,7 +119,6 @@
         <Setter Property="Margin" Value="0,2,0,16" />
     </Style>
 
-    <!-- A section of a page: header (icon + title + status / tick) and its controls. -->
     <Style Selector="Border.panel">
         <Setter Property="Background" Value="#0F808080" />
         <Setter Property="BorderBrush" Value="#26808080" />
@@ -147,21 +132,18 @@
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
-    <!-- One explanatory line under a control or a panel title. -->
     <Style Selector="TextBlock.hint">
         <Setter Property="FontSize" Value="12" />
         <Setter Property="Opacity" Value="0.65" />
         <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
 
-    <!-- "Last sync: today 14:20" / "Completed 120 of 640". -->
     <Style Selector="TextBlock.last-sync">
         <Setter Property="FontSize" Value="11" />
         <Setter Property="Opacity" Value="0.65" />
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
-    <!-- Status pill on an export panel: amber "Needs …" until it can run, then green "Ready". -->
     <Style Selector="Border.pill">
         <Setter Property="CornerRadius" Value="10" />
         <Setter Property="Padding" Value="8,2" />
@@ -176,8 +158,6 @@
         <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
-    <!-- ===== Sidebar ===== -->
-
     <Style Selector="ListBox.nav">
         <Setter Property="Background" Value="Transparent" />
     </Style>
@@ -191,9 +171,6 @@
         <Setter Property="Height" Value="18" />
     </Style>
 
-    <!-- ===== Banners ===== -->
-
-    <!-- A one-line message strip with optional buttons: info (blue), success (green), warning (amber). -->
     <Style Selector="Border.banner">
         <Setter Property="Padding" Value="12,4" />
         <Setter Property="CornerRadius" Value="6" />
@@ -217,7 +194,6 @@
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
-    <!-- ✕ that closes a banner. -->
     <Style Selector="Border.banner Button.dismiss">
         <Setter Property="Content" Value="✕" />
         <Setter Property="Padding" Value="8,2" />
@@ -227,9 +203,6 @@
         <Setter Property="AutomationProperties.Name" Value="Dismiss" />
     </Style>
 
-    <!-- ===== Lists & dialogs ===== -->
-
-    <!-- The rounded frame around a window's main list. -->
     <Style Selector="Border.list-frame">
         <Setter Property="BorderBrush" Value="#26808080" />
         <Setter Property="BorderThickness" Value="1" />
@@ -243,7 +216,6 @@
         <Setter Property="Opacity" Value="0.7" />
     </Style>
 
-    <!-- Platform tag chip. -->
     <Style Selector="Border.chip">
         <Setter Property="Background" Value="#26808080" />
         <Setter Property="CornerRadius" Value="4" />
@@ -251,7 +223,6 @@
         <Setter Property="Margin" Value="0,0,4,0" />
     </Style>
 
-    <!-- "NEW" badge: a game added recently. -->
     <Style Selector="Border.chip.new">
         <Setter Property="Background" Value="#332E9E5B" />
         <Setter Property="Padding" Value="5,0" />
@@ -270,13 +241,11 @@
         <Setter Property="HorizontalContentAlignment" Value="Center" />
     </Style>
 
-    <!-- Dialog heading ("Nothing has been written yet"): same weight as a page title. -->
     <Style Selector="TextBlock.dialog-title">
         <Setter Property="FontSize" Value="20" />
         <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
-    <!-- The bar at the bottom of a dialog holding its buttons. -->
     <Style Selector="Border.dialog-footer">
         <Setter Property="Background" Value="#0F808080" />
         <Setter Property="BorderBrush" Value="#26808080" />
@@ -287,7 +256,6 @@
         <Setter Property="Margin" Value="0" />
     </Style>
 
-    <!-- The header row inside a list frame (column names). -->
     <Style Selector="Border.list-header">
         <Setter Property="Background" Value="#0F808080" />
         <Setter Property="BorderBrush" Value="#26808080" />
@@ -302,12 +270,10 @@
         <Setter Property="Padding" Value="10,0" />
     </Style>
 
-    <!-- Denser rows for data lists (library, history). -->
     <Style Selector="ListBox.rows ListBoxItem">
         <Setter Property="Padding" Value="12,6" />
     </Style>
 
-    <!-- Library stat tile: a big value over a small label. -->
     <Style Selector="Border.stat">
         <Setter Property="Background" Value="#0F808080" />
         <Setter Property="BorderBrush" Value="#26808080" />

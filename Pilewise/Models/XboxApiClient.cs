@@ -13,19 +13,6 @@ using System.Threading.Tasks;
 
 namespace Pilewise.Models;
 
-/// <summary>
-/// Hand-rolled client for the (unofficial) Xbox Live API. Mirrors <see cref="GogApiClient"/>:
-/// the user logs in via the browser and pastes the redirect's authorization code; the Microsoft
-/// account refresh token is cached (encrypted) and the short-lived XSTS token is rebuilt from it
-/// each session.
-///
-/// Auth chain (all hand-rolled, no third-party auth library):
-///   1. MSA OAuth (login.live.com) using the well-known public Minecraft client id with the
-///      legacy MBI_SSL scope — code/refresh → access token.
-///   2. user.auth.xboxlive.com/user/authenticate → user token.
-///   3. xsts.auth.xboxlive.com/xsts/authorize → XSTS token (+ user hash and XUID).
-/// Requests then carry <c>Authorization: XBL3.0 x={uhs};{xsts}</c>.
-/// </summary>
 public class XboxApiClient : IXboxClient
 {
     // Well-known public Minecraft launcher client id (no secret). The relying party is chosen at
@@ -46,7 +33,6 @@ public class XboxApiClient : IXboxClient
     private const string UserAuthUrl = "https://user.auth.xboxlive.com/user/authenticate";
     private const string XstsUrl = "https://xsts.auth.xboxlive.com/xsts/authorize";
 
-    // Recently-played titles (decorated with detail so we get the canonical name + last-played).
     private const string TitleHistoryUrlTemplate =
         "https://titlehub.xboxlive.com/users/xuid({0})/titles/titlehistory/decoration/detail";
 
@@ -54,11 +40,9 @@ public class XboxApiClient : IXboxClient
     // when it returns nothing, nothing is exported.
     private const string InventoryUrl = "https://inventory.xboxlive.com/users/me/inventory";
 
-    // Relying parties requested at the XSTS step for each service.
     private const string XboxLiveRelyingParty = "http://xboxlive.com";
     private const string LicensingRelyingParty = "http://licensing.xboxlive.com";
 
-    // Key under which the MSA refresh token is kept in the secret store.
     private const string SecretKey = "xbox";
 
     private static readonly HttpClient _httpClient = new();
@@ -71,7 +55,7 @@ public class XboxApiClient : IXboxClient
 
     private string? _refreshToken;
     private string? _userToken; // user.auth token, reusable to mint XSTS for other relying parties
-    private string? _xstsToken; // XSTS for http://xboxlive.com
+    private string? _xstsToken;
     private string? _userHash;
     private string? _xuid;
 
@@ -184,14 +168,10 @@ public class XboxApiClient : IXboxClient
         return true;
     }
 
-    // Parses access_token / refresh_token from a pasted implicit-flow redirect URL. The tokens live
-    // in the fragment (…/oauth20_desktop.srf#access_token=…&refresh_token=…); a bare fragment or
-    // query string is accepted too.
     private static (string? AccessToken, string? RefreshToken) ParseImplicitTokens(string text)
     {
         text = text.Trim();
 
-        // Take the parameter section: the fragment after '#', else the query after '?', else as-is.
         var hash = text.IndexOf('#');
         var queryStart = hash >= 0 ? hash : text.IndexOf('?');
         var query = queryStart >= 0 ? text[(queryStart + 1)..] : text;
@@ -230,8 +210,6 @@ public class XboxApiClient : IXboxClient
         return true;
     }
 
-    // Redeems a cached refresh token at the MSA token endpoint for a fresh access token, caching
-    // the (rotated) refresh token. Returns the access token, or null on failure.
     private async Task<string?> RequestMsaTokenAsync(Dictionary<string, string> form)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, TokenUrl)
@@ -272,7 +250,6 @@ public class XboxApiClient : IXboxClient
         return accessToken;
     }
 
-    // Turns an MSA access token into an Xbox session: user token → XSTS (xboxlive relying party).
     private async Task<bool> AuthenticateCoreAsync(string accessToken)
     {
         // For an MBI_SSL token the RpsTicket is the raw access token (no "d=" prefix; that prefix
@@ -308,7 +285,6 @@ public class XboxApiClient : IXboxClient
         return true;
     }
 
-    // Mints an XSTS token for the given relying party from the current user token.
     private async Task<(string Token, string UserHash, string? Xuid)?> RequestXstsAsync(string relyingParty)
     {
         if (string.IsNullOrEmpty(_userToken)) return null;
@@ -363,7 +339,6 @@ public class XboxApiClient : IXboxClient
 
         progress?.Report(new StoreFetchProgress(0, 1, "Loading Xbox library"));
 
-        // The owned library is the single source of truth for what gets exported.
         var ownedTitleIds = await TryGetLibraryTitleIdsAsync(ct);
         if (ownedTitleIds.Count == 0)
         {
@@ -372,7 +347,6 @@ public class XboxApiClient : IXboxClient
             return new List<XboxGame>();
         }
 
-        // Look up display names for the owned titles (title history is a name source only here).
         var names = await GetTitleNamesAsync(ct);
 
         var games = new List<XboxGame>(ownedTitleIds.Count);
@@ -400,9 +374,6 @@ public class XboxApiClient : IXboxClient
         return games;
     }
 
-    // Maps owned title ids to a display name (and last-played) from the title-history feed. Used
-    // purely as a name lookup for the owned library — never as a list of games to export. Returns
-    // an empty map on any failure (owned titles then fall back to their title id as the name).
     private async Task<Dictionary<string, (string? Name, DateTimeOffset? LastPlayed, string? Image, string? ProductId)>>
         GetTitleNamesAsync(CancellationToken ct)
     {
@@ -442,8 +413,6 @@ public class XboxApiClient : IXboxClient
         return map;
     }
 
-    // Fetches the owned title ids (the library) from the legacy inventory service. Returns an empty
-    // set on any failure or when the account owns nothing — in which case nothing is exported.
     private async Task<HashSet<string>> TryGetLibraryTitleIdsAsync(CancellationToken ct)
     {
         var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

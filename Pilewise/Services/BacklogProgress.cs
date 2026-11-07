@@ -6,17 +6,11 @@ using System.Linq;
 
 namespace Pilewise.Services;
 
-/// <summary>
-/// How much of the backlog is done in one tracker, as read during its last export: the number of
-/// rows ticked as completed out of all rows (hidden games left out), plus the completed games' keys
-/// (<see cref="IgnoredGames.KeysOf"/>) so the library viewer can mark them.
-/// </summary>
 public sealed record BacklogSnapshot(
     string Target, DateTimeOffset When, int Completed, int Total, IReadOnlyList<string> CompletedKeys)
 {
     public double Percent => Total == 0 ? 0 : Math.Round(Completed * 100.0 / Total);
 
-    /// <summary>"Completed 120 of 640 (19%)".</summary>
     public string Text => $"Completed {Completed} of {Total} ({Percent:0}%)";
 
     /// <summary>Builds a snapshot from the tracker's rows; null when it has no completion column at all.</summary>
@@ -56,7 +50,6 @@ public sealed class BacklogProgress
         return _cache.GetValueOrDefault(target);
     }
 
-    /// <summary>The most recently recorded snapshot of any tracker.</summary>
     public BacklogSnapshot? Latest()
     {
         Reload();

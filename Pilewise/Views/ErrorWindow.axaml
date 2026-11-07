@@ -12,7 +12,6 @@
                     WindowStartupLocation="CenterOwner">
     <Grid RowDefinitions="*,Auto">
         <Grid Margin="24,20,24,16" RowDefinitions="Auto,*">
-            <!-- Warning badge + the window's title (the specific error kind). -->
             <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,14">
                 <Border Width="36" Height="36" CornerRadius="18" Background="#26EF4444">
                     <TextBlock Text="!" FontSize="20" FontWeight="Bold" Foreground="#EF4444"

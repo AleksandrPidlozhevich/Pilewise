@@ -8,11 +8,8 @@ using System.Threading.Tasks;
 
 namespace Pilewise.ViewModels;
 
-// Running in the background: auto-sync on a schedule, the tray's "Sync now", close to tray and
-// start at login.
 public partial class MainWindowViewModel
 {
-    /// <summary>In-app auto-sync: interval picker + targets (saved).</summary>
     public IReadOnlyList<string> AutoSyncIntervalLabels => AutoSyncSettings.IntervalLabels;
 
     [ObservableProperty]
@@ -27,7 +24,6 @@ public partial class MainWindowViewModel
 
     public bool IsAutoSyncOn => AutoSyncIntervalIndex > 0;
 
-    /// <summary>The CSV last written by Export / Update .csv (saved): what CSV auto-sync updates.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(AutoSyncCsvHint))]
     private string? csvFilePath;
@@ -36,15 +32,12 @@ public partial class MainWindowViewModel
         ? $"Update {path} on the schedule (a .bak of the previous version is kept)"
         : "Export or update a CSV once and it's remembered here for auto-sync";
 
-    /// <summary>Closing the window keeps Pilewise running in the tray (saved).</summary>
     [ObservableProperty] private bool closeToTray;
 
-    /// <summary>False on a Linux desktop without a tray: closing then really closes (set by <c>App</c>).</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CloseToTrayHint), nameof(StartAtLoginHint))]
     private bool isTrayAvailable = true;
 
-    /// <summary>Close to tray only works when there's a tray to come back from.</summary>
     public bool KeepsRunningOnClose => CloseToTray && IsTrayAvailable;
 
     public string CloseToTrayHint => IsTrayAvailable
@@ -63,13 +56,10 @@ public partial class MainWindowViewModel
     // True while StartAtLogin is set from the OS state, so that doesn't write the login item back.
     private bool _syncingStartAtLogin;
 
-    /// <summary>Raised when the window should be brought up (e.g. Sync now has nothing to do).</summary>
     public event Action? ShowWindowRequested;
 
     private readonly DispatcherTimer _autoSyncTimer = new() { Interval = TimeSpan.FromMinutes(1) };
     private readonly Dictionary<SyncTarget, DateTimeOffset> _autoSyncFailures = [];
-
-    // ---- start at login ------------------------------------------------------------------------
 
     private void LoadStartAtLogin() => SetStartAtLoginSilently(_autoStart.IsSupported && _autoStart.IsEnabled);
 
@@ -96,8 +86,6 @@ public partial class MainWindowViewModel
             SetStartAtLoginSilently(!value);
         }
     }
-
-    // ---- auto-sync -----------------------------------------------------------------------------
 
     // Checked once a minute, so the first auto-sync starts a minute after launch (after the cached
     // store sessions have been restored). The same tick re-checks for app updates every 12 hours.
@@ -138,11 +126,6 @@ public partial class MainWindowViewModel
         _ => CanFetchLibrary && CsvFilePath != null
     };
 
-    /// <summary>
-    /// Runs the auto-sync targets that are due, like <c>--sync</c> does (Notion is applied without the
-    /// preview), and reports the outcome in the result banner instead of a dialog. Skipped while
-    /// anything else runs.
-    /// </summary>
     private async Task RunDueAutoSyncAsync()
     {
         if (Progress.IsBusy) return;
@@ -158,10 +141,6 @@ public partial class MainWindowViewModel
         await RunSyncTargetsAsync(due, "Auto-sync");
     }
 
-    /// <summary>
-    /// Tray "Sync now": runs the targets ticked under Auto-sync right away (ignoring the schedule).
-    /// With none ticked or ready, brings the window up with a hint instead.
-    /// </summary>
     public async Task SyncNowAsync()
     {
         if (Progress.IsBusy) return;
@@ -199,7 +178,7 @@ public partial class MainWindowViewModel
                 });
                 var sync = new HeadlessSync(
                     _secrets, _state, _library, _notionExporter, _sheetsExporter, _log, output, _selection, _syncLog,
-                    label, _linux);
+                    label, _linux, _completed);
                 var code = await sync.RunAsync(new SyncOptions([target], null, null, false), Progress.Token);
 
                 if (Progress.Token.IsCancellationRequested)

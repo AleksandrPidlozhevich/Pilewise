@@ -12,17 +12,6 @@ using System.Threading.Tasks;
 
 namespace Pilewise.ViewModels;
 
-/// <summary>
-/// The main window. Split by concern into partial files:
-/// <list type="bullet">
-/// <item>this file — dependencies, credentials, store rows, what can run (CanExecute + hints), links;</item>
-/// <item><c>.Settings</c> — remembered settings, Save / Import, store ticks;</item>
-/// <item><c>.Exports</c> — CSV / Notion / Sheets / library / duplicates / dropped files;</item>
-/// <item><c>.Background</c> — auto-sync, tray "Sync now", close to tray, start at login;</item>
-/// <item><c>.Status</c> — result banner, last sync / progress lines, sync history, app updates;</item>
-/// <item><c>.Navigation</c> — sidebar pages, per-target ready status, theme.</item>
-/// </list>
-/// </summary>
 public partial class MainWindowViewModel : ViewModelBase
 {
     [ObservableProperty] private string? googleSheetsTableName;
@@ -35,15 +24,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty] private string? dbId;
 
-    /// <summary>Per-store connect state + commands. Epic uses the system-browser paste flow; GOG and
-    /// Xbox log in through the embedded WebView.</summary>
     public StoreConnectionViewModel Epic { get; }
 
     public StoreConnectionViewModel Gog { get; }
 
     public StoreConnectionViewModel Xbox { get; }
 
-    /// <summary>Busy / progress-bar state + cancellation for the running export.</summary>
     public ProgressViewModel Progress { get; } = new();
 
     private readonly ISecretStore _secrets;
@@ -65,6 +51,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly SyncHistory _syncHistory;
     private readonly FirstSeenGames _firstSeen;
     private readonly SteamLinuxLookup _linux;
+    private readonly CompletedGames _completed;
 
     public MainWindowViewModel(
         ISecretStore secrets,
@@ -84,9 +71,11 @@ public partial class MainWindowViewModel : ViewModelBase
         BacklogProgress backlog,
         SyncLog syncLog,
         FirstSeenGames firstSeen,
-        SteamLinuxLookup linux)
+        SteamLinuxLookup linux,
+        CompletedGames completed)
     {
         _linux = linux;
+        _completed = completed;
         _firstSeen = firstSeen;
         _secrets = secrets;
         _state = state;
@@ -150,7 +139,6 @@ public partial class MainWindowViewModel : ViewModelBase
             onConnected: OnXboxConnectedAsync,
             openInfo: () => _dialogs.OpenLink(ReadmeLink("xbox")));
 
-        // A store (dis)connecting changes whether there's anything to export.
         foreach (var store in new[] { Epic, Gog, Xbox })
             store.PropertyChanged += (_, e) =>
             {
@@ -169,12 +157,6 @@ public partial class MainWindowViewModel : ViewModelBase
         StartAutoSyncTimer();
     }
 
-    // ---- design time -------------------------------------------------------------------------
-
-    /// <summary>
-    /// Design-time only (used by the Avalonia previewer's <c>Design.DataContext</c>). At runtime the
-    /// app resolves the parameterised constructor above through the DI container (see App.axaml.cs).
-    /// </summary>
     public MainWindowViewModel()
         : this(BuildDesignTimeDependencies())
     {
@@ -183,7 +165,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private MainWindowViewModel(Dependencies d)
         : this(d.Secrets, d.State, d.WebAuth, d.Clients, d.Library, d.NotionExporter, d.SheetsExporter, d.Dialogs,
             d.Csv, d.Log, d.Updates, d.Selection, d.Ignored, d.AutoStart, d.Backlog, d.SyncLog, d.FirstSeen,
-            d.Linux)
+            d.Linux, d.Completed)
     {
     }
 
@@ -201,16 +183,17 @@ public partial class MainWindowViewModel : ViewModelBase
         var firstSeen = new FirstSeenGames(state);
         var library = new GameLibraryService(clients, selection, ignored, firstSeen);
         var linux = new SteamLinuxLookup(state, log);
+        var completed = new CompletedGames(state);
         return new Dependencies(
             secrets,
             state,
             new EmbeddedWebViewAuthenticator(DefaultTopLevel),
             clients,
             library,
-            new NotionGameExporter(library, new NotionGateway(log), log, backlog, linux),
-            new GoogleSheetsGameExporter(secrets, library, log, backlog, linux),
+            new NotionGameExporter(library, new NotionGateway(log), log, backlog, linux, completed),
+            new GoogleSheetsGameExporter(secrets, library, log, backlog, linux, completed),
             new WindowDialogService(),
-            new CsvFileService(log),
+            new CsvFileService(log, completed),
             log,
             new DesignTimeUpdateService(),
             selection,
@@ -219,7 +202,8 @@ public partial class MainWindowViewModel : ViewModelBase
             backlog,
             new SyncLog(state),
             firstSeen,
-            linux);
+            linux,
+            completed);
     }
 
     private sealed record Dependencies(
@@ -240,12 +224,11 @@ public partial class MainWindowViewModel : ViewModelBase
         BacklogProgress Backlog,
         SyncLog SyncLog,
         FirstSeenGames FirstSeen,
-        SteamLinuxLookup Linux);
+        SteamLinuxLookup Linux,
+        CompletedGames Completed);
 
     private static TopLevel? DefaultTopLevel() =>
         (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
-
-    // ---- what's needed before an export can run (drives CanExecute + the disabled-button tooltips) ----
 
     private bool HasSteamCredentials => !string.IsNullOrWhiteSpace(SteamApiKey) && !string.IsNullOrWhiteSpace(SteamId);
 
@@ -266,13 +249,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public bool CanExportSheets => HasSource && !string.IsNullOrWhiteSpace(GoogleSheetsTableName);
 
-    /// <summary>Finding duplicates in the sheet reads only Google Sheets, so no store is needed.</summary>
     public bool CanFindSheetsDuplicates => !string.IsNullOrWhiteSpace(GoogleSheetsTableName);
 
-    /// <summary>Finding duplicates reads only the Notion database, so no store is needed.</summary>
     public bool CanFindNotionDuplicates => !string.IsNullOrWhiteSpace(NotionToken) && !string.IsNullOrWhiteSpace(DbId);
 
-    /// <summary>Why the CSV / library buttons are disabled, or null.</summary>
     public string? LibraryHint => HasSource ? null : NoSourceHint;
 
     public string? NotionHint =>
@@ -316,17 +296,12 @@ public partial class MainWindowViewModel : ViewModelBase
         FindSheetsDuplicatesCommand.NotifyCanExecuteChanged();
     }
 
-    // ---- Xbox post-connect check ---------------------------------------------------------------
-
-    // After a successful interactive Xbox connect, pull the library once (live check + logs counts).
     private async Task OnXboxConnectedAsync(StoreConnectionViewModel _)
     {
         Progress.SetIndeterminate("Loading Xbox library…");
         await LogXboxLibrarySummaryAsync();
     }
 
-    // Fetches the Xbox library once and logs the count — a live check that both the auth chain and
-    // the data calls work.
     private async Task LogXboxLibrarySummaryAsync()
     {
         try
@@ -345,8 +320,6 @@ public partial class MainWindowViewModel : ViewModelBase
             _log.WriteException(ex, "Xbox library fetch (post-connect) failed");
         }
     }
-
-    // ---- help links ----------------------------------------------------------------------------
 
     private static string ReadmeLink(string section) =>
         $"https://github.com/AleksandrPidlozhevich/Pilewise#{section}";

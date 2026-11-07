@@ -43,7 +43,6 @@ public sealed class IgnoredGames
         Save();
     }
 
-    /// <summary>The keys a row is remembered by: each store id, or the normalized name without ids.</summary>
     public static IReadOnlyList<string> KeysOf(CsvGameExportRow row)
     {
         var keys = new List<string>();
@@ -60,7 +59,6 @@ public sealed class IgnoredGames
         return keys;
     }
 
-    /// <summary>Splits a fetched library into the rows to export and the hidden ones.</summary>
     public (List<CsvGameExportRow> Kept, List<CsvGameExportRow> Ignored) Split(IEnumerable<CsvGameExportRow> rows)
     {
         var kept = new List<CsvGameExportRow>();

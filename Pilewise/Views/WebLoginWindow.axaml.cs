@@ -37,7 +37,6 @@ public partial class WebLoginWindow : Window
         WebViewSetup.Configure(_webView);
     }
 
-    /// <summary>Shows the login window and resolves with the captured redirect URL (or null if closed).</summary>
     public Task<string?> AuthenticateAsync(Window owner, Uri requestUri, Uri redirectUri)
     {
         _redirectPrefix = redirectUri.GetLeftPart(UriPartial.Path);

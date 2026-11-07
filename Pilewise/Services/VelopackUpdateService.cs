@@ -64,7 +64,6 @@ public sealed class VelopackUpdateService : IUpdateService
         _manager.ApplyUpdatesAndRestart(_pending.TargetFullRelease);
     }
 
-    // "1.1.0+<commit sha>" → "1.1.0"
     private static string AssemblyVersion()
     {
         var info = typeof(VelopackUpdateService).Assembly

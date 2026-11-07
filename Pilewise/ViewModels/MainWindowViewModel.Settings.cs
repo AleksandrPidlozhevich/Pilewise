@@ -7,10 +7,8 @@ using System.Threading.Tasks;
 
 namespace Pilewise.ViewModels;
 
-// Remembered settings (encrypted secret store), the Save / Import settings file and the store ticks.
 public partial class MainWindowViewModel
 {
-    /// <summary>"Include in export" ticks per store (saved; also honoured by <c>--sync</c>).</summary>
     [ObservableProperty] private bool includeSteam = true;
 
     [ObservableProperty] private bool includeEpic = true;
@@ -19,7 +17,6 @@ public partial class MainWindowViewModel
 
     [ObservableProperty] private bool includeXbox = true;
 
-    /// <summary>Adds a Linux column to CSV, Notion and Sheets (Steam: Native or a ProtonDB rating).</summary>
     [ObservableProperty] private bool includeLinuxColumn;
 
     [RelayCommand]
@@ -64,15 +61,11 @@ public partial class MainWindowViewModel
         }
     }
 
-    /// <summary>Called on shutdown, so values typed into the fields survive a restart.</summary>
     public void SaveOnExit() => PersistSettings();
 
-    /// <summary>Persists the current settings to the encrypted secret store (also read by the
-    /// command-line <c>--sync</c>). Runs on Save/Import, when an export starts, and on exit.</summary>
     private void PersistSettings() =>
         _secrets.Save(AppSettingsService.SecretKey, AppSettingsService.Serialize(CurrentSettings()));
 
-    /// <summary>Loads the settings remembered (encrypted) from a previous session.</summary>
     private void LoadPersistedSettings()
     {
         var content = _secrets.Load(AppSettingsService.SecretKey);
@@ -90,7 +83,6 @@ public partial class MainWindowViewModel
         IncludeLinuxColumn = settings.LinuxColumn == true;
     }
 
-    // Only overwrites the fields actually present in the settings file, then remembers them.
     private void ApplyImportedSettings(string content)
     {
         var settings = AppSettingsService.Parse(content);
@@ -104,7 +96,6 @@ public partial class MainWindowViewModel
         PersistSettings();
     }
 
-    // Fields missing from the settings keep their current value.
     private void ApplyCredentials(AppSettings settings)
     {
         SteamApiKey = settings.SteamApiKey ?? SteamApiKey;

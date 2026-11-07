@@ -5,7 +5,6 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace Pilewise.ViewModels;
 
-/// <summary>The main window's pages (sidebar order).</summary>
 public enum MainTab
 {
     Sources,
@@ -14,20 +13,16 @@ public enum MainTab
     Settings
 }
 
-// The sidebar pages, the per-target "Ready / Needs …" status, and the light / dark theme.
 public partial class MainWindowViewModel
 {
-    /// <summary>The page shown (<see cref="MainTab"/> as an index, bound to the sidebar and the pages).</summary>
     [ObservableProperty] private int selectedTab = (int)MainTab.Export;
 
-    /// <summary>The sidebar shows icons only (saved as <c>Sidebar: collapsed</c>).</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSidebarExpanded), nameof(SidebarWidth), nameof(SidebarToggleTip))]
     private bool isSidebarCollapsed;
 
     public bool IsSidebarExpanded => !IsSidebarCollapsed;
 
-    /// <summary>Animated by a DoubleTransition on the sidebar's Width.</summary>
     public double SidebarWidth => IsSidebarCollapsed ? 64 : 210;
 
     public string SidebarToggleTip => IsSidebarCollapsed ? "Expand the menu" : "Collapse the menu to icons";
@@ -41,7 +36,6 @@ public partial class MainWindowViewModel
     [RelayCommand]
     private void GoToExport() => SelectedTab = (int)MainTab.Export;
 
-    /// <summary>The keyboard shortcuts, for the Help panel (⌘ on macOS, Ctrl elsewhere).</summary>
     public static string ShortcutsText
     {
         get
@@ -52,11 +46,8 @@ public partial class MainWindowViewModel
         }
     }
 
-    // First start (nothing remembered yet): open on Sources, where setup begins.
     private void ChooseStartTab(bool firstRun) =>
         SelectedTab = (int)(firstRun ? MainTab.Sources : MainTab.Export);
-
-    // ---- export targets: ready, or what's missing (pill on each card) ---------------------------
 
     private const string NeedsSource = "Needs a source";
 
@@ -72,10 +63,7 @@ public partial class MainWindowViewModel
         : CanExportSheets ? "Ready"
         : "Needs a table name";
 
-    /// <summary>Shows the "no source yet" banner on the Export page.</summary>
     public bool HasNoSource => !HasSource;
-
-    // ---- theme ---------------------------------------------------------------------------------
 
     /// <summary>0 = follow the system, 1 = light, 2 = dark (saved as <c>Theme: Light / Dark</c>).</summary>
     [ObservableProperty]
@@ -94,10 +82,8 @@ public partial class MainWindowViewModel
 
     public bool IsDarkTheme => ThemeIndex == 2;
 
-    /// <summary>Width of one option in the theme switch; the highlight slides by this much.</summary>
     public const double ThemeOptionWidth = 36;
 
-    /// <summary>Where the theme switch's highlight sits (animated by a ThicknessTransition).</summary>
     public Thickness ThemeThumbMargin => new(ThemeIndex * ThemeOptionWidth, 0, 0, 0);
 
     [RelayCommand]
@@ -109,7 +95,6 @@ public partial class MainWindowViewModel
     [RelayCommand]
     private void UseDarkTheme() => ThemeIndex = 2;
 
-    /// <summary>The collapsed sidebar's single theme button: System → Light → Dark → System.</summary>
     [RelayCommand]
     private void CycleTheme() => ThemeIndex = (ThemeIndex + 1) % 3;
 

@@ -8,12 +8,9 @@ using Xunit;
 
 namespace Pilewise.Tests;
 
-/// <summary>Playtime / last played: model, library viewer and the opt-in Notion / Sheets columns.</summary>
 public class PlaytimeTests
 {
     private static readonly DateTimeOffset May1 = new(2024, 5, 1, 12, 0, 0, TimeSpan.Zero);
-
-    // ---- model ---------------------------------------------------------------------------
 
     [Fact]
     public void BuildFromLibraries_MapsSteamPlaytime_AndTreatsZeroLastPlayedAsNever()
@@ -41,8 +38,6 @@ public class PlaytimeTests
         Assert.Equal(60, steam.PlaytimeMinutes);
         Assert.Equal(May1.AddDays(3), steam.LastPlayed);
     }
-
-    // ---- library viewer ------------------------------------------------------------------
 
     private static LibraryViewModel Library() => new([
         new CsvGameExportRow { Name = "Alpha", HasSteam = true, SteamGameId = 1, PlaytimeMinutes = 0 },
@@ -84,8 +79,6 @@ public class PlaytimeTests
         Assert.Equal(expected, item.PlaytimeText.Replace(',', '.')); // decimal separator follows the UI culture
     }
 
-    // ---- Notion schema -------------------------------------------------------------------
-
     [Fact]
     public void NotionSchema_DetectsOptionalColumns_AndRejectsWrongType()
     {
@@ -94,7 +87,7 @@ public class PlaytimeTests
             ["Name"] = "title", ["Platform's"] = "multi_select", ["GameID"] = "rich_text",
             ["Playtime"] = "number", ["Last played"] = "date"
         });
-        Assert.Equal(new NotionOptionalColumns(true, true), ok.Optional);
+        Assert.Equal(new NotionOptionalColumns(true, true, Completed: "Completed"), ok.Optional);
 
         var bad = NotionSchemaCheck.Check(new Dictionary<string, string>
         {
@@ -104,8 +97,6 @@ public class PlaytimeTests
         Assert.False(bad.IsUsable);
         Assert.False(bad.Optional.Playtime);
     }
-
-    // ---- Google Sheets -------------------------------------------------------------------
 
     [Fact]
     public void Sheets_PlaytimeColumn_UpdatedWhenChanged_AndFilledForNewRows()

@@ -26,10 +26,8 @@ internal static class UiSession
     private static readonly Lazy<Thread> Thread = new(Start);
     private static readonly BindingErrorSink Errors = new();
 
-    /// <summary>Where rendered windows are saved (next to the test assembly) for a look by eye.</summary>
     public static string SnapshotDirectory { get; } = Path.Combine(AppContext.BaseDirectory, "ui-snapshots");
 
-    /// <summary>Runs <paramref name="work"/> on the UI thread and returns its result.</summary>
     public static Task<T> RunAsync<T>(Func<T> work)
     {
         _ = Thread.Value;
@@ -54,7 +52,6 @@ internal static class UiSession
         return true;
     });
 
-    /// <summary>Lets queued UI work (layout, bindings, input) and a few render ticks run.</summary>
     public static void Pump()
     {
         for (var i = 0; i < 5; i++)
@@ -67,7 +64,6 @@ internal static class UiSession
     /// <summary>Switches the app theme (call before creating the window).</summary>
     public static void UseTheme(ThemeVariant variant) => Application.Current!.RequestedThemeVariant = variant;
 
-    /// <summary>Shows the window, lays it out and returns it (close it when done).</summary>
     public static T Show<T>(T window) where T : Window
     {
         window.Show();
@@ -75,12 +71,9 @@ internal static class UiSession
         return window;
     }
 
-    /// <summary>Renders the window, saves the frame as <c>ui-snapshots/&lt;name&gt;.png</c> and returns
-    /// whether a frame was produced.</summary>
     public static bool Snapshot(Window window, string name) =>
         SaveFrame(window, Path.Combine(SnapshotDirectory, name + ".png"));
 
-    /// <summary>Renders the window and saves the frame as a PNG at <paramref name="path"/>.</summary>
     public static bool SaveFrame(Window window, string path)
     {
         Pump();
@@ -91,7 +84,6 @@ internal static class UiSession
         return true;
     }
 
-    /// <summary>Binding errors logged since the last <see cref="ClearBindingErrors"/>.</summary>
     public static IReadOnlyList<string> BindingErrors => Errors.Messages;
 
     public static void ClearBindingErrors() => Errors.Clear();
@@ -130,7 +122,6 @@ internal static class UiSession
         return thread;
     }
 
-    // Collects warnings and errors from the binding system (a property that doesn't exist, a wrong type…).
     private sealed class BindingErrorSink : ILogSink
     {
         private readonly ConcurrentQueue<string> _messages = new();

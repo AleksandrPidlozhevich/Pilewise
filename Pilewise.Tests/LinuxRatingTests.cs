@@ -46,9 +46,9 @@ public class LinuxRatingTests
 
         var csv = CsvGameExportService.Serialize([row, xbox], includeLinux: true);
 
-        Assert.StartsWith("Platform,Name,ID,Linux", csv);
-        Assert.Contains("Steam,Portal,Steam:400,Native", csv);
-        Assert.Contains("Xbox,Halo,Xbox:1,Unknown", csv);
+        Assert.StartsWith("Platform,Name,ID,Completed,Linux", csv);
+        Assert.Contains("Steam,Portal,Steam:400,,Native", csv);
+        Assert.Contains("Xbox,Halo,Xbox:1,,Unknown", csv);
 
         var parsed = CsvGameExportService.Parse(csv);
         Assert.Equal(2, parsed.Count);
@@ -66,7 +66,7 @@ public class LinuxRatingTests
 
         Assert.True(CsvGameExportService.HasLinuxColumn(csv));
         Assert.Equal("Native", Assert.Single(merged).Linux);
-        Assert.Contains("Steam,Portal,Steam:400,Native", CsvGameExportService.Serialize(merged, includeLinux: true));
+        Assert.Contains("Steam,Portal,Steam:400,,Native", CsvGameExportService.Serialize(merged, includeLinux: true));
     }
 
     [Fact]

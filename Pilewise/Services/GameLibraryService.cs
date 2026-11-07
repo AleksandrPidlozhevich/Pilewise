@@ -51,10 +51,6 @@ public interface IGameLibraryService
         CancellationToken ct = default);
 }
 
-/// <summary>
-/// Fetches the owned games from Steam and/or Epic and/or GOG and/or Xbox and flattens them into
-/// CSV rows. Network/auth concerns live here; the caller supplies progress and status callbacks.
-/// </summary>
 public sealed class GameLibraryService : IGameLibraryService
 {
     private readonly IStoreClientFactory _clients;
@@ -62,7 +58,6 @@ public sealed class GameLibraryService : IGameLibraryService
     private readonly IgnoredGames _ignored;
     private readonly FirstSeenGames? _firstSeen;
 
-    /// <param name="firstSeen">Remembers when each fetched game was first seen ("recently added").</param>
     public GameLibraryService(
         IStoreClientFactory clients, StoreSelection? selection = null, IgnoredGames? ignored = null,
         FirstSeenGames? firstSeen = null)
@@ -95,7 +90,6 @@ public sealed class GameLibraryService : IGameLibraryService
             steamTask = _clients.CreateSteam().GetOwnedGames(steamId, steamApiKey, ct);
         }
 
-        // The three cached-session checks are independent network calls — run them together.
         var epicAuthTask = epicClient.TryAuthenticateFromCacheAsync();
         var gogAuthTask = gogClient.TryAuthenticateFromCacheAsync();
         var xboxAuthTask = xboxClient.TryAuthenticateFromCacheAsync();

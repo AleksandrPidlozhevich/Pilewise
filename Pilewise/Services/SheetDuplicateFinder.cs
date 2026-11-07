@@ -3,28 +3,21 @@ using System.Linq;
 
 namespace Pilewise.Services;
 
-/// <summary>
-/// Rows of the same game in a Google Sheet: the top-most row is kept and gets every store tag and id
-/// (and the Completed tick, if any copy had it); the other rows are deleted.
-/// </summary>
 public sealed record SheetDuplicateGroup(SheetRow Keep, IReadOnlyList<SheetRow> Remove, CsvGameExportRow Merged)
     : IDuplicateGroupView
 {
     public string Name => Keep.Row.Name;
 
-    /// <summary>The kept row should be ticked: it isn't, but a removed copy was.</summary>
     public bool CarriesCompleted => Keep.Completed == false && Remove.Any(r => r.Completed == true);
 
     public string ResultText => $"row {Keep.RowIndex + 1}: " +
                                 DuplicateFinder.Describe(Merged.PlatformText, Merged.IdText) +
                                 (CarriesCompleted ? " · Completed ✓" : "");
 
-    /// <summary>"row 40: Witcher 3 (GOG · GOG:2)" for each row that's deleted.</summary>
     public string RemoveText => string.Join(", ", Remove.Select(r =>
         $"row {r.RowIndex + 1}: {r.Row.Name} ({DuplicateFinder.Describe(r.StoredPlatform, r.StoredId)})"));
 }
 
-/// <summary>Duplicate rows in a Pilewise Google Sheet (see <see cref="DuplicateFinder"/>). Pure.</summary>
 public static class SheetDuplicateFinder
 {
     public static IReadOnlyList<SheetDuplicateGroup> Find(IReadOnlyList<SheetRow> rows) =>

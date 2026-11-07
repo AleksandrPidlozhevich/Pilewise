@@ -14,26 +14,15 @@ namespace Pilewise.Models;
 
 public readonly record struct StoreFetchProgress(int Completed, int Total, string Stage = "");
 
-/// <summary>Outcome of trying to authenticate a store from its cached refresh token.</summary>
 public enum StoreAuthFromCacheStatus
 {
-    /// <summary>No cached session exists — the user has never connected.</summary>
     NoCachedSession,
 
-    /// <summary>The cached refresh token was accepted.</summary>
     Authenticated,
 
-    /// <summary>A cached token existed but is no longer valid (expired/revoked).</summary>
     SessionExpired
 }
 
-/// <summary>
-/// Shared base for the OAuth store clients that use the authorization-code → refresh-token bearer
-/// flow (Epic, GOG): the user logs in via the browser, the resulting code is exchanged for tokens,
-/// the refresh token is cached (encrypted) and renewed on demand, with a one-shot refresh + retry
-/// on HTTP 401. Subclasses supply the endpoints/credentials, the token-request transport, and the
-/// library fetch; everything else lives here.
-/// </summary>
 public abstract class RefreshTokenStoreClient : IStoreClient
 {
     protected readonly ISecretStore Secrets;
@@ -46,7 +35,6 @@ public abstract class RefreshTokenStoreClient : IStoreClient
     protected string? AccessToken;
     protected string? RefreshToken;
 
-    // The account/user id returned alongside the tokens (purely informational, kept in the cache).
     protected string? AccountId;
 
     protected RefreshTokenStoreClient(ISecretStore secretStore, ILogService log)
@@ -55,40 +43,27 @@ public abstract class RefreshTokenStoreClient : IStoreClient
         Log = log;
     }
 
-    // ---- Subclass surface ------------------------------------------------------------
-
-    /// <summary>Store name used in log messages (e.g. "Epic", "GOG").</summary>
     protected abstract string StoreName { get; }
 
-    /// <summary>Key under which the refresh-token payload is kept in the secret store.</summary>
     protected abstract string SecretKey { get; }
 
-    /// <summary>The (shared, static) HttpClient configured with the store's required headers.</summary>
     protected abstract HttpClient Http { get; }
 
-    /// <summary>Name of the id field returned by the token endpoint (e.g. "account_id", "user_id").</summary>
     protected abstract string IdFieldName { get; }
 
-    /// <summary>The login URL the browser / embedded WebView starts at.</summary>
     protected abstract string BrowserLoginUrl { get; }
 
     public Uri LoginRequestUri => new(BrowserLoginUrl);
 
     public abstract Uri LoginRedirectUri { get; }
 
-    /// <summary>Builds the token-endpoint form for an authorization-code grant.</summary>
     protected abstract Dictionary<string, string> BuildAuthCodeForm(string authorizationCode);
 
-    /// <summary>Builds the token-endpoint form for a refresh-token grant.</summary>
     protected abstract Dictionary<string, string> BuildRefreshForm(string refreshToken);
 
-    /// <summary>Sends the token request (POST vs GET / auth header differ per store).</summary>
     protected abstract Task<HttpResponseMessage> SendTokenRequestAsync(Dictionary<string, string> form);
 
-    /// <summary>Legacy plaintext token file to migrate from, or null if the store never had one.</summary>
     protected virtual (string Folder, string FileName)? LegacyTokenPath => null;
-
-    // ---- IStoreClient ----------------------------------------------------------------
 
     public bool IsAuthenticated => !string.IsNullOrEmpty(AccessToken);
 
@@ -138,8 +113,6 @@ public abstract class RefreshTokenStoreClient : IStoreClient
     {
         return RequestTokenAsync(BuildRefreshForm(refreshToken));
     }
-
-    // ---- Token plumbing --------------------------------------------------------------
 
     private async Task<bool> RequestTokenAsync(Dictionary<string, string> form)
     {
@@ -237,8 +210,6 @@ public abstract class RefreshTokenStoreClient : IStoreClient
             throw new InvalidOperationException($"{StoreName} client is not authenticated. Call authenticate first.");
     }
 
-    // ---- Token cache -----------------------------------------------------------------
-
     private void SaveRefreshTokenToCache(string? refreshToken)
     {
         if (string.IsNullOrEmpty(refreshToken)) return;
@@ -267,10 +238,6 @@ public abstract class RefreshTokenStoreClient : IStoreClient
         }
     }
 
-    /// <summary>
-    /// One-time migration of a legacy plaintext token file (next to the exe) into the encrypted
-    /// secret store. Subclasses with such a file call this from their constructor.
-    /// </summary>
     protected void MigrateLegacyTokenFile()
     {
         if (LegacyTokenPath is not { } path) return;

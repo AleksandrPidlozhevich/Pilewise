@@ -8,7 +8,6 @@ using System.Linq;
 
 namespace Pilewise.ViewModels;
 
-/// <summary>The Sync history window: recent runs, newest first, refreshed live as runs finish.</summary>
 public sealed partial class SyncLogViewModel : ViewModelBase, IDisposable
 {
     private readonly SyncLog _log;
@@ -24,7 +23,6 @@ public sealed partial class SyncLogViewModel : ViewModelBase, IDisposable
         Refresh();
     }
 
-    /// <summary>Design-time only (Avalonia previewer).</summary>
     public SyncLogViewModel()
         : this(new SyncLog())
     {
@@ -36,7 +34,6 @@ public sealed partial class SyncLogViewModel : ViewModelBase, IDisposable
 
     public bool IsEmpty => Entries.Count == 0;
 
-    /// <summary>"12 runs · 2 failed".</summary>
     public string Summary
     {
         get

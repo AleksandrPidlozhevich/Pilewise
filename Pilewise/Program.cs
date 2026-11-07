@@ -18,7 +18,6 @@ internal sealed class Program
         // and finishes applying a downloaded update. A no-op when not installed via Velopack.
         VelopackApp.Build().Run();
 
-        // `Pilewise --sync notion …`: sync without opening the window (Task Scheduler, scripts).
         if (SyncCommandLine.IsHeadless(args))
         {
             Environment.ExitCode = RunHeadless(args);
@@ -79,7 +78,8 @@ internal sealed class Program
             Console.Out,
             services.GetRequiredService<StoreSelection>(),
             services.GetRequiredService<SyncLog>(),
-            linux: services.GetRequiredService<SteamLinuxLookup>());
+            linux: services.GetRequiredService<SteamLinuxLookup>(),
+            completed: services.GetRequiredService<CompletedGames>());
         return sync.RunAsync(command.Options, cancel.Token).GetAwaiter().GetResult();
     }
 

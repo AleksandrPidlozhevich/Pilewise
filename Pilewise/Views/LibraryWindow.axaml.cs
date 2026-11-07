@@ -7,7 +7,6 @@ using Pilewise.ViewModels;
 
 namespace Pilewise.Views;
 
-/// <summary>Viewer of the fetched library (see <see cref="ViewModels.LibraryViewModel"/>).</summary>
 public partial class LibraryWindow : Window
 {
     private readonly TextBox _search;
@@ -19,7 +18,6 @@ public partial class LibraryWindow : Window
         AddHandler(KeyDownEvent, OnShortcut, RoutingStrategies.Tunnel);
     }
 
-    // Ctrl+F (⌘F): jump to the search box. Esc: clear the search, or close the window when it's empty.
     private void OnShortcut(object? sender, KeyEventArgs e)
     {
         if (Shortcuts.IsCommand(e, this, Key.F))

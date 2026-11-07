@@ -97,8 +97,6 @@ public class RecentlyAddedTests
         Assert.Equal(["Hades", "Doom", "Portal"], vm.VisibleGames.Select(g => g.Name));
     }
 
-    // ---- what's new --------------------------------------------------------------------------
-
     [Theory]
     [InlineData("1.1.0", "1.2.0", "✓ Updated to v1.2.0")]
     [InlineData("1.2.0-beta.1", "1.2.0", null)] // same release

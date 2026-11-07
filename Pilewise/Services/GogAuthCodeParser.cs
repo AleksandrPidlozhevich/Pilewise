@@ -16,12 +16,10 @@ public static class GogAuthCodeParser
 
         text = text.Trim();
 
-        // code=… inside the redirect URL (or any query string).
         var match = Regex.Match(text, "[?&]code=([A-Za-z0-9_\\-]+)");
         if (match.Success)
             return match.Groups[1].Value;
 
-        // A bare code token pasted on its own.
         if (!text.Contains(' ') && text.Length >= 16 && Regex.IsMatch(text, "^[A-Za-z0-9_\\-]+$"))
             return text;
 

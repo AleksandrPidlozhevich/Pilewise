@@ -10,8 +10,6 @@ namespace Pilewise.Tests;
 
 public class CoversAndHiddenGamesTests
 {
-    // ---- cover / store links --------------------------------------------------------
-
     [Fact]
     public void SteamRow_LinksComeFromTheAppId()
     {
@@ -67,8 +65,6 @@ public class CoversAndHiddenGamesTests
         Assert.Equal("https://images.gog-statics.com/o.jpg", gogOnly.CoverUrl);
         Assert.Equal("https://www.gog.com/game/only", gogOnly.StoreUrl);
     }
-
-    // ---- hidden games -----------------------------------------------------------------
 
     [Fact]
     public void IgnoredGames_MatchByAnyStoreId_AndPersist()

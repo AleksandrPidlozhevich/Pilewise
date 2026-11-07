@@ -19,7 +19,6 @@ public class SteamGame
 
     [JsonProperty("appid")] public int GameID { get; set; }
 
-    /// <summary>Total playtime in minutes (0 = never played).</summary>
     [JsonProperty("playtime_forever")] public int PlaytimeMinutes { get; set; }
 
     /// <summary>Unix time of the last session, 0 when never played (or hidden by privacy settings).</summary>

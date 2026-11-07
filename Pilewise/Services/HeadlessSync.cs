@@ -9,11 +9,6 @@ using System.Threading.Tasks;
 
 namespace Pilewise.Services;
 
-/// <summary>
-/// Runs <c>Pilewise --sync …</c> without a window (e.g. from Task Scheduler): loads the credentials
-/// and store sessions the app saved, then syncs each target. Notion is applied without the preview
-/// (use <c>--dry-run</c> to see the changes first). Every run is also written to the log.
-/// </summary>
 public sealed class HeadlessSync
 {
     private readonly ISecretStore _secrets;
@@ -27,14 +22,15 @@ public sealed class HeadlessSync
     private readonly SyncLog? _syncLog;
     private readonly string _source;
     private readonly SteamLinuxLookup? _linux;
+    private readonly CompletedGames? _completed;
 
-    /// <param name="syncLog">Where each run is listed for the Sync history window (null: not listed).</param>
-    /// <param name="source">What started the run, as shown in the history ("Auto-sync", "Command line"…).</param>
     public HeadlessSync(
         ISecretStore secrets, IStateStore state, IGameLibraryService library, NotionGameExporter notion,
         GoogleSheetsGameExporter sheets, ILogService log, TextWriter output, StoreSelection? selection = null,
-        SyncLog? syncLog = null, string source = SyncLog.CommandLine, SteamLinuxLookup? linux = null)
+        SyncLog? syncLog = null, string source = SyncLog.CommandLine, SteamLinuxLookup? linux = null,
+        CompletedGames? completed = null)
     {
+        _completed = completed;
         _linux = linux;
         _syncLog = syncLog;
         _source = source;
@@ -106,8 +102,6 @@ public sealed class HeadlessSync
         await StampLinuxAsync(library.Rows, ct);
         var path = Path.GetFullPath(file);
 
-        int added, total;
-        string content;
         var existing = File.Exists(path) ? await File.ReadAllTextAsync(path, ct) : null;
         if (existing != null)
         {
@@ -115,15 +109,12 @@ public sealed class HeadlessSync
             if (missing.Count > 0)
                 throw new InvalidOperationException(
                     $"{path} is not a Pilewise CSV (missing columns: {string.Join(", ", missing)}).");
+        }
 
-            (content, added, _, total) =
-                CsvGameExportService.MergeToCsv(existing, library.Rows, _linux is { Enabled: true });
-        }
-        else
-        {
-            (added, total, content) = (library.Rows.Count, library.Rows.Count,
-                CsvGameExportService.Serialize(library.Rows, _linux is { Enabled: true }));
-        }
+        var merged = CsvGameExportService.MergeToCsv(existing, library.Rows, new CsvMergeOptions(
+            _linux is { Enabled: true }, library.FetchedStores, library.Ignored, _completed,
+            CsvGameExportService.TargetOf(path)));
+        var (added, total, content) = (merged.Added, merged.Total, merged.Content);
 
         if (options.DryRun) return $"Dry run: would add {added} games to {path} ({total} total).";
 
@@ -132,6 +123,7 @@ public sealed class HeadlessSync
 
         // UTF-8 with BOM, like the app, so Excel reads non-ASCII names correctly.
         await File.WriteAllTextAsync(path, content, new UTF8Encoding(true), ct);
+        merged.Commit();
         return $"Added {added} games to {path} ({total} total)." +
                (backup != null ? $" Previous version: {backup}" : "");
     }

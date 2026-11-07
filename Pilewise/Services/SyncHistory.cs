@@ -5,11 +5,6 @@ using System.Linq;
 
 namespace Pilewise.Services;
 
-/// <summary>
-/// Remembers when each export target was last synced successfully (shown under its button).
-/// Kept in the state store (see <see cref="IStateStore"/>).
-/// Format: one <c>Target=ISO-8601</c> line per target.
-/// </summary>
 public sealed class SyncHistory
 {
     public const string Csv = "CSV";
@@ -27,7 +22,6 @@ public sealed class SyncHistory
         _entries = Parse(store.Load(StateKey));
     }
 
-    /// <summary>The history key of a command-line / auto-sync target.</summary>
     public static string KeyOf(SyncTarget target) => target switch
     {
         SyncTarget.Csv => Csv,
@@ -51,7 +45,6 @@ public sealed class SyncHistory
             _entries.Select(e => $"{e.Key}={e.Value.ToString("O", CultureInfo.InvariantCulture)}")));
     }
 
-    /// <summary>"Last sync: today 14:20", "… yesterday 09:05", "… 3 Oct 18:40"; null when never.</summary>
     public static string? Describe(DateTimeOffset? when, DateTimeOffset now)
     {
         if (when == null) return null;

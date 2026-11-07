@@ -45,7 +45,6 @@
             </Border>
         </Grid>
 
-        <!-- confirm / cancel close the dialog with true / false (DialogWindow). -->
         <Border Grid.Row="1" Classes="dialog-footer">
             <StackPanel Classes="dialog-buttons">
                 <Button Classes="cancel" Content="{Binding CancelLabel}" />

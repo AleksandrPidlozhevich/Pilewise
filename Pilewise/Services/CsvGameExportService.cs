@@ -33,41 +33,33 @@ public sealed class CsvGameExportRow
     /// <summary>Xbox title played via Game Pass (played, not owned). Surfaced as a "Game Pass" tag.</summary>
     public bool IsGamePass { get; set; }
 
-    /// <summary>Total playtime in minutes when a store reports it (Steam), else null = unknown.
-    /// Not part of the CSV format; used by the library viewer and the opt-in Notion/Sheets columns.</summary>
     public int? PlaytimeMinutes { get; set; }
 
-    /// <summary>Last session (Steam / Xbox), null when unknown or never played.</summary>
     public DateTimeOffset? LastPlayed { get; set; }
 
-    /// <summary>Cover image / store page reported by the fetch (Epic / GOG / Xbox). Not in the CSV.</summary>
     public string? FetchedCoverUrl { get; set; }
 
-    /// <summary>Opt-in Linux column value. Not part of row identity.</summary>
     public string? Linux { get; set; }
 
     public string? FetchedStoreUrl { get; set; }
 
-    /// <summary>Cover for the Notion page: Steam's header image (from the id), else the fetched one.</summary>
+    /// <summary>The CSV row's other cells as read (column key → text): Completed, the opt-in columns and
+    /// the user's own ones. Written back as they are, except where Pilewise fills a cell.</summary>
+    public IReadOnlyDictionary<string, string>? Cells { get; set; }
+
     public string? CoverUrl => SteamGameId is { } id ? StoreLinks.SteamCover(id) : FetchedCoverUrl;
 
-    /// <summary>Store page link: Steam's (from the id), else the fetched one.</summary>
     public string? StoreUrl => SteamGameId is { } id ? StoreLinks.SteamStore(id) : FetchedStoreUrl;
 
-    /// <summary>Playtime in hours, rounded to 0.1 (the value written to Notion / Sheets).</summary>
     public double? PlaytimeHours => PlaytimeMinutes is { } m ? Math.Round(m / 60.0, 1) : null;
 
-    /// <summary>Last-played date as ISO <c>yyyy-MM-dd</c> (UTC), the value written to Notion / Sheets.</summary>
     public string? LastPlayedDate => LastPlayed?.UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
-    /// <summary>True when the row carries something worth keeping (a name or any identifier).</summary>
     public bool HasContent =>
         !string.IsNullOrWhiteSpace(Name) || PlatformCatalog.All.Any(d => d.HasId(this));
 
-    /// <summary>Combined identifier cell with platform prefixes, e.g. "Steam:236870; GOG:123".</summary>
     public string IdText => BuildIdField();
 
-    /// <summary>Combined platform cell, e.g. "Steam/GOG" (plus "Game Pass" when flagged).</summary>
     public string PlatformText => BuildPlatformField();
 
     public string ToCsvLine()
@@ -80,10 +72,6 @@ public sealed class CsvGameExportRow
             EscapeCsvField(Name),
             EscapeCsvField(BuildIdField()));
     }
-
-    /// <summary>The three identity cells plus the Linux column. A 4-field line still parses as the current format.</summary>
-    public string ToCsvLineWithLinux() =>
-        ToCsvLine() + "," + EscapeCsvField(Linux ?? LinuxRating.Unknown);
 
     private string BuildPlatformField()
     {
@@ -126,12 +114,13 @@ public sealed class CsvGameExportRow
         FetchedCoverUrl ??= other.FetchedCoverUrl;
         FetchedStoreUrl ??= other.FetchedStoreUrl;
         if (!string.IsNullOrEmpty(other.Linux)) Linux = other.Linux;
+        Cells ??= other.Cells;
 
         if (!string.IsNullOrEmpty(other.Name))
             Name = other.Name;
     }
 
-    private static string EscapeCsvField(string value)
+    internal static string EscapeCsvField(string value)
     {
         if (value.AsSpan().IndexOfAny(",\"\r\n") < 0)
             return value;
@@ -140,15 +129,31 @@ public sealed class CsvGameExportRow
     }
 }
 
+/// <summary>How <see cref="CsvGameExportService.MergeToCsv"/> fills the optional columns.</summary>
+/// <param name="FetchedStores">Stores fetched this run, for the opt-in Owned column (null: left as it is).</param>
+/// <param name="Ignored">Games hidden in the library viewer: their rows are kept as they are.</param>
+/// <param name="Completed">Syncs the Completed ticks (null: each row keeps its own).</param>
+/// <param name="Target">The file's sync id (<see cref="CsvGameExportService.TargetOf"/>).</param>
+public sealed record CsvMergeOptions(
+    bool IncludeLinux = false,
+    IReadOnlySet<string>? FetchedStores = null,
+    IEnumerable<CsvGameExportRow>? Ignored = null,
+    CompletedGames? Completed = null,
+    string? Target = null);
+
+public sealed record CsvMergeResult(
+    string Content, int Added, int Updated, int Total, bool Changed,
+    CompletionSync? Sync, IReadOnlyList<(CsvGameExportRow Row, bool Completed)> Written)
+{
+    public void Commit() => Sync?.Commit(Written);
+}
+
 public static partial class CsvGameExportService
 {
+    public static string TargetOf(string path) => $"CSV:{System.IO.Path.GetFullPath(path)}";
+
     public const string Header = "Platform,Name,ID";
 
-    /// <summary>
-    /// Returns the required columns missing from the file's header row.
-    /// An empty list means the file is a valid Pilewise CSV that can be updated.
-    /// Accepts both the current "ID" column and the legacy "Game ID" column.
-    /// </summary>
     public static IReadOnlyList<string> GetMissingColumns(string? content)
     {
         var headerFields = ReadHeaderFields(content);
@@ -161,7 +166,6 @@ public static partial class CsvGameExportService
         return missing;
     }
 
-    /// <summary>Whether this CSV already has the optional Linux column.</summary>
     public static bool HasLinuxColumn(string? content) =>
         HasColumn(ReadHeaderFields(content), LinuxRating.Column);
 
@@ -259,8 +263,6 @@ public static partial class CsvGameExportService
         return rows;
     }
 
-    /// <summary>Builds a row from a platform label and a combined "platform:id" field
-    /// (used when importing existing rows back from an external target like Notion).</summary>
     public static CsvGameExportRow CreateRow(string? platform, string name, string? idField)
     {
         var row = new CsvGameExportRow { Name = name };
@@ -301,8 +303,6 @@ public static partial class CsvGameExportService
         }
     }
 
-    // Sets each store flag from the platform label OR the presence of that store's id, plus the
-    // Game Pass tag — the inference shared by CreateRow and the current-format ParseLine.
     private static void ApplyPlatformFlags(CsvGameExportRow row, string platform)
     {
         foreach (var d in PlatformCatalog.All)
@@ -323,43 +323,153 @@ public static partial class CsvGameExportService
         // Headerless files are the old wide layout; a Platform header picks current vs legacy by column names.
         var legacyWide = !hasHeader || IsLegacyWideHeader(header);
         var linuxColumn = hasHeader ? IndexOfHeader(header, LinuxRating.Column) : -1;
+        // Current format: every column after Platform, Name, ID (Linux aside) is kept per row.
+        var keys = hasHeader && !legacyWide ? ColumnKeys(header) : [];
 
         foreach (var line in lines.Skip(hasHeader ? 1 : 0))
         {
             var fields = ParseCsvFields(line);
             var row = ParseLine(fields, legacyWide, linuxColumn);
-            if (row is { HasContent: true })
-                rows.Add(row);
+            if (row is not { HasContent: true }) continue;
+
+            if (keys.Count > 3)
+            {
+                var cells = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                for (var i = 3; i < keys.Count; i++)
+                    if (i != linuxColumn) cells[keys[i]] = i < fields.Count ? fields[i] : string.Empty;
+                row.Cells = cells;
+            }
+
+            rows.Add(row);
         }
 
         return rows;
     }
 
-    public static string Serialize(IEnumerable<CsvGameExportRow> rows, bool includeLinux = false)
+    public static string Serialize(
+        IEnumerable<CsvGameExportRow> rows, bool includeLinux = false, IReadOnlyList<string>? headers = null,
+        Func<CsvGameExportRow, bool>? completed = null, Func<CsvGameExportRow, bool?>? owned = null)
     {
+        var columns = (headers ?? [PlatformColumn, NameColumn, IdColumn]).ToList();
+        if (!columns.Contains(CompletedColumn, StringComparer.OrdinalIgnoreCase)) columns.Add(CompletedColumn);
+        if (includeLinux && !columns.Contains(LinuxRating.Column, StringComparer.OrdinalIgnoreCase))
+            columns.Add(LinuxRating.Column);
+        var keys = ColumnKeys(columns);
+        completed ??= row => ReadCompleted(row) ?? false;
+
         var builder = new StringBuilder();
-        builder.AppendLine(includeLinux ? Header + "," + LinuxRating.Column : Header);
+        builder.AppendLine(string.Join(",", columns.Select(CsvGameExportRow.EscapeCsvField)));
 
         foreach (var row in rows.Where(row => row.HasContent)
                      .OrderBy(row => row.Name, StringComparer.OrdinalIgnoreCase))
-            builder.AppendLine(includeLinux ? row.ToCsvLineWithLinux() : row.ToCsvLine());
+            builder.AppendLine(string.Join(",", columns.Select((column, i) =>
+                CsvGameExportRow.EscapeCsvField(CellText(row, column, keys[i], completed, owned)))));
 
         return builder.ToString();
     }
 
-    public static (string Content, int Added, int Updated, int Total) MergeToCsv(
-        string? existingContent, IEnumerable<CsvGameExportRow> incomingRows, bool includeLinux)
+    // Pilewise columns are filled the way the Sheets export fills them: playtime / last played only
+    // with fresh data, links / covers only into empty cells; any other column is the user's.
+    private static string CellText(
+        CsvGameExportRow row, string column, string key,
+        Func<CsvGameExportRow, bool> completed, Func<CsvGameExportRow, bool?>? owned)
     {
-        var (rows, added, updated) = Merge(Parse(existingContent ?? string.Empty), incomingRows);
-        var content = Serialize(rows, includeLinux || HasLinuxColumn(existingContent));
-        return (content, added, updated, rows.Count);
+        var cell = row.Cells?.GetValueOrDefault(key) ?? string.Empty;
+        return column.Trim().ToLowerInvariant() switch
+        {
+            "platform" => row.PlatformText,
+            "name" => row.Name,
+            "id" or "game id" => row.IdText,
+            "completed" => completed(row) ? Yes : string.Empty,
+            "linux" => row.Linux ?? LinuxRating.Unknown,
+            "playtime" => row.PlaytimeHours?.ToString(CultureInfo.InvariantCulture) ?? cell,
+            "last played" => row.LastPlayedDate ?? cell,
+            "owned" => owned?.Invoke(row) is { } isOwned ? (isOwned ? Yes : "no") : cell,
+            "store link" => cell.Length > 0 ? cell : row.StoreUrl ?? string.Empty,
+            "cover" => cell.Length > 0 ? cell : row.CoverUrl ?? string.Empty,
+            _ => cell
+        };
+    }
+
+    public static bool? ReadCompleted(CsvGameExportRow row)
+    {
+        if (row.Cells?.TryGetValue(CompletedColumn, out var cell) != true) return null;
+        var text = cell!.Trim();
+        return text.Length > 0 && !NotDone.Contains(text, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private const string PlatformColumn = "Platform";
+    private const string NameColumn = "Name";
+    private const string IdColumn = "ID";
+    public const string CompletedColumn = "Completed";
+    private const string Yes = "yes";
+    private static readonly string[] NotDone = ["no", "false", "0", "-", "нет", "ложь", "ні"];
+
+    // A key per column: its header, or header#index for a repeated one (each keeps its own cells).
+    private static List<string> ColumnKeys(IReadOnlyList<string> headers)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        return headers.Select((h, i) => seen.Add(h.Trim()) ? h.Trim() : $"{h.Trim()}#{i}").ToList();
+    }
+
+    /// <summary>
+    /// Merges the fetched games into a CSV's content (empty / null: a new file) and serializes it,
+    /// syncing the Completed ticks with <see cref="CompletedGames"/> when the options carry it.
+    /// Call <see cref="CsvMergeResult.Commit"/> once the content was written.
+    /// </summary>
+    public static CsvMergeResult MergeToCsv(
+        string? existingContent, IEnumerable<CsvGameExportRow> incomingRows, CsvMergeOptions? options = null)
+    {
+        options ??= new CsvMergeOptions();
+        var header = ReadHeaderFields(existingContent);
+        var keepHeader = header.Count > 0 &&
+                         string.Equals(header[0], PlatformColumn, StringComparison.OrdinalIgnoreCase) &&
+                         !IsLegacyWideHeader(header);
+
+        var fromFile = Parse(existingContent ?? string.Empty).Select(CloneRow).ToList();
+        var (rows, added, updated, matched) = MergeCore(fromFile, incomingRows);
+        var existing = new HashSet<CsvGameExportRow>(fromFile, ReferenceEqualityComparer.Instance);
+
+        // Hidden games: rows stay as they are (their own tick), and they're still owned.
+        var finder = new RowMatcher(rows);
+        var hidden = new HashSet<CsvGameExportRow>(ReferenceEqualityComparer.Instance);
+        foreach (var row in options.Ignored ?? [])
+            if (finder.Match(row) is { } match && existing.Contains(match))
+            {
+                hidden.Add(match);
+                matched.Add(match);
+            }
+
+        var sync = options.Completed?.Begin(options.Target ?? "CSV",
+            fromFile.Where(r => !hidden.Contains(r)).Select(r => (r, ReadCompleted(r))));
+        bool Completed(CsvGameExportRow row) =>
+            hidden.Contains(row) || sync == null ? ReadCompleted(row) ?? false : sync.IsCompleted(row);
+        bool? Owned(CsvGameExportRow row) =>
+            !existing.Contains(row) ? true
+            : options.FetchedStores == null ? null
+            : Ownership(row, matched.Contains(row), options.FetchedStores);
+
+        var content = Serialize(rows, options.IncludeLinux || HasLinuxColumn(existingContent),
+            keepHeader ? header : null, Completed, Owned);
+        var written = rows.Where(r => !hidden.Contains(r)).Select(r => (r, Completed(r))).ToList();
+        return new CsvMergeResult(content, added, updated, rows.Count,
+            !string.Equals(content, existingContent, StringComparison.Ordinal), sync, written);
     }
 
     public static (List<CsvGameExportRow> Rows, int Added, int Updated) Merge(
         IEnumerable<CsvGameExportRow> existingRows,
         IEnumerable<CsvGameExportRow> incomingRows)
     {
-        var rows = existingRows.Select(CloneRow).ToList();
+        var (rows, added, updated, _) = MergeCore(existingRows.Select(CloneRow).ToList(), incomingRows);
+        return (rows, added, updated);
+    }
+
+    // Merges into the given rows (not copied); also returns the ones a fetched game matched.
+    private static (List<CsvGameExportRow> Rows, int Added, int Updated, HashSet<CsvGameExportRow> Matched) MergeCore(
+        List<CsvGameExportRow> existingRows, IEnumerable<CsvGameExportRow> incomingRows)
+    {
+        var rows = existingRows.ToList();
+        var matched = new HashSet<CsvGameExportRow>(ReferenceEqualityComparer.Instance);
         var indexes = CreateIndexes(rows);
         var added = 0;
         var updated = 0;
@@ -377,10 +487,11 @@ public static partial class CsvGameExportService
 
             match.MergeFrom(incoming);
             RegisterRow(indexes, match);
+            matched.Add(match);
             updated++;
         }
 
-        return (rows, added, updated);
+        return (rows, added, updated, matched);
     }
 
     private static bool IsLegacyWideHeader(List<string> header) =>
@@ -423,7 +534,6 @@ public static partial class CsvGameExportService
             };
         }
 
-        // Current format: Platform, Name, ID.
         if (fields.Count >= 3)
         {
             var row = new CsvGameExportRow { Name = fields[1] };
@@ -446,7 +556,6 @@ public static partial class CsvGameExportService
         return null;
     }
 
-    // Parses the combined ID cell, e.g. "Steam:236870; Epic:{namespace}/{catalogItemId}".
     private static void ApplyIdField(CsvGameExportRow row, string idField)
     {
         if (string.IsNullOrWhiteSpace(idField))
@@ -522,7 +631,6 @@ public static partial class CsvGameExportService
 
     private static CsvGameExportRow? FindMatch(CsvIndexes indexes, CsvGameExportRow incoming)
     {
-        // Prefer an id match (per store, in catalog order), then fall back to normalized name.
         foreach (var d in PlatformCatalog.All)
         {
             var key = d.MatchKey(incoming);
@@ -579,7 +687,8 @@ public static partial class CsvGameExportService
             LastPlayed = row.LastPlayed,
             FetchedCoverUrl = row.FetchedCoverUrl,
             FetchedStoreUrl = row.FetchedStoreUrl,
-            Linux = row.Linux
+            Linux = row.Linux,
+            Cells = row.Cells
         };
     }
 
@@ -599,8 +708,6 @@ public static partial class CsvGameExportService
             .Any(part => string.Equals(part, token, StringComparison.OrdinalIgnoreCase));
     }
 
-    /// <summary>The name-match key: lower case, ™/®/© dropped, punctuation and runs of spaces
-    /// collapsed to one space ("The Witcher® 3: Wild Hunt" → "the witcher 3 wild hunt").</summary>
     public static string NormalizeGameName(string name)
     {
         var normalized = TrademarkSigns().Replace(name.Trim().ToLowerInvariant(), "");
@@ -617,8 +724,6 @@ public static partial class CsvGameExportService
     [GeneratedRegex(@"\s+")]
     private static partial Regex Whitespace();
 
-    /// <summary>Reusable matcher over a set of rows using the same dedup keys as
-    /// <see cref="Merge"/>: Steam id, Epic namespace/catalog id, GOG id, then normalized name.</summary>
     public sealed class RowMatcher
     {
         private readonly CsvIndexes _indexes;
@@ -639,8 +744,6 @@ public static partial class CsvGameExportService
         }
     }
 
-    // One id index keyed by (platform label, id key) replaces the per-store dictionaries; each
-    // descriptor supplies its own pre-normalized key (e.g. Xbox lowercased, Epic "ns|cat").
     private sealed class CsvIndexes
     {
         private readonly Dictionary<(string Platform, string Key), CsvGameExportRow> _byId = new();

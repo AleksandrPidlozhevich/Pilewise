@@ -21,7 +21,6 @@ internal sealed class DesignTimeSecretStore : ISecretStore
     public void Delete(string key) => _values.Remove(key);
 }
 
-/// <inheritdoc cref="DesignTimeSecretStore"/>
 internal sealed class DesignTimeStateStore : IStateStore
 {
     private readonly Dictionary<string, string> _values = [];
@@ -39,7 +38,6 @@ internal sealed class DesignTimeStateStore : IStateStore
 /// </summary>
 internal sealed class DesignTimeUpdateService : IUpdateService
 {
-    // The build's own version ("2.0.0+sha" → "2.0.0"), so the previewer shows the real one.
     public string CurrentVersion =>
         typeof(DesignTimeUpdateService).Assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion?.Split('+')[0] ?? "0.0.0";
@@ -54,7 +52,6 @@ internal sealed class DesignTimeUpdateService : IUpdateService
         Task.CompletedTask;
 }
 
-/// <inheritdoc cref="DesignTimeSecretStore"/>
 internal sealed class DesignTimeLog : ILogService
 {
     public void WriteLog(string message, LogLevel level = LogLevel.Info)

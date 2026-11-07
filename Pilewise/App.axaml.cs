@@ -23,7 +23,6 @@ public partial class App : Application
     private TrayIcon? _tray;
     private bool _quitting;
 
-    /// <summary>Set by <c>Program.Main</c>: another start asks this one to show its window.</summary>
     public static SingleInstance? Instance { get; set; }
 
     public override void Initialize()
@@ -98,10 +97,6 @@ public partial class App : Application
         };
     }
 
-    // Tray icon on every platform (Linux needs a desktop with StatusNotifier / AppIndicator support):
-    // click to open; menu Open / Sync now / Sync history / Update to vX (when one is out) / Quit.
-    // The tooltip shows a newer version and the last result, and a failed (background) sync adds a
-    // red dot to the icon until a later result replaces it.
     private void CreateTrayIcon(MainWindowViewModel viewModel)
     {
         var normalIcon = new WindowIcon(AssetLoader.Open(AppIconUri));

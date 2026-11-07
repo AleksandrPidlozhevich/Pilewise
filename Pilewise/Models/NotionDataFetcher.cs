@@ -8,8 +8,6 @@ using System.Threading.Tasks;
 
 namespace Pilewise.Models;
 
-/// <summary>An existing Notion page flattened into a CSV-style row, plus its page id and the
-/// raw values stored in Notion (used to detect rows whose stored format is out of date).</summary>
 public sealed record NotionGameRow(
     CsvGameExportRow Row,
     string PageId,
@@ -26,12 +24,10 @@ public sealed record NotionGameRow(
 
 public class NotionDataFetcher : INotionDataFetcher
 {
-    // Property names as they exist in the user's Notion database.
     public const string NameProperty = "Name";
     public const string PlatformProperty = "Platform's";
     public const string GameIdProperty = "GameID";
 
-    // Optional, opt-in columns: filled only when the user has added them to the database.
     public const string PlaytimeProperty = "Playtime";
     public const string LastPlayedProperty = "Last played";
     public const string OwnedProperty = "Owned";
@@ -39,7 +35,6 @@ public class NotionDataFetcher : INotionDataFetcher
     // Created automatically like Platform's / GameID; filled only while empty (user edits are kept).
     public const string StoreLinkProperty = "Store link";
 
-    /// <summary>Select column written when the Linux tick is on: Native, a ProtonDB medal, or Unknown.</summary>
     public const string LinuxProperty = LinuxRating.Column;
 
     private readonly INotionApiClient _notionApiClient;

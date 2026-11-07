@@ -12,8 +12,6 @@ public class BacklogProgressTests
 {
     private static CsvGameExportRow Steam(string name, string id) => CsvGameExportService.CreateRow("Steam", name, "Steam:" + id);
 
-    // ---- Notion completion -------------------------------------------------------------
-
     [Fact]
     public void Notion_CompletedCheckbox_IsRead()
     {
@@ -47,8 +45,6 @@ public class BacklogProgressTests
             """{ "Status": { "type": "status", "status": { "name": "Done" } }, "Done": { "type": "checkbox", "checkbox": false } }""");
         Assert.False(NotionCompletion.Read(properties));
     }
-
-    // ---- snapshot & store ----------------------------------------------------------------
 
     [Fact]
     public void Snapshot_CountsNewRowsInTheTotal_AndKeepsCompletedKeys()
@@ -87,8 +83,6 @@ public class BacklogProgressTests
     [Fact]
     public void Store_BrokenJson_IsIgnored() => Assert.Empty(BacklogProgress.Parse("{not json"));
 
-    // ---- Google Sheets ------------------------------------------------------------------
-
     [Fact]
     public void Sheets_TrackedRows_CarryTheCompletedCell_HiddenLeftOut()
     {
@@ -114,8 +108,6 @@ public class BacklogProgressTests
 
         Assert.True(Assert.Single(plan.Tracked!).Completed);
     }
-
-    // ---- library viewer -----------------------------------------------------------------
 
     [Fact]
     public void Library_MarksCompletedGames_FiltersAndCounts()

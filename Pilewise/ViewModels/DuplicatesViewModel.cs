@@ -4,17 +4,12 @@ using System.Linq;
 
 namespace Pilewise.ViewModels;
 
-/// <summary>"Find duplicates" result for Notion or Google Sheets: which entries would be merged, for the
-/// user to confirm.</summary>
 public sealed class DuplicatesViewModel : ViewModelBase
 {
     private readonly string _target;
     private readonly string _entries;
     private readonly string _whatHappens;
 
-    /// <param name="target">"Notion" / "Google Sheets".</param>
-    /// <param name="entries">What an entry is called there: "pages" / "rows".</param>
-    /// <param name="whatHappens">What the merge does to the kept and the extra entries.</param>
     public DuplicatesViewModel(string target, string entries, IReadOnlyList<IDuplicateGroupView> groups, string whatHappens)
     {
         _target = target;
@@ -41,10 +36,8 @@ public sealed class DuplicatesViewModel : ViewModelBase
             "changed. File → Version history in Google Sheets brings deleted rows back if needed.");
     }
 
-    /// <summary>"1 game" / "3 games".</summary>
     public static string Count(int count, string noun) => $"{count} {noun}{(count == 1 ? "" : "s")}";
 
-    /// <summary>Design-time only (Avalonia previewer).</summary>
     public DuplicatesViewModel() : this("Notion", "pages", [], "")
     {
     }

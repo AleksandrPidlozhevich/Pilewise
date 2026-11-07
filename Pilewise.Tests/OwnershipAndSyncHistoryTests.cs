@@ -10,8 +10,6 @@ public class OwnershipAndSyncHistoryTests
 {
     private static readonly HashSet<string> SteamAndGog = [Platforms.Steam, Platforms.Gog];
 
-    // ---- the ownership rule --------------------------------------------------------------
-
     [Fact]
     public void Ownership_Matched_IsOwned()
     {
@@ -40,8 +38,6 @@ public class OwnershipAndSyncHistoryTests
         var row = new CsvGameExportRow { Name = "Hand-typed row" };
         Assert.Null(CsvGameExportService.Ownership(row, matched: false, SteamAndGog));
     }
-
-    // ---- Google Sheets "Owned" column ----------------------------------------------------
 
     [Fact]
     public void Sheets_OwnedColumn_UnticksGoneGames_TicksOwned_SkipsUnknown()
@@ -77,8 +73,6 @@ public class OwnershipAndSyncHistoryTests
         Assert.Empty(plan.Updates);
         Assert.Equal(["Refunded"], plan.NoLongerOwned);
     }
-
-    // ---- sync history --------------------------------------------------------------------
 
     private static readonly DateTimeOffset Now = new(2026, 10, 17, 15, 0, 0, TimeSpan.FromHours(3));
 

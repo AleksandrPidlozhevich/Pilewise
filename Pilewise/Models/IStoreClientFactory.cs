@@ -2,11 +2,6 @@ using Pilewise.Services;
 
 namespace Pilewise.Models;
 
-/// <summary>
-/// Creates fresh store clients on demand. A new client is built per connect/fetch operation so it
-/// reloads the cached session from the (shared) secret store; the factory just supplies the store
-/// dependency so callers don't construct clients — and reach for the secret store — themselves.
-/// </summary>
 public interface IStoreClientFactory
 {
     IEpicClient CreateEpic();

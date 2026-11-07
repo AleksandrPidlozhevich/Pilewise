@@ -6,11 +6,6 @@ using System.Threading;
 
 namespace Pilewise.ViewModels;
 
-/// <summary>
-/// Owns the busy/progress bar state and cancellation of the current long-running operation.
-/// Split out of <see cref="MainWindowViewModel"/> so the export commands just call
-/// <see cref="Begin"/>/<see cref="End"/> and read <see cref="Token"/>.
-/// </summary>
 public sealed partial class ProgressViewModel : ObservableObject
 {
     [ObservableProperty] private bool isBusy;
@@ -25,7 +20,6 @@ public sealed partial class ProgressViewModel : ObservableObject
 
     private CancellationTokenSource? _cts;
 
-    /// <summary>Token for the current operation; cancelled by the Cancel command.</summary>
     public CancellationToken Token => _cts?.Token ?? CancellationToken.None;
 
     public void Begin(string status)
@@ -62,7 +56,6 @@ public sealed partial class ProgressViewModel : ObservableObject
         Status = "Cancelling…";
     }
 
-    /// <summary>A progress reporter that drives the bar from a store fetch's stage/total/completed.</summary>
     public IProgress<StoreFetchProgress> CreateReporter()
     {
         // Constructed on the UI thread, so callbacks marshal back to it automatically.

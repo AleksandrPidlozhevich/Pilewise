@@ -4,8 +4,6 @@ using System.Text;
 
 namespace Pilewise.Services;
 
-/// <summary>A <see cref="TextWriter"/> that hands each written line to a callback (used to show
-/// <see cref="HeadlessSync"/> output in the app instead of a console).</summary>
 public sealed class CallbackTextWriter(Action<string> onLine) : TextWriter
 {
     private readonly StringBuilder _pending = new();

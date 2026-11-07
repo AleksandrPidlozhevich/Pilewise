@@ -4,19 +4,15 @@ using System.Linq;
 
 namespace Pilewise.Services;
 
-/// <summary>What the duplicates dialog shows for one game, whatever the tracker (Notion / Sheets).</summary>
 public interface IDuplicateGroupView
 {
     string Name { get; }
 
-    /// <summary>"Steam/GOG · Steam:1; GOG:2" — what the kept entry will hold after the merge.</summary>
     string ResultText { get; }
 
-    /// <summary>The entries that go away, with their stores and ids.</summary>
     string RemoveText { get; }
 }
 
-/// <summary>One game found more than once: the entry to keep, the extra ones, and the merged row.</summary>
 public sealed record DuplicateMatch<T>(T Keep, IReadOnlyList<T> Remove, CsvGameExportRow Merged);
 
 /// <summary>
@@ -28,7 +24,6 @@ public sealed record DuplicateMatch<T>(T Keep, IReadOnlyList<T> Remove, CsvGameE
 /// </summary>
 public static class DuplicateFinder
 {
-    /// <param name="itemsInKeepOrder">Entries in the order to prefer when keeping one (oldest first).</param>
     public static IReadOnlyList<DuplicateMatch<T>> Find<T>(IEnumerable<T> itemsInKeepOrder, Func<T, CsvGameExportRow> rowOf)
     {
         var groups = new List<Group<T>>();
@@ -85,7 +80,6 @@ public static class DuplicateFinder
             .ToList();
     }
 
-    /// <summary>"Steam/GOG · Steam:1; GOG:2", skipping empty parts.</summary>
     public static string Describe(string platforms, string id) =>
         string.Join(" · ", new[] { platforms, id }.Where(s => !string.IsNullOrWhiteSpace(s)));
 

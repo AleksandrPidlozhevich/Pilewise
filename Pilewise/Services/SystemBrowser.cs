@@ -4,7 +4,6 @@ using System.Diagnostics;
 
 namespace Pilewise.Services;
 
-/// <summary>Opens a URL, file or folder with its default app (browser, Excel, file manager), cross-platform.</summary>
 public static class SystemBrowser
 {
     /// <summary>Throws <see cref="InvalidOperationException"/> when nothing could open it (e.g. no app

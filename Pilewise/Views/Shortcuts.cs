@@ -5,9 +5,6 @@ using System;
 
 namespace Pilewise.Views;
 
-/// <summary>
-/// Keyboard shortcuts use the platform's command key: Ctrl on Windows / Linux, ⌘ on macOS.
-/// </summary>
 internal static class Shortcuts
 {
     /// <summary>True for exactly command + <paramref name="key"/> (no Shift / Alt).</summary>

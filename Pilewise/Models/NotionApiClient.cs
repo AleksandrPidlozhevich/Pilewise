@@ -33,7 +33,6 @@ public class NotionApiClient : INotionApiClient
     private readonly object _paceGate = new();
     private DateTime _nextRequestAt = DateTime.MinValue;
 
-    // The database's (first) data source id, resolved lazily from the database id and cached.
     private string? _dataSourceId;
 
     public NotionApiClient(string? apiKey, string? databaseId)
@@ -41,7 +40,6 @@ public class NotionApiClient : INotionApiClient
     {
     }
 
-    /// <summary>With a custom transport and pause between requests (tests use a fake handler and no pause).</summary>
     public NotionApiClient(string? apiKey, string? databaseId, HttpMessageHandler handler, TimeSpan delayBetweenRequests)
     {
         _databaseId = databaseId?.Trim() ?? string.Empty;
@@ -52,8 +50,6 @@ public class NotionApiClient : INotionApiClient
         _httpClient.DefaultRequestHeaders.Add("Notion-Version", NotionVersion);
     }
 
-    // Resolves the data source id behind the configured database id (single-source databases expose
-    // exactly one). Cached after the first call so the export only makes this round-trip once.
     private async Task<string> ResolveDataSourceIdAsync(CancellationToken ct)
     {
         if (!string.IsNullOrEmpty(_dataSourceId)) return _dataSourceId;

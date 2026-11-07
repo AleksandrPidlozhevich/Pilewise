@@ -5,7 +5,6 @@
              x:Class="Pilewise.Views.StoreConnectRow"
              x:DataType="vm:StoreConnectionViewModel">
 
-    <!-- Connect button → (paste-flow) code input → Connected, swapped in the same field-wide slot. -->
     <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
         <!-- Optional: the main window shows the store icon in the panel header instead. -->
         <Image Classes="icon"
@@ -30,7 +29,6 @@
                         Command="{Binding DisconnectCommand}" />
             </StackPanel>
         </Panel>
-        <!-- Per-store help: opens the relevant README section on GitHub. -->
         <Button Classes="info"
                 ToolTip.Tip="{Binding InfoTip}" AutomationProperties.Name="{Binding InfoTip}"
                 IsVisible="{Binding HasInfo}"

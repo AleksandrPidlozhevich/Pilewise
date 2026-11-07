@@ -20,11 +20,6 @@ public sealed record GoogleSheetsExportResult(
     int NoLongerOwned = 0,
     bool DryRun = false);
 
-/// <summary>
-/// Syncs the merged Steam/Epic/GOG/Xbox library into a Google Sheet (found by name in Drive, created
-/// if missing): new games are appended, existing rows updated in place. The reconcile decisions live
-/// in <see cref="GoogleSheetsSyncPlanner"/>; this class only talks to Google. Beta / may be unstable.
-/// </summary>
 public sealed class GoogleSheetsGameExporter
 {
     private readonly ISecretStore _secrets;
@@ -32,12 +27,14 @@ public sealed class GoogleSheetsGameExporter
     private readonly ILogService _log;
     private readonly BacklogProgress? _backlog;
     private readonly SteamLinuxLookup? _linux;
+    private readonly CompletedGames? _completed;
 
     public GoogleSheetsGameExporter(
         ISecretStore secrets, IGameLibraryService library, ILogService log, BacklogProgress? backlog = null,
-        SteamLinuxLookup? linux = null)
+        SteamLinuxLookup? linux = null, CompletedGames? completed = null)
     {
         _linux = linux;
+        _completed = completed;
         _backlog = backlog;
         _secrets = secrets;
         _library = library;
@@ -72,7 +69,7 @@ public sealed class GoogleSheetsGameExporter
         var spreadsheetId = await FindSpreadsheetAsync(client.DriveService, spreadsheetName, ct);
         if (dryRun && spreadsheetId == null)
         {
-            var planPreview = await PlanAsync(library, null, progress, onStatus, ct);
+            var planPreview = await PlanAsync(library, null, spreadsheetName, progress, onStatus, ct);
             return new GoogleSheetsExportResult(library, planPreview.NewRows.Count, 0, null, 0, DryRun: true);
         }
 
@@ -92,7 +89,7 @@ public sealed class GoogleSheetsGameExporter
         getValues.ValueRenderOption =
             SpreadsheetsResource.ValuesResource.GetRequest.ValueRenderOptionEnum.FORMULA;
         var existing = await getValues.ExecuteAsync(ct);
-        var plan = await PlanAsync(library, existing.Values, progress, onStatus, ct);
+        var plan = await PlanAsync(library, existing.Values, spreadsheetName, progress, onStatus, ct);
         if (dryRun)
             return new GoogleSheetsExportResult(library, plan.NewRows.Count, plan.Updates.Count,
                 spreadsheet.SpreadsheetUrl, plan.NoLongerOwned.Count, DryRun: true);
@@ -101,8 +98,8 @@ public sealed class GoogleSheetsGameExporter
         await WriteValuesAsync(sheets, spreadsheetId, sheetRef, plan, ct);
         await WriteCoversAsync(sheets, spreadsheetId, sheetRef, plan, ct);
         await ApplyCheckboxesAsync(sheets, spreadsheetId, sheetId, plan, ct);
-        _backlog?.Record(BacklogSnapshot.From(
-            SyncHistory.GoogleSheets, DateTimeOffset.Now, plan.Tracked ?? [], plan.NewRows.Count));
+        _backlog?.Record(BacklogSnapshot.From(SyncHistory.GoogleSheets, DateTimeOffset.Now, plan.Tracked ?? []));
+        plan.Completion?.Commit((plan.Tracked ?? []).Where(t => t.Completed != null).Select(t => (t.Row, t.Completed!.Value)));
 
         _log.WriteInfo(
             $"Google Sheets: added {plan.NewRows.Count}, updated {plan.Updates.Count} games in \"{spreadsheetName}\".");
@@ -110,25 +107,20 @@ public sealed class GoogleSheetsGameExporter
             library, plan.NewRows.Count, plan.Updates.Count, spreadsheet.SpreadsheetUrl, plan.NoLongerOwned.Count);
     }
 
-    // ---- read-only and maintenance operations on an existing sheet ---------------------------
-
-    /// <summary>
-    /// Read-only: reads the Completed ticks of the sheet and records them as the Google Sheets backlog
-    /// snapshot (the library viewer's ✓ marks), without fetching any store or writing.
-    /// </summary>
-    /// <param name="isHidden">Games hidden in the library viewer, left out of the counts.</param>
     public async Task<BacklogSnapshot?> ReadBacklogAsync(
         string? tableName, Func<CsvGameExportRow, bool>? isHidden = null, CancellationToken ct = default)
     {
         using var sheet = await OpenExistingAsync(tableName, ct);
         var contents = GoogleSheetsSyncPlanner.Read(sheet.Values);
-        var snapshot = BacklogSnapshot.From(SyncHistory.GoogleSheets, DateTimeOffset.Now,
-            contents.Rows.Where(r => isHidden?.Invoke(r.Row) != true).Select(r => (r.Row, r.Completed)));
+        var shown = contents.Rows.Where(r => isHidden?.Invoke(r.Row) != true).Select(r => (r.Row, r.Completed)).ToList();
+        var snapshot = BacklogSnapshot.From(SyncHistory.GoogleSheets, DateTimeOffset.Now, shown);
         _backlog?.Record(snapshot);
+        // Ticks changed in the sheet go into Pilewise's list; nothing is written to the sheet.
+        _completed?.Begin(TargetOf(tableName), shown)
+            .Commit(shown.Where(r => r.Completed != null).Select(r => (r.Row, r.Completed!.Value)));
         return snapshot;
     }
 
-    /// <summary>Read-only: finds rows of the same game in the sheet.</summary>
     public async Task<IReadOnlyList<SheetDuplicateGroup>> FindDuplicatesAsync(string? tableName, CancellationToken ct = default)
     {
         using var sheet = await OpenExistingAsync(tableName, ct);
@@ -189,9 +181,11 @@ public sealed class GoogleSheetsGameExporter
         _log.WriteInfo($"Google Sheets: merged {groups.Count} duplicate games, deleted {deletes.Count} rows.");
     }
 
+    public static string TargetOf(string? tableName) => $"{SyncHistory.GoogleSheets}:{tableName?.Trim()}";
+
     private async Task<GoogleSheetsSyncPlan> PlanAsync(
-        GameLibraryResult library, IList<IList<object>>? values, IProgress<StoreFetchProgress>? progress,
-        Action<string>? onStatus, CancellationToken ct)
+        GameLibraryResult library, IList<IList<object>>? values, string spreadsheetName,
+        IProgress<StoreFetchProgress>? progress, Action<string>? onStatus, CancellationToken ct)
     {
         IReadOnlyDictionary<int, string>? labels = null;
         if (_linux is { Enabled: true })
@@ -205,7 +199,8 @@ public sealed class GoogleSheetsGameExporter
 
         return GoogleSheetsSyncPlanner.Plan(
             values, library.Rows, library.FetchedStores, library.Ignored,
-            includeLinux: labels != null, linuxByAppId: labels);
+            includeLinux: labels != null, linuxByAppId: labels,
+            completed: _completed, target: TargetOf(spreadsheetName));
     }
 
     // The first tab of an existing spreadsheet, with its values; throws when it doesn't exist yet.
@@ -254,7 +249,6 @@ public sealed class GoogleSheetsGameExporter
         public void Dispose() => Client.Dispose();
     }
 
-    // The spreadsheet with this name in the user's Drive, or null.
     private static async Task<string?> FindSpreadsheetAsync(DriveService drive, string name, CancellationToken ct)
     {
         var listRequest = drive.Files.List();
@@ -343,6 +337,8 @@ public sealed class GoogleSheetsGameExporter
                 data.Add(CellValue(sheetRef, plan.Columns.StoreLink, update.RowIndex, link));
             if (update.Linux is { } linux)
                 data.Add(CellValue(sheetRef, plan.Columns.Linux, update.RowIndex, linux));
+            if (update.Completed is { } completed)
+                data.Add(CellValue(sheetRef, plan.Columns.Completed, update.RowIndex, completed));
         }
 
         if (plan.NewRows.Count > 0)
@@ -350,7 +346,7 @@ public sealed class GoogleSheetsGameExporter
             data.Add(new ValueRange
             {
                 Range = $"{sheetRef}!A{plan.FirstNewRowIndex + 1}",
-                Values = plan.NewRows.Select(row => BuildRow(plan.Columns, row)).ToList()
+                Values = plan.NewRows.Select((row, i) => BuildRow(plan.Columns, row, plan.NewRowCompleted(i))).ToList()
             });
         }
 
@@ -362,13 +358,13 @@ public sealed class GoogleSheetsGameExporter
     }
 
     // A full-width row; cells outside the Pilewise columns stay null, which the API skips.
-    private static IList<object> BuildRow(SheetColumns columns, CsvGameExportRow row)
+    private static IList<object> BuildRow(SheetColumns columns, CsvGameExportRow row, bool completed)
     {
         var cells = new object[columns.Width];
         cells[columns.Platform] = row.PlatformText;
         cells[columns.Name] = row.Name;
         cells[columns.Id] = row.IdText;
-        cells[columns.Completed] = false;
+        cells[columns.Completed] = completed;
         if (columns.Playtime >= 0 && row.PlaytimeHours is { } hours) cells[columns.Playtime] = hours;
         if (columns.LastPlayed >= 0 && row.LastPlayedDate is { } lastPlayed) cells[columns.LastPlayed] = lastPlayed;
         if (columns.Owned >= 0) cells[columns.Owned] = true;
@@ -439,7 +435,6 @@ public sealed class GoogleSheetsGameExporter
         Values = [new List<object> { value }]
     };
 
-    // A1 column letters for a 0-based index: 0 → A, 25 → Z, 26 → AA.
     private static string ColumnLetter(int index)
     {
         var letters = string.Empty;
@@ -448,6 +443,5 @@ public sealed class GoogleSheetsGameExporter
         return letters;
     }
 
-    // A1 sheet reference: always quoted, with embedded quotes doubled.
     private static string QuoteSheetTitle(string title) => $"'{title.Replace("'", "''")}'";
 }

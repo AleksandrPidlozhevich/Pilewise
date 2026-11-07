@@ -8,11 +8,6 @@ using System.Threading.Tasks;
 
 namespace Pilewise.ViewModels;
 
-/// <summary>
-/// One store's connect state (Epic / GOG / Xbox): the bindable connected/code-input flags and the
-/// connect command, wrapping a shared <see cref="StoreConnector"/>. Collapses the per-store
-/// property triples that used to live directly on <see cref="MainWindowViewModel"/>.
-/// </summary>
 public sealed partial class StoreConnectionViewModel : ObservableObject
 {
     [ObservableProperty]
@@ -37,22 +32,16 @@ public sealed partial class StoreConnectionViewModel : ObservableObject
 
     public string Name { get; }
 
-    /// <summary>Label for the connect button, e.g. "Connect Epic".</summary>
     public string ConnectLabel => $"Connect {Name}";
 
-    /// <summary>Tooltip / accessible name of the info button.</summary>
     public string InfoTip => $"How to connect {Name}";
 
-    /// <summary>Placeholder for the authorization-code field (paste-flow stores only).</summary>
     public string? CodePlaceholder { get; }
 
-    /// <summary>Initial state: show the compact "Connect" button.</summary>
     public bool ShowConnectButton => !IsConnected && !IsCodeInputVisible;
 
-    /// <summary>After clicking Connect (paste flow): show the authorization-code field.</summary>
     public bool ShowCodeInput => _supportsCodeInput && !IsConnected && IsCodeInputVisible;
 
-    /// <summary>Whether this store has a help link wired up (controls the info button's visibility).</summary>
     public bool HasInfo => _openInfo != null;
 
     public StoreConnectionViewModel(
@@ -94,7 +83,6 @@ public sealed partial class StoreConnectionViewModel : ObservableObject
             webAuth);
     }
 
-    /// <summary>Restore a previously cached session (called on startup).</summary>
     public Task InitializeFromCacheAsync() => _connector.InitializeFromCacheAsync();
 
     [RelayCommand]
@@ -117,11 +105,9 @@ public sealed partial class StoreConnectionViewModel : ObservableObject
     [RelayCommand]
     private void Disconnect() => _connector.SignOut();
 
-    // Opens this store's help page (the relevant README section on GitHub).
     [RelayCommand]
     private void OpenInfo() => _openInfo?.Invoke();
 
-    // Epic paste flow: authorize automatically as soon as a valid code is typed/pasted.
     partial void OnAuthorizationCodeChanged(string? value)
     {
         _connector.OnCodeChanged(value);

@@ -9,7 +9,6 @@ using Google.Apis.Sheets.v4;
 
 namespace Pilewise.Models;
 
-/// <summary>Google OAuth + the Sheets / Drive services. Disposable: each service owns an HttpClient.</summary>
 public sealed class GoogleSheetsApiClient : IDisposable
 {
     private const string ApplicationName = "Pilewise";
@@ -31,7 +30,6 @@ public sealed class GoogleSheetsApiClient : IDisposable
     public SheetsService? SheetsService { get; private set; }
     public DriveService? DriveService { get; private set; }
 
-    /// <summary>Authorizes (opening the browser on first use); cancellable while waiting for the login.</summary>
     public async Task<bool> ConnectAsync(CancellationToken ct = default)
     {
         try

@@ -6,11 +6,6 @@ using System.Threading.Tasks;
 
 namespace Pilewise.Services;
 
-/// <summary>
-/// Window-level UI affordances the view model needs — file pickers, the error dialog, link
-/// opening and clipboard access — kept behind an interface so the view model stays free of
-/// Avalonia window plumbing (and testable).
-/// </summary>
 public interface IDialogService
 {
     Task<IStorageFile?> PickSaveCsvAsync(string suggestedName);
@@ -19,16 +14,13 @@ public interface IDialogService
 
     Task ShowErrorAsync(string title, Exception exception);
 
-    /// <summary>Opens the library viewer (non-modal, owned by the main window).</summary>
     void ShowLibrary(LibraryViewModel library);
 
     /// <summary>Shows the Notion dry run; true when the user confirms the export.</summary>
     Task<bool> ConfirmNotionExportAsync(NotionExportPreviewViewModel preview);
 
-    /// <summary>Opens (or brings up) the Sync history window.</summary>
     void ShowSyncLog(SyncLogViewModel log);
 
-    /// <summary>Shows the duplicate pages found in Notion; true when the user confirms the merge.</summary>
     Task<bool> ConfirmDuplicatesAsync(DuplicatesViewModel duplicates);
 
     void OpenLink(string url);

@@ -98,7 +98,7 @@ warnings.
 | 📚 **Library viewer** | Browse the merged library before exporting: search by name, filter by store, sort by playtime or last played, and spot games you **never played** or own on two stores. **Hide** demos, test servers or tools to leave them out of every export. The footer shows how much of the library you've played, your total hours, and your most-played game. Double-click a game to open its store page. |
 | 🆕 **Recently added** | The library marks new games **NEW**, and you can filter or sort by *recently added*. Stores don't say when you bought a game, so this only covers games that appeared after you connected that store. |
 | 🎲 **Pick for me** | Can't decide? The library viewer suggests a game from the list shown, skipping completed and hidden ones and preferring games you've barely touched. |
-| ✅ **Backlog progress** | After an export to Notion or Google Sheets, that panel shows *Completed 120 of 640 (19%)*, and the library marks finished games with a ✓. Filter by **Completed** or **Not completed**. **Refresh** in the library updates the ✓ from Notion or Google Sheets without exporting again. |
+| ✅ **Completed games** | Tick a game in the library when you finish it, or tick it in your CSV, Notion or Google Sheets. Every export makes the ticks the same in all of them, so no tracker account is needed. Notion and Google Sheets panels show *Completed 120 of 640 (19%)*. Filter by **Completed** or **Not completed**. **Refresh** in the library reads new ticks from Notion or Google Sheets without exporting. |
 | 📋 **Copy list** | Copies the games currently on screen, including whatever search and filters you've set. Paste into a spreadsheet and they land in columns. |
 | ⬇️ **Updates** | A new version shows up in the sidebar and under *Settings → Updates* (**Check for updates**, **Download & restart**). If you leave the app open, it looks again every 12 hours. |
 | 🖼️ **Covers & store links** | New Notion pages get the game's cover image and a `Store link`; existing pages without one are filled in. |
@@ -226,10 +226,16 @@ Xbox opens its login inside the app too:
 The simplest target. No account or token needed.
 
 - **Export to CSV** writes the full merged library to a CSV file you pick.
-- **Update CSV** merges the current library into an existing CSV. It keeps your completion
-  status and doesn't create duplicates. The previous version is saved next to it as
-  `<name>.csv.bak`. **Undo** in the result banner puts the old file back. If you've already
+- **Update CSV** merges the current library into an existing CSV. It doesn't create duplicates,
+  and keeps your own columns (notes, ratings…) and values. The previous version is saved next to
+  it as `<name>.csv.bak`. **Undo** in the result banner puts the old file back. If you've already
   closed that banner, delete the new CSV and rename the `.bak`.
+
+The file has the same columns as the Google sheet: `Platform,Name,ID,Completed`. To mark a game
+as done, type anything in its `Completed` cell (`yes`, `x`, `TRUE`…), and clear it to unmark it.
+The next export or update carries the change to Notion and Google Sheets, and the other way round.
+Add a `Playtime`, `Last played`, `Owned`, `Store link` or `Cover` header (Cover holds the image
+URL) and Pilewise fills it the same way it does in Google Sheets.
 
 The file is saved so Excel opens game names correctly.
 
@@ -315,9 +321,11 @@ Optional: add any of these and Pilewise keeps them up to date too:
 A game is marked "no longer owned" only after Pilewise has checked every store listed on it.
 If Epic or GOG asks you to sign in again, games from that store are left as they are.
 
-**Backlog progress** comes from a column you maintain yourself. Pilewise never changes it.
-Use a checkbox named `Completed`, `Done`, `Finished` or `Beaten`, or a `Status` field set to
-`Done`, `Completed`, `Finished`, `Beaten` or `Played`. A dropdown (Select) with that name works too.
+**Completed games** use a checkbox named `Completed`, `Done`, `Finished` or `Beaten`. If the
+database has none, Pilewise adds a `Completed` checkbox. Ticks are kept the same as in the library,
+your CSV and Google Sheets. A `Status` field set to `Done`, `Completed`, `Finished`, `Beaten` or
+`Played` (or a dropdown with one of those names) works too, but Pilewise only reads it: ticks from
+elsewhere aren't written to it.
 
 ![Required Notion properties](docs/images/notion-properties.png)
 
@@ -357,8 +365,9 @@ column). Pilewise fills them with hours played (Steam), the date of the last ses
 A `Store link` header gets the game's store page and a `Cover` header its cover image (an
 `=IMAGE(…)` formula); both are filled only while the cell is empty, so your own values stay.
 
-Re-running the export adds new games and updates platform tags in place. Your ticks, row order
-and any extra columns you added are kept. Sheets created by older versions (Steam-only
+Re-running the export adds new games and updates platform tags in place. Row order and any extra
+columns you added are kept. `Completed` ticks are kept the same as in the library, your CSV and
+Notion: tick or untick a game in any of them and the next export carries it to the others. Sheets created by older versions (Steam-only
 `Name | Game ID | Completed`) are upgraded automatically.
 
 **Find duplicates…** under the Google Sheets export looks for rows of the same game. For each, the

@@ -17,7 +17,6 @@
 
     <Grid Margin="24,20,24,20" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*">
 
-        <!-- Title + count, and the pick button. -->
         <Grid ColumnDefinitions="*,Auto">
             <StackPanel>
                 <TextBlock Classes="page-title" Text="Game library" />
@@ -29,7 +28,6 @@
                     ToolTip.Tip="Suggest a game to play from the list shown: skips completed and hidden games, and prefers ones you've barely touched" />
         </Grid>
 
-        <!-- Stat tiles (hidden games excluded; search and filter don't change them). -->
         <WrapPanel Grid.Row="1">
             <Border Classes="stat" IsVisible="{Binding Stats.HasCompletion}" ToolTip.Tip="{Binding Stats.CompletedTip}">
                 <StackPanel>
@@ -77,7 +75,6 @@
             </Border>
         </WrapPanel>
 
-        <!-- Where the ✓ marks come from, and re-reading them (read-only). -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="10" Margin="2,0,0,10"
                     IsVisible="{Binding HasBacklogText}">
             <TextBlock Classes="hint" VerticalAlignment="Center" Text="{Binding BacklogText}" />
@@ -87,7 +84,6 @@
                     Command="{Binding RefreshBacklogCommand}" />
         </StackPanel>
 
-        <!-- Search, filter, sort, copy. -->
         <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,2,0,12">
             <TextBox x:Name="Search" Grid.Column="0" PlaceholderText="Search by name…"
                      Text="{Binding SearchText, Mode=TwoWay}">
@@ -118,7 +114,6 @@
                     Command="{Binding CopyListCommand}" />
         </Grid>
 
-        <!-- Pick for me: the suggestion, its store page, another pick. -->
         <Border Grid.Row="4" Classes="banner info" Margin="0,0,0,12" Padding="12,6">
             <Border.IsVisible>
                 <MultiBinding Converter="{x:Static BoolConverters.Or}">
@@ -140,7 +135,6 @@
             </Grid>
         </Border>
 
-        <!-- The list, with its column names in the frame's header. -->
         <Border Grid.Row="5" Classes="list-frame">
             <DockPanel>
                 <Border DockPanel.Dock="Top" Classes="list-header">
@@ -162,8 +156,22 @@
                                 <Grid ColumnDefinitions="*,170,80,100,200,76" MinHeight="30">
                                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6"
                                                 VerticalAlignment="Center" Margin="0,0,8,0">
+                                        <CheckBox Classes="include" Padding="0" VerticalAlignment="Center"
+                                                  IsChecked="{Binding IsCompleted, Mode=OneWay}"
+                                                  ToolTip.Tip="Completed (the next exports tick it in CSV, Notion and Sheets too)"
+                                                  AutomationProperties.Name="Completed"
+                                                  IsVisible="{Binding $parent[ListBox].((vm:LibraryViewModel)DataContext).CanMarkCompleted}"
+                                                  Command="{Binding $parent[ListBox].((vm:LibraryViewModel)DataContext).ToggleCompletedCommand}"
+                                                  CommandParameter="{Binding}" />
                                         <TextBlock Text="✓" FontWeight="Bold" Foreground="#2E9E5B"
-                                                   IsVisible="{Binding IsCompleted}" ToolTip.Tip="Completed" />
+                                                   ToolTip.Tip="Completed">
+                                            <TextBlock.IsVisible>
+                                                <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                                    <Binding Path="IsCompleted" />
+                                                    <Binding Path="$parent[ListBox].((vm:LibraryViewModel)DataContext).CanMarkCompleted" Converter="{x:Static BoolConverters.Not}" />
+                                                </MultiBinding>
+                                            </TextBlock.IsVisible>
+                                        </TextBlock>
                                         <Border Classes="chip new" IsVisible="{Binding IsNew}"
                                                 ToolTip.Tip="{Binding AddedText}">
                                             <TextBlock Text="NEW" FontSize="9" FontWeight="Bold" />
@@ -193,7 +201,6 @@
                                     <TextBlock Grid.Column="4" VerticalAlignment="Center" FontSize="11"
                                                Opacity="0.6" TextTrimming="CharacterEllipsis"
                                                Text="{Binding Id}" ToolTip.Tip="{Binding Id}" />
-                                    <!-- Hide / Unhide: leaves the game out of every export (saved). -->
                                     <Button Grid.Column="5" FontSize="11" Padding="10,3" HorizontalAlignment="Right"
                                             Content="{Binding HideLabel}" ToolTip.Tip="{Binding HideTip}"
                                             IsVisible="{Binding $parent[ListBox].((vm:LibraryViewModel)DataContext).CanHide}"

@@ -100,10 +100,6 @@ public class SteamApiClient : ISteamClient
         }
     }
 
-    /// <summary>
-    /// Turns whatever the user entered (SteamID64, profile link, vanity name, SteamID3…) into a
-    /// SteamID64, resolving custom-URL names through <c>ISteamUser/ResolveVanityURL</c>.
-    /// </summary>
     private async Task<string> ResolveSteamIdAsync(string input, string apiKey, CancellationToken ct)
     {
         var parsed = SteamIdParser.Parse(input);

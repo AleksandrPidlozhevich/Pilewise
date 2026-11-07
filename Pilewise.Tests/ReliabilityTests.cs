@@ -12,11 +12,8 @@ using Xunit;
 
 namespace Pilewise.Tests;
 
-// Failure paths: Notion retries / errors, the log file, and CSV edge cases.
 public class ReliabilityTests
 {
-    // ---- Notion: retries and errors ----------------------------------------------------------
-
     private const string DatabaseJson = """{"data_sources":[{"id":"ds-1"}]}""";
 
     private sealed class FakeNotion : HttpMessageHandler
@@ -121,8 +118,6 @@ public class ReliabilityTests
         Assert.Single(pages);
     }
 
-    // ---- log file ----------------------------------------------------------------------------
-
     private static string TempFolder()
     {
         var folder = Path.Combine(Path.GetTempPath(), "pilewise-log-" + Guid.NewGuid().ToString("N"));
@@ -184,8 +179,6 @@ public class ReliabilityTests
             Directory.Delete(folder, true);
         }
     }
-
-    // ---- CSV edge cases ----------------------------------------------------------------------
 
     [Fact]
     public void Csv_NameWithCarriageReturn_IsQuoted()

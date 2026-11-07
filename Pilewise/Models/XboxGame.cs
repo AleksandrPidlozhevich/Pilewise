@@ -9,7 +9,6 @@ namespace Pilewise.Models;
 /// </summary>
 public sealed class XboxGame
 {
-    /// <summary>Decimal Xbox title id (the stable per-title identifier).</summary>
     public string TitleId { get; set; } = string.Empty;
 
     public string Name { get; set; } = string.Empty;
@@ -18,9 +17,7 @@ public sealed class XboxGame
 
     public DateTimeOffset? LastPlayed { get; set; }
 
-    /// <summary>Title-hub display image (cover), when resolved.</summary>
     public string? ImageUrl { get; set; }
 
-    /// <summary>Microsoft Store product id (for the store link), when resolved.</summary>
     public string? ProductId { get; set; }
 }

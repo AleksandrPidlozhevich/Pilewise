@@ -25,7 +25,6 @@ public sealed class FileStateStore : IStateStore
     private readonly HashSet<string> _checkedLegacy = [];
     private readonly object _gate = new();
 
-    /// <param name="legacy">Where older builds kept this state (null: nothing to migrate).</param>
     public FileStateStore(ILogService log, ISecretStore? legacy = null, string? folder = null)
     {
         _log = log;

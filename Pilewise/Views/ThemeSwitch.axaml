@@ -1,5 +1,3 @@
-<!-- System / Light / Dark as three icons in a pill; the highlight slides to the chosen one.
-     Bound to MainWindowViewModel (ThemeIndex and its commands). -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Pilewise.ViewModels"
@@ -42,7 +40,6 @@
 
     <Border Background="#1F808080" CornerRadius="16" Padding="2" HorizontalAlignment="Left">
         <Panel>
-            <!-- The highlight: moved by ThemeThumbMargin, animated. -->
             <Border Width="36" Height="28" CornerRadius="14" HorizontalAlignment="Left"
                     Background="{DynamicResource AccentButtonBackground}"
                     Margin="{Binding ThemeThumbMargin}">

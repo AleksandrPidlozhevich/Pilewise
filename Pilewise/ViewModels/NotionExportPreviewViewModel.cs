@@ -4,10 +4,6 @@ using System.Linq;
 
 namespace Pilewise.ViewModels;
 
-/// <summary>
-/// The Notion dry run shown before anything is written: which pages would be created and which
-/// updated (before → after). The user confirms or cancels.
-/// </summary>
 public sealed class NotionExportPreviewViewModel : ViewModelBase
 {
     public NotionExportPreviewViewModel(NotionExportPlan plan)
@@ -20,7 +16,6 @@ public sealed class NotionExportPreviewViewModel : ViewModelBase
         HasOwnedColumn = plan.HasOwnedColumn;
     }
 
-    /// <summary>Design-time only (Avalonia previewer).</summary>
     public NotionExportPreviewViewModel()
         : this(new NotionExportPlan(
             new GameLibraryResult([], false, false, false, false, false, false),
@@ -50,7 +45,6 @@ public sealed class NotionExportPreviewViewModel : ViewModelBase
 
     public string GoneHeader => $"No longer owned ({NoLongerOwned.Count})";
 
-    /// <summary>Explains what happens to the gone games (they're never deleted).</summary>
     public string GoneNote => HasOwnedColumn
         ? "These pages are kept; their \"Owned\" checkbox is unticked."
         : "These pages are kept as they are. Add an \"Owned\" checkbox property to the database to mark them.";
@@ -59,7 +53,6 @@ public sealed class NotionExportPreviewViewModel : ViewModelBase
 
     public bool HasNewProperties => PropertiesToCreate.Count > 0;
 
-    /// <summary>"The database is missing GameID (text). It will be added."</summary>
     public string NewPropertiesText =>
         $"The database is missing {string.Join(", ", PropertiesToCreate.Select(p => $"{p.Name} ({p.DisplayType})"))}. " +
         (PropertiesToCreate.Count == 1 ? "It will be added." : "They will be added.");
@@ -76,7 +69,6 @@ public sealed class NotionExportPreviewViewModel : ViewModelBase
 
     public string UpdateHeader => $"Updated games ({ToUpdate.Count})";
 
-    /// <summary>Label of the confirm button, e.g. "Export 15 changes".</summary>
     public string ConfirmLabel
     {
         get

@@ -18,22 +18,18 @@
         <vm:MainWindowViewModel />
     </Design.DataContext>
 
-    <!-- Shared styles (panels, pills, ⓘ buttons, banners…) are in Styles/Common.axaml. -->
     <Window.Styles>
-        <!-- Each page: a readable column that scrolls when the window is short. -->
         <Style Selector="StackPanel.page">
             <Setter Property="Margin" Value="28,20,28,24" />
             <Setter Property="MaxWidth" Value="760" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />
         </Style>
 
-        <!-- Panel header: icon, title (+ one-line description), and a status / tick on the right. -->
         <Style Selector="Grid.panel-header > StackPanel">
             <Setter Property="Margin" Value="12,0" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
-        <!-- Rows of buttons under a panel's fields. -->
         <!-- Wraps when the window is too narrow for the whole row. -->
         <Style Selector="WrapPanel.actions">
             <Setter Property="ItemSpacing" Value="8" />
@@ -62,7 +58,6 @@
 
         <!-- On Windows a hidden pre-warm WebView2 is added here in code (MainWindow.axaml.cs). -->
 
-        <!-- ===== Sidebar: pages, update, support, theme, version. Collapses to icons (the menu button). ===== -->
         <Border Grid.Column="0" Width="{Binding SidebarWidth}" ClipToBounds="True"
                 Background="#14808080" BorderBrush="#26808080" BorderThickness="0,0,1,0">
             <Border.Transitions>
@@ -83,7 +78,6 @@
                 </StackPanel>
 
                 <StackPanel DockPanel.Dock="Bottom" Spacing="6">
-                    <!-- A newer version is out: download it and restart (same as the banner / Settings). -->
                     <Button Classes="accent" HorizontalAlignment="Stretch" Padding="10,7"
                             IsVisible="{Binding IsUpdateAvailable}"
                             ToolTip.Tip="{Binding UpdateButtonText}"
@@ -103,7 +97,6 @@
                                        IsVisible="{Binding IsSidebarExpanded}" />
                         </StackPanel>
                     </Button>
-                    <!-- Expanded: the three-way theme switch + version. Collapsed: one button cycling them. -->
                     <Grid ColumnDefinitions="Auto,*" Margin="2,4,0,0" IsVisible="{Binding IsSidebarExpanded}">
                         <views:ThemeSwitch />
                         <TextBlock Grid.Column="1" FontSize="11" Opacity="0.55" Margin="0,0,4,0"
@@ -121,7 +114,6 @@
                     </Button>
                 </StackPanel>
 
-                <!-- Collapsed: icons only, with the page name as a tooltip. -->
                 <ListBox Classes="nav" SelectedIndex="{Binding SelectedTab, Mode=TwoWay}">
                     <ListBoxItem ToolTip.Tip="Sources" ToolTip.ServiceEnabled="{Binding IsSidebarCollapsed}">
                         <StackPanel Orientation="Horizontal" Spacing="12">
@@ -151,12 +143,10 @@
             </DockPanel>
         </Border>
 
-        <!-- ===== Content: banners on top, then the selected page ===== -->
         <Grid Grid.Column="1" RowDefinitions="Auto,*">
 
             <!-- Top slot: progress bar, or the update banner, or the result banner. -->
             <Panel Grid.Row="0" Margin="28,16,28,0">
-                <!-- Progress bar (while fetching / syncing) + Cancel. -->
                 <Grid Height="20" ColumnDefinitions="*,Auto" IsVisible="{Binding Progress.IsBusy}">
                     <Panel Grid.Column="0">
                         <ProgressBar Height="20"
@@ -191,7 +181,6 @@
                     </Grid>
                 </Border>
 
-                <!-- Result banner: outcome of the last export + up to two follow-up actions. -->
                 <Border Classes="banner success">
                     <Border.IsVisible>
                         <MultiBinding Converter="{x:Static BoolConverters.And}">
@@ -217,7 +206,6 @@
                  the Cancel button above stay usable. -->
             <Carousel Grid.Row="1" SelectedIndex="{Binding SelectedTab}" IsEnabled="{Binding !Progress.IsBusy}">
 
-                <!-- ===== Sources ===== -->
                 <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Classes="page">
                         <Grid ColumnDefinitions="*,Auto">
@@ -226,7 +214,6 @@
                                 <TextBlock Classes="page-subtitle"
                                            Text="Where your games come from. Untick a store to leave it out of exports, the library and auto-sync." />
                             </StackPanel>
-                            <!-- Browse the merged library (nothing is exported). -->
                             <Button Grid.Column="1" Classes="accent" Content="View library…" Padding="18,8"
                                     Margin="16,4,0,0" VerticalAlignment="Top"
                                     ToolTip.Tip="{Binding LibraryHint, TargetNullValue='Browse what will be exported: search, filter, hide demos, or let Pilewise pick a game'}"
@@ -316,7 +303,6 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- ===== Export ===== -->
                 <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Classes="page">
                         <TextBlock Classes="page-title" Text="Export" />
@@ -343,7 +329,6 @@
                             </Grid>
                         </Border>
 
-                        <!-- CSV -->
                         <Border Classes="panel">
                             <StackPanel>
                                 <Grid Classes="panel-header" ColumnDefinitions="Auto,*,Auto">
@@ -367,7 +352,6 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Notion -->
                         <Border Classes="panel">
                             <StackPanel>
                                 <Grid Classes="panel-header" ColumnDefinitions="Auto,*,Auto">
@@ -415,7 +399,6 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Google Sheets -->
                         <Border Classes="panel">
                             <StackPanel>
                                 <Grid Classes="panel-header" ColumnDefinitions="Auto,*,Auto">
@@ -461,7 +444,6 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- ===== Automation ===== -->
                 <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Classes="page">
                         <TextBlock Classes="page-title" Text="Automation" />
@@ -521,7 +503,6 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- ===== Settings ===== -->
                 <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Classes="page">
                         <TextBlock Classes="page-title" Text="Settings" />
@@ -591,7 +572,6 @@
             </Carousel>
         </Grid>
 
-        <!-- Shown while a file is dragged over the window (see MainWindow.axaml.cs). -->
         <Border x:Name="DropOverlay" Grid.Column="0" Grid.ColumnSpan="2" Margin="12"
                 IsVisible="False" IsHitTestVisible="False" CornerRadius="10"
                 Background="#E6202020" BorderBrush="#803B82F6" BorderThickness="2">

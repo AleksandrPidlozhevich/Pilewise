@@ -10,14 +10,8 @@ namespace Pilewise.Services;
 /// </summary>
 public static class AppPaths
 {
-    /// <summary>
-    /// %AppData%\Pilewise on Windows, ~/Library/Application Support/Pilewise on macOS,
-    /// ~/.config/Pilewise on Linux. Data left in the folder of the app's former name (SteamDb) is
-    /// moved here on first use.
-    /// </summary>
     public static string DataDirectory { get; } = ResolveDataDirectory();
 
-    /// <summary>The folder the app was started from (where pre-Velopack builds kept their data).</summary>
     public static string ExeDirectory => AppContext.BaseDirectory;
 
     private static string ResolveDataDirectory()

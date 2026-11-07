@@ -6,14 +6,15 @@ using System.Threading.Tasks;
 
 namespace Pilewise.Services;
 
-/// <summary>Reads/writes Pilewise CSV files chosen through the storage pickers.</summary>
 public sealed class CsvFileService
 {
     private readonly ILogService _log;
+    private readonly CompletedGames? _completed;
 
-    public CsvFileService(ILogService log)
+    public CsvFileService(ILogService log, CompletedGames? completed = null)
     {
         _log = log;
+        _completed = completed;
     }
 
     public async Task<string?> ReadAsync(IStorageFile file)
@@ -31,22 +32,21 @@ public sealed class CsvFileService
         await writer.WriteAsync(content);
     }
 
-
-    public async Task<(int Added, int Total, string? BackupPath)> WriteMergedAsync(
-        IStorageFile file,
-        string? existingContent,
-        List<CsvGameExportRow> incomingRows,
-        bool includeLinux = false)
+    public async Task<(CsvMergeResult Result, string? BackupPath)> WriteMergedAsync(
+        IStorageFile file, string? existingContent, GameLibraryResult library, bool includeLinux = false)
     {
-        var (content, added, updated, total) =
-            CsvGameExportService.MergeToCsv(existingContent, incomingRows, includeLinux);
+        var path = file.TryGetLocalPath();
+        var result = CsvGameExportService.MergeToCsv(existingContent, library.Rows, new CsvMergeOptions(
+            includeLinux, library.FetchedStores, library.Ignored, _completed,
+            path != null ? CsvGameExportService.TargetOf(path) : $"CSV:{file.Name}"));
 
-        var backup = await CsvBackup.WriteAsync(file.TryGetLocalPath(), existingContent);
+        var backup = await CsvBackup.WriteAsync(path, existingContent);
         if (backup != null) _log.WriteInfo($"CSV backup written to {backup}.");
 
-        await WriteAsync(file, content);
+        await WriteAsync(file, result.Content);
+        result.Commit();
 
-        _log.WriteInfo($"CSV updated: {added} new, {updated} changed, {total} total rows.");
-        return (added, total, backup);
+        _log.WriteInfo($"CSV written: {result.Added} new, {result.Updated} matched, {result.Total} total rows.");
+        return (result, backup);
     }
 }

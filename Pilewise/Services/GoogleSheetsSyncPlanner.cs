@@ -13,7 +13,6 @@ public sealed record SheetColumns(
     int Platform, int Name, int Id, int Completed, int Playtime = -1, int LastPlayed = -1, int Owned = -1,
     int StoreLink = -1, int Cover = -1, int Linux = -1)
 {
-    /// <summary>Number of columns needed to hold every Pilewise column.</summary>
     public int Width =>
         new[] { Platform, Name, Id, Completed, Playtime, LastPlayed, Owned, StoreLink, Cover, Linux }.Max() + 1;
 }
@@ -27,15 +26,15 @@ public sealed record SheetRow(int RowIndex, CsvGameExportRow Row, string StoredP
 /// first; row and column positions would move, so nothing should be written by position until then.</param>
 public sealed record SheetContents(SheetColumns Columns, bool NeedsUpgrade, IReadOnlyList<SheetRow> Rows);
 
-/// <summary>A header cell to write (row 0) — only the Pilewise columns the sheet is missing.</summary>
 public sealed record SheetHeaderCell(int Column, string Text);
 
 /// <summary>New values for an existing row (0-based index in the migrated sheet). Playtime /
 /// LastPlayed are null when there's nothing to write (column absent or no fresh data); StoreLink /
-/// CoverUrl only fill an empty cell.</summary>
+/// CoverUrl only fill an empty cell; Completed is set when the synced tick differs from the cell.</summary>
 public sealed record SheetRowUpdate(
     int RowIndex, string Platform, string Id, double? PlaytimeHours = null, string? LastPlayed = null,
-    bool? Owned = null, string? StoreLink = null, string? CoverUrl = null, string? Linux = null);
+    bool? Owned = null, string? StoreLink = null, string? CoverUrl = null, string? Linux = null,
+    bool? Completed = null);
 
 /// <summary>
 /// Everything the Google Sheets export has to write, computed from the sheet's current values.
@@ -51,9 +50,12 @@ public sealed record GoogleSheetsSyncPlan(
     IReadOnlyList<CsvGameExportRow> NewRows,
     int FirstNewRowIndex,
     IReadOnlyList<string> NoLongerOwned,
-    IReadOnlyList<(CsvGameExportRow Row, bool? Completed)>? Tracked = null)
+    IReadOnlyList<(CsvGameExportRow Row, bool? Completed)>? Tracked = null,
+    IReadOnlyList<bool>? NewRowsCompleted = null,
+    CompletionSync? Completion = null)
 {
-    /// <summary>Rows the sheet holds once the plan is applied (header included).</summary>
+    public bool NewRowCompleted(int index) => NewRowsCompleted is { } ticks && index < ticks.Count && ticks[index];
+
     public int TotalRows => FirstNewRowIndex + NewRows.Count;
 }
 
@@ -81,7 +83,6 @@ public static class GoogleSheetsSyncPlanner
     public const string CoverHeader = "Cover";
     public const string LinuxHeader = LinuxRating.Column;
 
-    /// <summary>The cell formula that shows a cover image (quotes doubled for the formula string).</summary>
     public static string CoverFormula(string url) => $"=IMAGE(\"{url.Replace("\"", "\"\"")}\")";
 
     private static readonly string[] IdHeaders = [IdHeader, "Game ID", "GameID"];
@@ -89,10 +90,13 @@ public static class GoogleSheetsSyncPlanner
     /// <param name="fetchedStores">Stores whose library was loaded; a sheet row missing from the fetch
     /// is "no longer owned" only when all of its stores are in here (see <c>Ownership</c>).</param>
     /// <param name="includeLinux">Add and fill the Linux column. Ratings come from <paramref name="linuxByAppId"/>.</param>
+    /// <param name="completed">Syncs the Completed ticks with Pilewise's list (null: the sheet's ticks stay).</param>
+    /// <param name="target">The sheet's sync id for <paramref name="completed"/>.</param>
     public static GoogleSheetsSyncPlan Plan(
         IList<IList<object>>? values, IEnumerable<CsvGameExportRow> incoming,
         IReadOnlySet<string>? fetchedStores = null, IEnumerable<CsvGameExportRow>? ignored = null,
-        bool includeLinux = false, IReadOnlyDictionary<int, string>? linuxByAppId = null)
+        bool includeLinux = false, IReadOnlyDictionary<int, string>? linuxByAppId = null,
+        CompletedGames? completed = null, string? target = null)
     {
         fetchedStores ??= new HashSet<string>();
         values ??= [];
@@ -108,7 +112,6 @@ public static class GoogleSheetsSyncPlanner
         if (includeLinux)
             LinuxRating.Apply(incoming, linuxByAppId ?? new Dictionary<int, string>());
 
-        // Merge each owned game into its existing row, or queue a brand-new row.
         foreach (var row in incoming)
         {
             var match = matcher.Match(row);
@@ -136,6 +139,10 @@ public static class GoogleSheetsSyncPlanner
                 existing.Where(e => !hiddenRows.Contains(e.Row)).Select(e => e.Row),
                 linuxByAppId ?? new Dictionary<int, string>());
 
+        // Completed ticks: hidden rows keep theirs; the others get the synced value.
+        var tracked = existing.Where(e => !hiddenRows.Contains(e.Row)).ToList();
+        var completion = completed?.Begin(target ?? SyncHistory.GoogleSheets, tracked.Select(e => (e.Row, e.StoredCompleted)));
+
         // Rewrite any row whose stored cells no longer match — merged-in platforms, legacy bare ids /
         // missing platforms normalised to the current form, and fresh playtime / last-played values
         // (opt-in columns; only written when the fetch reported a value for that game).
@@ -157,31 +164,43 @@ public static class GoogleSheetsSyncPlanner
             var linuxWrite = fillable && includeLinux && e.Row.Linux is { } linux && linux != e.StoredLinux
                 ? linux
                 : null;
-            var changed = e.Row.PlatformText != e.StoredPlatform || e.Row.IdText != e.StoredId ||
+            var completedWrite = fillable && completion != null &&
+                                 completion.IsCompleted(e.Row) != (e.StoredCompleted ?? false)
+                ? completion.IsCompleted(e.Row)
+                : (bool?)null;
+            var changed = completedWrite != null ||
+                          e.Row.PlatformText != e.StoredPlatform || e.Row.IdText != e.StoredId ||
                           (hours != null && hours != e.StoredPlaytime) ||
                           (lastPlayed != null && lastPlayed != e.StoredLastPlayed) ||
                           (owned != null && owned != e.StoredOwned) ||
                           link != null || cover != null || linuxWrite != null;
             if (changed)
                 updates.Add(new SheetRowUpdate(
-                    e.RowIndex, e.Row.PlatformText, e.Row.IdText, hours, lastPlayed, owned, link, cover, linuxWrite));
+                    e.RowIndex, e.Row.PlatformText, e.Row.IdText, hours, lastPlayed, owned, link, cover, linuxWrite,
+                    completedWrite));
         }
 
+        var orderedNew = newRows.OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase).ToList();
+        var newTicks = orderedNew.Select(r => completion?.IsCompleted(r) ?? false).ToList();
         return new GoogleSheetsSyncPlan(
             layout.InsertPlatformColumn,
             layout.InsertHeaderRow,
             layout.Columns,
             layout.HeaderCells,
             updates,
-            newRows.OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase).ToList(),
+            orderedNew,
             // Row 0 is always the header (written now if the sheet was empty).
             Math.Max(values.Count + rowShift, 1),
             noLongerOwned.Order(StringComparer.OrdinalIgnoreCase).ToList(),
-            // The rows the backlog progress is counted over (hidden games left out).
-            existing.Where(e => !hiddenRows.Contains(e.Row)).Select(e => (e.Row, e.StoredCompleted)).ToList());
+            // The rows the backlog progress is counted over (hidden games left out), as ticked once
+            // the plan is written; new rows included.
+            tracked.Select(e => (e.Row, completion != null ? completion.IsCompleted(e.Row) : e.StoredCompleted))
+                .Concat(orderedNew.Select((r, i) => (r, completion != null ? newTicks[i] : (bool?)null)))
+                .ToList(),
+            newTicks,
+            completion);
     }
 
-    /// <summary>Reads the game rows of a sheet without planning an export (duplicates, ✓ marks).</summary>
     public static SheetContents Read(IList<IList<object>>? values)
     {
         values ??= [];
@@ -214,7 +233,6 @@ public static class GoogleSheetsSyncPlanner
     {
         var fresh = FreshColumns(includeLinux);
 
-        // Empty sheet: write the full header.
         if (values.Count == 0)
             return new Layout(false, false, -1, -1, -1, 1, fresh, FullHeader(fresh));
 

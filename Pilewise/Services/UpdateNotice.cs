@@ -2,10 +2,6 @@ using System;
 
 namespace Pilewise.Services;
 
-/// <summary>
-/// "Updated to v1.2.0 — What's new": shown once, on the first start after the app was updated. The
-/// version that last ran is remembered in the state store (key <c>last-version</c>).
-/// </summary>
 public static class UpdateNotice
 {
     public const string StateKey = "last-version";
@@ -18,7 +14,6 @@ public static class UpdateNotice
         return $"✓ Updated to v{current}";
     }
 
-    /// <summary>The GitHub release page of a version (its release notes).</summary>
     public static string ReleaseUrl(string version) =>
         $"https://github.com/AleksandrPidlozhevich/Pilewise/releases/tag/v{version}";
 
