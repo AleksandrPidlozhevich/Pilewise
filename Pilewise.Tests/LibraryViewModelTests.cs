@@ -8,10 +8,10 @@ namespace Pilewise.Tests;
 public class LibraryViewModelTests
 {
     private static LibraryViewModel Create() => new([
-        CsvGameExportService.CreateRow("Steam/GOG", "The Witcher 3", "Steam:292030; GOG:1207664643"),
-        CsvGameExportService.CreateRow("Epic", "Alan Wake", "Epic:ns/cat"),
-        CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400"),
-        CsvGameExportService.CreateRow("Steam", "Portal 2", "Steam:620")
+        CsvFormat.CreateRow("Steam/GOG", "The Witcher 3", "Steam:292030; GOG:1207664643"),
+        CsvFormat.CreateRow("Epic", "Alan Wake", "Epic:ns/cat"),
+        CsvFormat.CreateRow("Steam", "Portal", "Steam:400"),
+        CsvFormat.CreateRow("Steam", "Portal 2", "Steam:620")
     ]);
 
     [Fact]

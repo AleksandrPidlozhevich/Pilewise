@@ -5,6 +5,8 @@ using Pilewise.Services;
 using Pilewise.ViewModels;
 using Xunit;
 
+using Pilewise.Tests.Fakes;
+
 namespace Pilewise.Tests;
 
 public class RecentlyAddedTests
@@ -12,7 +14,7 @@ public class RecentlyAddedTests
     private static readonly DateOnly Day1 = new(2026, 9, 1);
     private static readonly DateOnly Day2 = new(2026, 10, 10);
 
-    private static CsvGameExportRow Steam(string name, string id) => CsvGameExportService.CreateRow("Steam", name, "Steam:" + id);
+    private static CsvGameExportRow Steam(string name, string id) => CsvFormat.CreateRow("Steam", name, "Steam:" + id);
 
     private static HashSet<string> Stores(params string[] stores) => new(stores, StringComparer.OrdinalIgnoreCase);
 
@@ -43,7 +45,7 @@ public class RecentlyAddedTests
         seen.Record([Steam("Portal", "400")], Stores("Steam"), Day1);
 
         // GOG connected for the first time: its whole library was already owned.
-        var gwent = CsvGameExportService.CreateRow("GOG", "Gwent", "GOG:9");
+        var gwent = CsvFormat.CreateRow("GOG", "Gwent", "GOG:9");
         seen.Record([Steam("Portal", "400"), gwent], Stores("Steam", "GOG"), Day2);
 
         Assert.Null(seen.AddedOn(gwent));
@@ -56,7 +58,7 @@ public class RecentlyAddedTests
         seen.Record([], Stores("Steam", "GOG"), Day1);
         seen.Record([Steam("Hades", "1145360")], Stores("Steam", "GOG"), Day2);
 
-        var both = CsvGameExportService.CreateRow("Steam/GOG", "Hades", "Steam:1145360; GOG:5");
+        var both = CsvFormat.CreateRow("Steam/GOG", "Hades", "Steam:1145360; GOG:5");
         seen.Record([both], Stores("Steam", "GOG"), Day2.AddDays(20));
 
         Assert.Equal(Day2, seen.AddedOn(both));
@@ -111,11 +113,4 @@ public class RecentlyAddedTests
     public void UpdateNotice_LinksTheReleaseNotes() =>
         Assert.Equal("https://github.com/AleksandrPidlozhevich/Pilewise/releases/tag/v1.2.0", UpdateNotice.ReleaseUrl("1.2.0"));
 
-    private sealed class MemoryStateStore : IStateStore
-    {
-        private readonly Dictionary<string, string> _values = [];
-        public string? Load(string key) => _values.GetValueOrDefault(key);
-        public void Save(string key, string value) => _values[key] = value;
-        public void Delete(string key) => _values.Remove(key);
-    }
 }

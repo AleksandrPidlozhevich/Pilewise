@@ -119,8 +119,8 @@ public class LibraryStatsTests
     [Fact]
     public void ViewModel_StatsLeaveOutHiddenGames()
     {
-        var hidden = CsvGameExportService.CreateRow("Steam", "Test Server", "Steam:1");
-        var vm = new LibraryViewModel([CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400")], [hidden]);
+        var hidden = CsvFormat.CreateRow("Steam", "Test Server", "Steam:1");
+        var vm = new LibraryViewModel([CsvFormat.CreateRow("Steam", "Portal", "Steam:400")], [hidden]);
 
         Assert.Equal(1, vm.Stats.Games);
     }
@@ -131,7 +131,7 @@ public class SheetLinksAndCoversTests
     private static IList<IList<object>> Sheet(params object[][] rows) =>
         rows.Select(r => (IList<object>)r.ToList()).ToList();
 
-    private static CsvGameExportRow Steam(string name, string id) => CsvGameExportService.CreateRow("Steam", name, "Steam:" + id);
+    private static CsvGameExportRow Steam(string name, string id) => CsvFormat.CreateRow("Steam", name, "Steam:" + id);
 
     [Fact]
     public void LinkAndCoverColumns_AreFoundByHeader_AndFilledWhenEmpty()

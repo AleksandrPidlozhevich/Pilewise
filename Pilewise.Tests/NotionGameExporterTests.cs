@@ -8,6 +8,8 @@ using Pilewise.Models;
 using Pilewise.Services;
 using Xunit;
 
+using Pilewise.Tests.Fakes;
+
 namespace Pilewise.Tests;
 
 public class NotionGameExporterTests
@@ -15,7 +17,7 @@ public class NotionGameExporterTests
     [Fact]
     public async Task Export_NewGameNotInDatabase_CreatesOneAndUpdatesNone()
     {
-        var incoming = CsvGameExportService.CreateRow("Steam", "New Game", "Steam:1");
+        var incoming = CsvFormat.CreateRow("Steam", "New Game", "Steam:1");
         var result = await RunExport(Library(incoming), existing: []);
 
         Assert.Single(result.Created);
@@ -28,9 +30,9 @@ public class NotionGameExporterTests
         // Existing Steam-only row; incoming GOG row for the same title (matched by name) adds GOG,
         // so the stored Notion page must be updated rather than a duplicate created.
         var existing = Existing("p1",
-            CsvGameExportService.CreateRow("Steam", "The Witcher 3", "Steam:292030"),
+            CsvFormat.CreateRow("Steam", "The Witcher 3", "Steam:292030"),
             gameId: "Steam:292030", platforms: "Steam");
-        var incoming = CsvGameExportService.CreateRow("GOG", "The Witcher 3", "GOG:99");
+        var incoming = CsvFormat.CreateRow("GOG", "The Witcher 3", "GOG:99");
 
         var result = await RunExport(Library(incoming), [existing]);
 
@@ -43,9 +45,9 @@ public class NotionGameExporterTests
     public async Task Export_EverythingAlreadyUpToDate_DoesNothing()
     {
         var existing = Existing("p1",
-            CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400"),
+            CsvFormat.CreateRow("Steam", "Portal", "Steam:400"),
             gameId: "Steam:400", platforms: "Steam");
-        var incoming = CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400");
+        var incoming = CsvFormat.CreateRow("Steam", "Portal", "Steam:400");
 
         var result = await RunExport(Library(incoming), [existing]);
 
@@ -59,7 +61,7 @@ public class NotionGameExporterTests
         // Stored GameID is a legacy bare number while the row resolves to "Steam:379720"; the
         // export should rewrite it to the prefixed form even though the game isn't in the import.
         var existing = Existing("p1",
-            CsvGameExportService.CreateRow("Steam", "Doom", "Steam:379720"),
+            CsvFormat.CreateRow("Steam", "Doom", "Steam:379720"),
             gameId: "379720", platforms: "Steam");
 
         var result = await RunExport(Library(/* nothing owned */), [existing]);
@@ -79,10 +81,10 @@ public class NotionGameExporterTests
     public async Task Plan_IsADryRun_WritesNothingButReportsChanges()
     {
         var existing = Existing("p1",
-            CsvGameExportService.CreateRow("Steam", "Doom", "Steam:379720"),
+            CsvFormat.CreateRow("Steam", "Doom", "Steam:379720"),
             gameId: "379720", platforms: "Steam");
         var (exporter, created, updated) = CreateExporter(
-            Library(CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400")), [existing]);
+            Library(CsvFormat.CreateRow("Steam", "Portal", "Steam:400")), [existing]);
 
         var plan = await exporter.PlanAsync("key", "id", "token", "db");
 
@@ -99,7 +101,7 @@ public class NotionGameExporterTests
     public async Task Apply_WritesExactlyThePlannedChanges()
     {
         var (exporter, created, updated) = CreateExporter(
-            Library(CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400")), existing: []);
+            Library(CsvFormat.CreateRow("Steam", "Portal", "Steam:400")), existing: []);
 
         var plan = await exporter.PlanAsync("key", "id", "token", "db");
         await exporter.ApplyAsync("token", "db", plan);
@@ -112,10 +114,10 @@ public class NotionGameExporterTests
     public async Task Plan_UpToDate_IsEmptyAndCountsUnchanged()
     {
         var existing = Existing("p1",
-            CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400"),
+            CsvFormat.CreateRow("Steam", "Portal", "Steam:400"),
             gameId: "Steam:400", platforms: "Steam");
         var (exporter, _, _) = CreateExporter(
-            Library(CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400")), [existing]);
+            Library(CsvFormat.CreateRow("Steam", "Portal", "Steam:400")), [existing]);
 
         var plan = await exporter.PlanAsync("key", "id", "token", "db");
 
@@ -126,18 +128,18 @@ public class NotionGameExporterTests
     [Fact]
     public async Task Plan_SyncsCompletedTicks_BothWays()
     {
-        var completed = new CompletedGames(new CompletedStore());
-        completed.Set(CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400"), true); // ticked in the app
-        var portal = Existing("p1", CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400"),
+        var completed = new CompletedGames(new MemoryStateStore());
+        completed.Set(CsvFormat.CreateRow("Steam", "Portal", "Steam:400"), true); // ticked in the app
+        var portal = Existing("p1", CsvFormat.CreateRow("Steam", "Portal", "Steam:400"),
             gameId: "Steam:400", platforms: "Steam") with { Completed = false };
-        var hades = Existing("p2", CsvGameExportService.CreateRow("Steam", "Hades", "Steam:1145360"),
+        var hades = Existing("p2", CsvFormat.CreateRow("Steam", "Hades", "Steam:1145360"),
             gameId: "Steam:1145360", platforms: "Steam") with { Completed = true }; // ticked in Notion
         var client = new FakeNotionApiClient();
         var exporter = new NotionGameExporter(
             new FakeGameLibraryService(Library(
-                CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400"),
-                CsvGameExportService.CreateRow("Steam", "Hades", "Steam:1145360"))),
-            new FakeNotionGateway(client, new FakeNotionDataFetcher([portal, hades])), new NullLogService(),
+                CsvFormat.CreateRow("Steam", "Portal", "Steam:400"),
+                CsvFormat.CreateRow("Steam", "Hades", "Steam:1145360"))),
+            new FakeNotionGateway(client, new FakeNotionDataFetcher([portal, hades])), new SilentLog(),
             completed: completed);
 
         var plan = await exporter.PlanAsync("key", "id", "token", "db");
@@ -149,7 +151,7 @@ public class NotionGameExporterTests
         await exporter.ApplyAsync("token", "db", plan);
 
         completed.Reload();
-        Assert.True(completed.IsCompleted(CsvGameExportService.CreateRow("Steam", "Hades", "Steam:1145360")));
+        Assert.True(completed.IsCompleted(CsvFormat.CreateRow("Steam", "Hades", "Steam:1145360")));
         Assert.Contains(client.Updated, u => u.PageId == "p1" &&
             ((Dictionary<string, object>)u.Body.Properties).ContainsKey("Completed"));
     }
@@ -167,13 +169,6 @@ public class NotionGameExporterTests
         Assert.Empty(result.ToCreate);
     }
 
-    private sealed class CompletedStore : IStateStore
-    {
-        private readonly Dictionary<string, string> _values = new();
-        public string? Load(string key) => _values.GetValueOrDefault(key);
-        public void Save(string key, string value) => _values[key] = value;
-        public void Delete(string key) => _values.Remove(key);
-    }
 
     [Fact]
     public async Task Plan_MissingGameIdProperty_IsPlanned_AndAddedOnlyOnApply()
@@ -181,9 +176,9 @@ public class NotionGameExporterTests
         var client = new FakeNotionApiClient();
         client.PropertyTypes.Remove("GameID");
         var exporter = new NotionGameExporter(
-            new FakeGameLibraryService(Library(CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400"))),
+            new FakeGameLibraryService(Library(CsvFormat.CreateRow("Steam", "Portal", "Steam:400"))),
             new FakeNotionGateway(client, new FakeNotionDataFetcher([])),
-            new NullLogService());
+            new SilentLog());
 
         var plan = await exporter.PlanAsync("key", "id", "token", "db");
 
@@ -205,7 +200,7 @@ public class NotionGameExporterTests
         var exporter = new NotionGameExporter(
             new FakeGameLibraryService(Library()),
             new FakeNotionGateway(client, new FakeNotionDataFetcher([])),
-            new NullLogService());
+            new SilentLog());
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
             () => exporter.PlanAsync("key", "id", "token", "db"));
@@ -218,9 +213,9 @@ public class NotionGameExporterTests
     {
         var client = new FakeNotionApiClient();
         client.PropertyTypes["Playtime"] = "number";
-        var stale = Existing("p1", CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400"),
+        var stale = Existing("p1", CsvFormat.CreateRow("Steam", "Portal", "Steam:400"),
             gameId: "Steam:400", platforms: "Steam") with { PlaytimeHours = 2.0 };
-        var current = Existing("p2", CsvGameExportService.CreateRow("Steam", "Doom", "Steam:379720"),
+        var current = Existing("p2", CsvFormat.CreateRow("Steam", "Doom", "Steam:379720"),
             gameId: "Steam:379720", platforms: "Steam") with { PlaytimeHours = 1.0 };
         var exporter = new NotionGameExporter(
             new FakeGameLibraryService(Library(
@@ -228,7 +223,7 @@ public class NotionGameExporterTests
                 new CsvGameExportRow { Name = "Doom", HasSteam = true, SteamGameId = 379720, PlaytimeMinutes = 60 },
                 new CsvGameExportRow { Name = "New", HasSteam = true, SteamGameId = 1, PlaytimeMinutes = 6 })),
             new FakeNotionGateway(client, new FakeNotionDataFetcher([stale, current])),
-            new NullLogService());
+            new SilentLog());
 
         var plan = await exporter.PlanAsync("key", "id", "token", "db");
 
@@ -247,7 +242,7 @@ public class NotionGameExporterTests
             new FakeGameLibraryService(Library(
                 new CsvGameExportRow { Name = "New", HasSteam = true, SteamGameId = 1, PlaytimeMinutes = 6 })),
             new FakeNotionGateway(new FakeNotionApiClient(), new FakeNotionDataFetcher([])),
-            new NullLogService());
+            new SilentLog());
 
         var plan = await exporter.PlanAsync("key", "id", "token", "db");
 
@@ -260,16 +255,16 @@ public class NotionGameExporterTests
     {
         var client = new FakeNotionApiClient();
         client.PropertyTypes["Owned"] = "checkbox";
-        var refunded = Existing("p1", CsvGameExportService.CreateRow("Steam", "Refunded", "Steam:9"),
+        var refunded = Existing("p1", CsvFormat.CreateRow("Steam", "Refunded", "Steam:9"),
             gameId: "Steam:9", platforms: "Steam") with { Owned = true };
-        var epicOnly = Existing("p2", CsvGameExportService.CreateRow("Epic", "Alan Wake", "Epic:ns/cat"),
+        var epicOnly = Existing("p2", CsvFormat.CreateRow("Epic", "Alan Wake", "Epic:ns/cat"),
             gameId: "Epic:ns/cat", platforms: "Epic") with { Owned = true };
-        var library = Library(CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400"))
+        var library = Library(CsvFormat.CreateRow("Steam", "Portal", "Steam:400"))
             with { SteamFetched = true }; // Epic not connected
         var exporter = new NotionGameExporter(
             new FakeGameLibraryService(library),
             new FakeNotionGateway(client, new FakeNotionDataFetcher([refunded, epicOnly])),
-            new NullLogService());
+            new SilentLog());
 
         var plan = await exporter.PlanAsync("key", "id", "token", "db");
 
@@ -284,12 +279,12 @@ public class NotionGameExporterTests
     [Fact]
     public async Task Plan_WithoutOwnedColumn_ReportsGoneButDoesNotUpdate()
     {
-        var refunded = Existing("p1", CsvGameExportService.CreateRow("Steam", "Refunded", "Steam:9"),
+        var refunded = Existing("p1", CsvFormat.CreateRow("Steam", "Refunded", "Steam:9"),
             gameId: "Steam:9", platforms: "Steam");
         var exporter = new NotionGameExporter(
             new FakeGameLibraryService(Library() with { SteamFetched = true }),
             new FakeNotionGateway(new FakeNotionApiClient(), new FakeNotionDataFetcher([refunded])),
-            new NullLogService());
+            new SilentLog());
 
         var plan = await exporter.PlanAsync("key", "id", "token", "db");
 
@@ -302,7 +297,7 @@ public class NotionGameExporterTests
     public async Task Plan_NewSteamGame_GetsCoverAndStoreLink()
     {
         var (exporter, _, _) = CreateExporter(
-            Library(CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400")), existing: []);
+            Library(CsvFormat.CreateRow("Steam", "Portal", "Steam:400")), existing: []);
 
         var plan = await exporter.PlanAsync("key", "id", "token", "db");
 
@@ -314,9 +309,9 @@ public class NotionGameExporterTests
     [Fact]
     public async Task Plan_PageWithoutCoverOrLink_IsFilled_ButUserValuesAreKept()
     {
-        var row = CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400");
+        var row = CsvFormat.CreateRow("Steam", "Portal", "Steam:400");
         var bare = new NotionGameRow(row, "p1", new HashSet<string> { "Steam" }, "Steam:400");
-        var custom = new NotionGameRow(CsvGameExportService.CreateRow("Steam", "Doom", "Steam:379720"), "p2",
+        var custom = new NotionGameRow(CsvFormat.CreateRow("Steam", "Doom", "Steam:379720"), "p2",
             new HashSet<string> { "Steam" }, "Steam:379720", HasCover: true, StoreLink: "https://my.link");
         var (exporter, _, _) = CreateExporter(Library(), [bare, custom]);
 
@@ -334,7 +329,7 @@ public class NotionGameExporterTests
         var client = new FakeNotionApiClient();
         client.PropertyTypes.Remove("Store link");
         var exporter = new NotionGameExporter(new FakeGameLibraryService(Library()),
-            new FakeNotionGateway(client, new FakeNotionDataFetcher([])), new NullLogService());
+            new FakeNotionGateway(client, new FakeNotionDataFetcher([])), new SilentLog());
 
         var plan = await exporter.PlanAsync("key", "id", "token", "db");
 
@@ -346,17 +341,17 @@ public class NotionGameExporterTests
     {
         var client = new FakeNotionApiClient();
         client.PropertyTypes["Owned"] = "checkbox";
-        var demo = CsvGameExportService.CreateRow("Steam", "Some Demo", "Steam:9");
-        var page = Existing("p1", CsvGameExportService.CreateRow("Steam", "Some Demo", "Steam:9"),
+        var demo = CsvFormat.CreateRow("Steam", "Some Demo", "Steam:9");
+        var page = Existing("p1", CsvFormat.CreateRow("Steam", "Some Demo", "Steam:9"),
             gameId: "Steam:9", platforms: "Steam") with { Owned = true };
-        var library = Library(CsvGameExportService.CreateRow("Steam", "Hidden New", "Steam:10")) with
+        var library = Library(CsvFormat.CreateRow("Steam", "Hidden New", "Steam:10")) with
         {
             SteamFetched = true,
             Rows = [],
-            IgnoredRows = [demo, CsvGameExportService.CreateRow("Steam", "Hidden New", "Steam:10")]
+            IgnoredRows = [demo, CsvFormat.CreateRow("Steam", "Hidden New", "Steam:10")]
         };
         var exporter = new NotionGameExporter(new FakeGameLibraryService(library),
-            new FakeNotionGateway(client, new FakeNotionDataFetcher([page])), new NullLogService());
+            new FakeNotionGateway(client, new FakeNotionDataFetcher([page])), new SilentLog());
 
         var plan = await exporter.PlanAsync("key", "id", "token", "db");
 
@@ -369,12 +364,12 @@ public class NotionGameExporterTests
     public async Task Duplicates_MergeUpdatesTheKeptPage_AndTrashesTheRest()
     {
         var client = new FakeNotionApiClient();
-        var steam = Existing("p1", CsvGameExportService.CreateRow("Steam", "Hades", "Steam:1145360"),
+        var steam = Existing("p1", CsvFormat.CreateRow("Steam", "Hades", "Steam:1145360"),
             gameId: "Steam:1145360", platforms: "Steam");
-        var epic = Existing("p2", CsvGameExportService.CreateRow("Epic", "Hades", "Epic:ns/cat"),
+        var epic = Existing("p2", CsvFormat.CreateRow("Epic", "Hades", "Epic:ns/cat"),
             gameId: "Epic:ns/cat", platforms: "Epic");
         var exporter = new NotionGameExporter(new FakeGameLibraryService(Library()),
-            new FakeNotionGateway(client, new FakeNotionDataFetcher([steam, epic])), new NullLogService());
+            new FakeNotionGateway(client, new FakeNotionDataFetcher([steam, epic])), new SilentLog());
 
         var groups = await exporter.FindDuplicatesAsync("token", "db");
         Assert.Empty(client.Updated); // finding is read-only
@@ -391,24 +386,24 @@ public class NotionGameExporterTests
     [Fact]
     public async Task Backlog_IsReadInThePlan_AndRecordedOnlyOnApply()
     {
-        var done = Existing("p1", CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400"), "Steam:400", "Steam")
+        var done = Existing("p1", CsvFormat.CreateRow("Steam", "Portal", "Steam:400"), "Steam:400", "Steam")
             with { Completed = true };
-        var open = Existing("p2", CsvGameExportService.CreateRow("Steam", "Doom", "Steam:379720"), "Steam:379720", "Steam")
+        var open = Existing("p2", CsvFormat.CreateRow("Steam", "Doom", "Steam:379720"), "Steam:379720", "Steam")
             with { Completed = false };
-        var hidden = Existing("p3", CsvGameExportService.CreateRow("Steam", "Test Server", "Steam:1"), "Steam:1", "Steam")
+        var hidden = Existing("p3", CsvFormat.CreateRow("Steam", "Test Server", "Steam:1"), "Steam:1", "Steam")
             with { Completed = true };
         var library = Library(
-            CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400"),
-            CsvGameExportService.CreateRow("Steam", "Doom", "Steam:379720"),
-            CsvGameExportService.CreateRow("Steam", "Hades", "Steam:1145360")) with
+            CsvFormat.CreateRow("Steam", "Portal", "Steam:400"),
+            CsvFormat.CreateRow("Steam", "Doom", "Steam:379720"),
+            CsvFormat.CreateRow("Steam", "Hades", "Steam:1145360")) with
         {
-            IgnoredRows = [CsvGameExportService.CreateRow("Steam", "Test Server", "Steam:1")]
+            IgnoredRows = [CsvFormat.CreateRow("Steam", "Test Server", "Steam:1")]
         };
         var backlog = new BacklogProgress();
         var exporter = new NotionGameExporter(
             new FakeGameLibraryService(library),
             new FakeNotionGateway(new FakeNotionApiClient(), new FakeNotionDataFetcher([done, open, hidden])),
-            new NullLogService(), backlog);
+            new SilentLog(), backlog);
 
         var plan = await exporter.PlanAsync("key", "id", "token", "db");
 
@@ -424,18 +419,18 @@ public class NotionGameExporterTests
     [Fact]
     public async Task ReadBacklog_OnlyReads_RecordsTheMarks_AndLeavesHiddenGamesOut()
     {
-        var done = Existing("p1", CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400"), "Steam:400", "Steam")
+        var done = Existing("p1", CsvFormat.CreateRow("Steam", "Portal", "Steam:400"), "Steam:400", "Steam")
             with { Completed = true };
-        var open = Existing("p2", CsvGameExportService.CreateRow("Steam", "Doom", "Steam:2280"), "Steam:2280", "Steam")
+        var open = Existing("p2", CsvFormat.CreateRow("Steam", "Doom", "Steam:2280"), "Steam:2280", "Steam")
             with { Completed = false };
-        var hidden = Existing("p3", CsvGameExportService.CreateRow("Steam", "Test Server", "Steam:1"), "Steam:1", "Steam")
+        var hidden = Existing("p3", CsvFormat.CreateRow("Steam", "Test Server", "Steam:1"), "Steam:1", "Steam")
             with { Completed = true };
         var client = new FakeNotionApiClient();
         var backlog = new BacklogProgress();
         var exporter = new NotionGameExporter(
             new FakeGameLibraryService(Library()),
             new FakeNotionGateway(client, new FakeNotionDataFetcher([done, open, hidden])),
-            new NullLogService(), backlog);
+            new SilentLog(), backlog);
 
         var snapshot = await exporter.ReadBacklogAsync("token", "db", r => r.Name == "Test Server");
 
@@ -454,7 +449,7 @@ public class NotionGameExporterTests
         var exporter = new NotionGameExporter(
             new FakeGameLibraryService(library),
             new FakeNotionGateway(client, new FakeNotionDataFetcher(existing.ToList())),
-            new NullLogService());
+            new SilentLog());
         return (exporter, client.Created, client.Updated);
     }
 
@@ -466,7 +461,7 @@ public class NotionGameExporterTests
         var exporter = new NotionGameExporter(
             new FakeGameLibraryService(library),
             new FakeNotionGateway(client, fetcher),
-            new NullLogService());
+            new SilentLog());
 
         await exporter.ExportAsync("key", "id", "token", "db");
         return (client.Created, client.Updated, client.Disposed);
@@ -562,11 +557,3 @@ file sealed class FakeNotionApiClient : INotionApiClient
     public void Dispose() => Disposed = true;
 }
 
-file sealed class NullLogService : ILogService
-{
-    public void WriteLog(string message, LogLevel level = LogLevel.Info) { }
-    public void WriteInfo(string message) { }
-    public void WriteWarning(string message) { }
-    public void WriteError(string message) { }
-    public void WriteException(Exception ex, string additionalMessage = "") { }
-}

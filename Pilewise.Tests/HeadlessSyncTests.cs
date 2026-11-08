@@ -8,6 +8,8 @@ using Pilewise.Models;
 using Pilewise.Services;
 using Xunit;
 
+using Pilewise.Tests.Fakes;
+
 namespace Pilewise.Tests;
 
 public class HeadlessSyncTests : IDisposable
@@ -85,7 +87,7 @@ public class HeadlessSyncTests : IDisposable
 
         await sync.RunAsync(Options(path));
 
-        var rows = CsvGameExportService.Parse(await File.ReadAllTextAsync(path));
+        var rows = CsvFormat.Parse(await File.ReadAllTextAsync(path));
         Assert.Equal(["Gwent", "Portal"], rows.Select(r => r.Name).Order());
         Assert.Contains("(2 total)", output.ToString());
 
@@ -266,12 +268,4 @@ public class HeadlessSyncTests : IDisposable
         public void Delete(string key) => _values.Remove(key);
     }
 
-    private sealed class SilentLog : ILogService
-    {
-        public void WriteLog(string message, LogLevel level = LogLevel.Info) { }
-        public void WriteInfo(string message) { }
-        public void WriteWarning(string message) { }
-        public void WriteError(string message) { }
-        public void WriteException(Exception ex, string additionalMessage = "") { }
-    }
 }

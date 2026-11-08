@@ -50,7 +50,7 @@ public class PickForMeTests
     public void ViewModel_PickSelectsTheGame_AndRespectsTheSearch()
     {
         var vm = new LibraryViewModel(
-            [CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400"), CsvGameExportService.CreateRow("Steam", "Doom", "Steam:2280")],
+            [CsvFormat.CreateRow("Steam", "Portal", "Steam:400"), CsvFormat.CreateRow("Steam", "Doom", "Steam:2280")],
             random: new Random(3)) { SearchText = "doo" };
 
         vm.PickForMeCommand.Execute(null);
@@ -64,7 +64,7 @@ public class PickForMeTests
     public void ViewModel_OpenStorePage_UsesTheLinkOpener()
     {
         string? opened = null;
-        var vm = new LibraryViewModel([CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400")], actions: new LibraryActions(OpenLink: url => opened = url));
+        var vm = new LibraryViewModel([CsvFormat.CreateRow("Steam", "Portal", "Steam:400")], actions: new LibraryActions(OpenLink: url => opened = url));
 
         vm.OpenStorePageCommand.Execute(vm.VisibleGames[0]);
 

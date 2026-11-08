@@ -9,7 +9,7 @@ namespace Pilewise.Tests;
 
 public class LibraryActionsTests
 {
-    private static CsvGameExportRow Steam(string name, string id) => CsvGameExportService.CreateRow("Steam", name, "Steam:" + id);
+    private static CsvGameExportRow Steam(string name, string id) => CsvFormat.CreateRow("Steam", name, "Steam:" + id);
 
     [Fact]
     public async Task RefreshBacklog_ReMarksTheList_AndSaysWhereFrom()

@@ -21,13 +21,13 @@ public sealed class HeadlessSync
     private readonly StoreSelection? _selection;
     private readonly SyncLog? _syncLog;
     private readonly string _source;
-    private readonly SteamLinuxLookup? _linux;
+    private readonly ISteamLinuxLookup? _linux;
     private readonly CompletedGames? _completed;
 
     public HeadlessSync(
         ISecretStore secrets, IStateStore state, IGameLibraryService library, NotionGameExporter notion,
         GoogleSheetsGameExporter sheets, ILogService log, TextWriter output, StoreSelection? selection = null,
-        SyncLog? syncLog = null, string source = SyncLog.CommandLine, SteamLinuxLookup? linux = null,
+        SyncLog? syncLog = null, string source = SyncLog.CommandLine, ISteamLinuxLookup? linux = null,
         CompletedGames? completed = null)
     {
         _completed = completed;
@@ -105,7 +105,7 @@ public sealed class HeadlessSync
         var existing = File.Exists(path) ? await File.ReadAllTextAsync(path, ct) : null;
         if (existing != null)
         {
-            var missing = CsvGameExportService.GetMissingColumns(existing);
+            var missing = CsvFormat.GetMissingColumns(existing);
             if (missing.Count > 0)
                 throw new InvalidOperationException(
                     $"{path} is not a Pilewise CSV (missing columns: {string.Join(", ", missing)}).");

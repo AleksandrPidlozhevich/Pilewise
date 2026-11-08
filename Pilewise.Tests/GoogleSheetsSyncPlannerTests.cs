@@ -29,8 +29,8 @@ public class GoogleSheetsSyncPlannerTests
         var incoming = new[]
         {
             Steam("Zork", "1"),
-            CsvGameExportService.CreateRow("GOG", "Gwent", "GOG:2"),
-            CsvGameExportService.CreateRow("Epic", "Alan Wake", "Epic:ns|cat")
+            CsvFormat.CreateRow("GOG", "Gwent", "GOG:2"),
+            CsvFormat.CreateRow("Epic", "Alan Wake", "Epic:ns|cat")
         };
 
         var plan = GoogleSheetsSyncPlanner.Plan(Sheet(), incoming);
@@ -61,7 +61,7 @@ public class GoogleSheetsSyncPlannerTests
             ["Steam", "The Witcher 3", "Steam:292030", false]);
 
         var plan = GoogleSheetsSyncPlanner.Plan(sheet,
-            [CsvGameExportService.CreateRow("GOG", "The Witcher 3", "GOG:99")]);
+            [CsvFormat.CreateRow("GOG", "The Witcher 3", "GOG:99")]);
 
         Assert.Empty(plan.NewRows);
         var update = Assert.Single(plan.Updates);
@@ -143,7 +143,7 @@ public class GoogleSheetsSyncPlannerTests
             ["Xbox", "Halo", "Xbox:123", false]);
 
         var plan = GoogleSheetsSyncPlanner.Plan(sheet,
-            [Steam("Portal", "400"), CsvGameExportService.CreateRow("Xbox", "Halo", "Xbox:123")],
+            [Steam("Portal", "400"), CsvFormat.CreateRow("Xbox", "Halo", "Xbox:123")],
             includeLinux: true, linuxByAppId: new Dictionary<int, string> { [400] = "Native" });
 
         Assert.Equal(4, plan.Columns.Linux);
@@ -176,7 +176,7 @@ public class GoogleSheetsSyncPlannerTests
     }
 
     private static CsvGameExportRow Steam(string name, string id) =>
-        CsvGameExportService.CreateRow("Steam", name, $"Steam:{id}");
+        CsvFormat.CreateRow("Steam", name, $"Steam:{id}");
 
     private static IList<IList<object>> Sheet(params object[][] rows) =>
         rows.Select(r => (IList<object>)r.ToList()).ToList();

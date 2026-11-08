@@ -13,6 +13,13 @@
              AvaloniaXamlLoader.Load(this) and look named controls up themselves, so the code reads
              the same in an IDE that doesn't run Avalonia's source generator. -->
         <AvaloniaNameGeneratorIsEnabled>false</AvaloniaNameGeneratorIsEnabled>
+        <!-- A tray app idles most of the time: no background GC thread (less memory and wakeups), no PGO
+             instrumentation overhead, precompiled (ReadyToRun) release builds for a faster first start,
+             and no satellite-resource folders for languages the UI doesn't have. -->
+        <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+        <TieredPGO>false</TieredPGO>
+        <PublishReadyToRun Condition="'$(RuntimeIdentifier)' != ''">true</PublishReadyToRun>
+        <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     </PropertyGroup>
 
     <ItemGroup>

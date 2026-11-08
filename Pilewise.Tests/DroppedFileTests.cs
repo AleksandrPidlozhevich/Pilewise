@@ -8,7 +8,7 @@ public class DroppedFileTests
     [Fact]
     public void Classify_GameList_IsGameCsv()
     {
-        var csv = CsvGameExportService.Header + "\nSteam,Portal,Steam:400\n";
+        var csv = CsvFormat.Header + "\nSteam,Portal,Steam:400\n";
         Assert.Equal(DroppedFileKind.GameCsv, DroppedFile.Classify(csv));
     }
 

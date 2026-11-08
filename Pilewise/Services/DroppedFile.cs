@@ -27,7 +27,7 @@ public static class DroppedFile
     {
         if (string.IsNullOrWhiteSpace(content)) return DroppedFileKind.Unknown;
 
-        if (CsvGameExportService.GetMissingColumns(content).Count == 0)
+        if (CsvFormat.GetMissingColumns(content).Count == 0)
             return DroppedFileKind.GameCsv;
 
         var settings = AppSettingsService.Parse(content);

@@ -4,6 +4,8 @@ using System.Linq;
 using Pilewise.Services;
 using Xunit;
 
+using Pilewise.Tests.Fakes;
+
 namespace Pilewise.Tests;
 
 public class SyncLogTests
@@ -73,11 +75,4 @@ public class SyncLogTests
         Assert.Equal([SyncTarget.Notion, SyncTarget.Csv], AutoSyncSettings.Parse("24h Notion, CSV").Targets);
     }
 
-    private sealed class MemoryStateStore : IStateStore
-    {
-        private readonly Dictionary<string, string> _values = [];
-        public string? Load(string key) => _values.GetValueOrDefault(key);
-        public void Save(string key, string value) => _values[key] = value;
-        public void Delete(string key) => _values.Remove(key);
-    }
 }

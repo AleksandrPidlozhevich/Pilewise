@@ -81,14 +81,14 @@ public partial class MainWindowViewModel
         RunOperationAsync(FetchingGames, "CSV update", "CSV update error", async () =>
         {
             var existingContent = await _csv.ReadAsync(file);
-            var missingColumns = CsvGameExportService.GetMissingColumns(existingContent);
+            var missingColumns = CsvFormat.GetMissingColumns(existingContent);
             if (missingColumns.Count > 0)
             {
                 _log.WriteWarning($"Update CSV aborted: missing columns {string.Join(", ", missingColumns)}.");
                 await _dialogs.ShowErrorAsync("Update CSV", new Exception(
                     "The selected file is not a Pilewise CSV. Missing columns: " +
                     string.Join(", ", missingColumns) +
-                    $".{Environment.NewLine}Expected header: {CsvGameExportService.Header}"));
+                    $".{Environment.NewLine}Expected header: {CsvFormat.Header}"));
                 return;
             }
 
@@ -180,7 +180,7 @@ public partial class MainWindowViewModel
                 default:
                     await _dialogs.ShowErrorAsync("Unsupported file", new Exception(
                         $"\"{file.Name}\" is neither a Pilewise game list (expected header: " +
-                        $"{CsvGameExportService.Header}) nor a saved settings file."));
+                        $"{CsvFormat.Header}) nor a saved settings file."));
                     break;
             }
         }

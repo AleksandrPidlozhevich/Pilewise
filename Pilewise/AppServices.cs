@@ -33,7 +33,7 @@ public static class AppServices
         services.AddSingleton<FirstSeenGames>(sp => new FirstSeenGames(sp.GetRequiredService<IStateStore>()));
         services.AddSingleton<CompletedGames>(sp => new CompletedGames(sp.GetRequiredService<IStateStore>()));
         services.AddSingleton<IGameLibraryService, GameLibraryService>();
-        services.AddSingleton<SteamLinuxLookup>();
+        services.AddSingleton<ISteamLinuxLookup, SteamLinuxLookup>();
         services.AddSingleton<INotionGateway, NotionGateway>();
         services.AddSingleton<NotionGameExporter>();
         services.AddSingleton<GoogleSheetsGameExporter>();

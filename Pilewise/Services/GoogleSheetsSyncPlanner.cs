@@ -5,10 +5,7 @@ using System.Linq;
 
 namespace Pilewise.Services;
 
-/// <summary>0-based column indexes of the Pilewise columns, after any migration has been applied.
-/// <see cref="Playtime"/>, <see cref="LastPlayed"/>, <see cref="Owned"/>, <see cref="StoreLink"/> and
-/// <see cref="Cover"/> are opt-in (the user adds the header); Linux is added when its export tick
-/// is on. Every optional column uses -1 when absent.</summary>
+/// <summary>0-based column indexes after migration; optional columns are -1 when absent.</summary>
 public sealed record SheetColumns(
     int Platform, int Name, int Id, int Completed, int Playtime = -1, int LastPlayed = -1, int Owned = -1,
     int StoreLink = -1, int Cover = -1, int Linux = -1)
@@ -17,30 +14,19 @@ public sealed record SheetColumns(
         new[] { Platform, Name, Id, Completed, Playtime, LastPlayed, Owned, StoreLink, Cover, Linux }.Max() + 1;
 }
 
-/// <summary>A game row as read from the sheet: its 0-based index, the parsed row, the stored cells and
-/// the Completed tick (null when the sheet has no Completed column).</summary>
 public sealed record SheetRow(int RowIndex, CsvGameExportRow Row, string StoredPlatform, string StoredId, bool? Completed);
 
-/// <summary>A sheet's Pilewise rows as they are now (see <see cref="GoogleSheetsSyncPlanner.Read"/>).</summary>
-/// <param name="NeedsUpgrade">An old layout (no Platform column / no header) that an export would migrate
-/// first; row and column positions would move, so nothing should be written by position until then.</param>
+/// <param name="NeedsUpgrade">Old layout — migrate before writing by row index.</param>
 public sealed record SheetContents(SheetColumns Columns, bool NeedsUpgrade, IReadOnlyList<SheetRow> Rows);
 
 public sealed record SheetHeaderCell(int Column, string Text);
 
-/// <summary>New values for an existing row (0-based index in the migrated sheet). Playtime /
-/// LastPlayed are null when there's nothing to write (column absent or no fresh data); StoreLink /
-/// CoverUrl only fill an empty cell; Completed is set when the synced tick differs from the cell.</summary>
 public sealed record SheetRowUpdate(
     int RowIndex, string Platform, string Id, double? PlaytimeHours = null, string? LastPlayed = null,
     bool? Owned = null, string? StoreLink = null, string? CoverUrl = null, string? Linux = null,
     bool? Completed = null);
 
-/// <summary>
-/// Everything the Google Sheets export has to write, computed from the sheet's current values.
-/// Structural changes (<see cref="InsertPlatformColumn"/>, <see cref="InsertHeaderRow"/>) are applied
-/// first; every index in the plan already accounts for them.
-/// </summary>
+/// <summary>Write plan; structural inserts are applied first, indexes already account for them.</summary>
 public sealed record GoogleSheetsSyncPlan(
     bool InsertPlatformColumn,
     bool InsertHeaderRow,
@@ -60,16 +46,9 @@ public sealed record GoogleSheetsSyncPlan(
 }
 
 /// <summary>
-/// Reconciles the fetched library with an existing Google Sheet, Notion-style: existing rows are
-/// updated in place (so the user's Completed ticks, extra columns and ordering survive) and new
-/// games are appended. Pure logic over the sheet's cell values, so it's unit-tested without Google.
+/// Pure reconcile of library vs sheet cells (unit-tested without Google). Columns by header text;
+/// legacy <c>Name | Game ID | Completed</c> / headerless sheets are migrated in the plan.
 /// </summary>
-/// <remarks>
-/// Layout: <c>Platform | Name | ID | Completed</c>, the same cells as the CSV export. Columns are
-/// found by header text, so the user may reorder them. Sheets from older builds are migrated:
-/// <c>Name | Game ID | Completed</c> (Steam-only, bare ids) gets a Platform column inserted at A,
-/// and the headerless variant (an old bug never wrote the header) also gets a header row.
-/// </remarks>
 public static class GoogleSheetsSyncPlanner
 {
     public const string PlatformHeader = "Platform";
@@ -87,11 +66,6 @@ public static class GoogleSheetsSyncPlanner
 
     private static readonly string[] IdHeaders = [IdHeader, "Game ID", "GameID"];
 
-    /// <param name="fetchedStores">Stores whose library was loaded; a sheet row missing from the fetch
-    /// is "no longer owned" only when all of its stores are in here (see <c>Ownership</c>).</param>
-    /// <param name="includeLinux">Add and fill the Linux column. Ratings come from <paramref name="linuxByAppId"/>.</param>
-    /// <param name="completed">Syncs the Completed ticks with Pilewise's list (null: the sheet's ticks stay).</param>
-    /// <param name="target">The sheet's sync id for <paramref name="completed"/>.</param>
     public static GoogleSheetsSyncPlan Plan(
         IList<IList<object>>? values, IEnumerable<CsvGameExportRow> incoming,
         IReadOnlySet<string>? fetchedStores = null, IEnumerable<CsvGameExportRow>? ignored = null,
@@ -126,7 +100,6 @@ public static class GoogleSheetsSyncPlanner
             matched.Add(match);
         }
 
-        // Hidden games: their rows are left as they are, but they're still owned.
         foreach (var row in ignored ?? [])
             if (matcher.Match(row) is { } hidden)
             {
@@ -139,13 +112,9 @@ public static class GoogleSheetsSyncPlanner
                 existing.Where(e => !hiddenRows.Contains(e.Row)).Select(e => e.Row),
                 linuxByAppId ?? new Dictionary<int, string>());
 
-        // Completed ticks: hidden rows keep theirs; the others get the synced value.
         var tracked = existing.Where(e => !hiddenRows.Contains(e.Row)).ToList();
         var completion = completed?.Begin(target ?? SyncHistory.GoogleSheets, tracked.Select(e => (e.Row, e.StoredCompleted)));
 
-        // Rewrite any row whose stored cells no longer match — merged-in platforms, legacy bare ids /
-        // missing platforms normalised to the current form, and fresh playtime / last-played values
-        // (opt-in columns; only written when the fetch reported a value for that game).
         var columns = layout.Columns;
         var updates = new List<SheetRowUpdate>();
         var noLongerOwned = new List<string>();
@@ -157,7 +126,6 @@ public static class GoogleSheetsSyncPlanner
             var hours = columns.Playtime >= 0 ? e.Row.PlaytimeHours : null;
             var lastPlayed = columns.LastPlayed >= 0 ? e.Row.LastPlayedDate : null;
             var owned = columns.Owned >= 0 ? ownership : null;
-            // Links / covers only go into empty cells (yours stay), and never onto hidden games.
             var fillable = !hiddenRows.Contains(e.Row);
             var link = fillable && columns.StoreLink >= 0 && e.StoredLink.Length == 0 ? e.Row.StoreUrl : null;
             var cover = fillable && columns.Cover >= 0 && e.StoredCover.Length == 0 ? e.Row.CoverUrl : null;
@@ -189,11 +157,8 @@ public static class GoogleSheetsSyncPlanner
             layout.HeaderCells,
             updates,
             orderedNew,
-            // Row 0 is always the header (written now if the sheet was empty).
             Math.Max(values.Count + rowShift, 1),
             noLongerOwned.Order(StringComparer.OrdinalIgnoreCase).ToList(),
-            // The rows the backlog progress is counted over (hidden games left out), as ticked once
-            // the plan is written; new rows included.
             tracked.Select(e => (e.Row, completion != null ? completion.IsCompleted(e.Row) : e.StoredCompleted))
                 .Concat(orderedNew.Select((r, i) => (r, completion != null ? newTicks[i] : (bool?)null)))
                 .ToList(),
@@ -211,7 +176,6 @@ public static class GoogleSheetsSyncPlanner
         return new SheetContents(layout.Columns, layout.InsertPlatformColumn || layout.InsertHeaderRow, rows);
     }
 
-    // Where the Pilewise columns are in the sheet as read (Orig*, -1 = absent) and where they end up.
     private sealed record Layout(
         bool InsertPlatformColumn,
         bool InsertHeaderRow,
@@ -242,7 +206,6 @@ public static class GoogleSheetsSyncPlanner
 
         if (name < 0 || id < 0)
         {
-            // Headerless sheet from the old exporter: Name, bare Steam id, Completed from row 0.
             if (header.Count >= 2 && long.TryParse(Cell(header, 1), out _))
                 return new Layout(true, true, -1, 0, 1, 0, fresh, FullHeader(fresh), OrigCompleted: 2);
 
@@ -264,7 +227,7 @@ public static class GoogleSheetsSyncPlanner
         var shift = insertPlatform ? 1 : 0;
 
         var completedCol = completed >= 0 ? completed + shift : header.Count + shift;
-        // After Completed when that column is being added in the same pass, so the two new cells don't share an index.
+        // New Linux column sits after Completed so both inserts don't share an index.
         var linuxCol = -1;
         if (includeLinux)
             linuxCol = linuxOrig >= 0 ? linuxOrig + shift : Math.Max(header.Count + shift, completedCol + 1);
@@ -321,8 +284,8 @@ public static class GoogleSheetsSyncPlanner
             var name = Cell(cells, layout.OrigName);
             var id = Cell(cells, layout.OrigId);
 
-            var row = CsvGameExportService.CreateRow(platform, name, id);
-            CsvGameExportService.ApplyLegacyBareId(row, id);
+            var row = CsvFormat.CreateRow(platform, name, id);
+            CsvFormat.ApplyLegacyBareId(row, id);
             if (!row.HasContent) continue;
             row.Linux = Cell(cells, layout.OrigLinux);
 

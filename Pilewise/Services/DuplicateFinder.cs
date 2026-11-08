@@ -51,7 +51,7 @@ public static class DuplicateFinder
 
             if (target == null)
             {
-                target = new Group<T>(CsvGameExportService.CreateRow(row.PlatformText, row.Name, row.IdText));
+                target = new Group<T>(CsvFormat.CreateRow(row.PlatformText, row.Name, row.IdText));
                 groups.Add(target);
             }
             else

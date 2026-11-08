@@ -4,6 +4,8 @@ using System.Linq;
 using Pilewise.Services;
 using Xunit;
 
+using Pilewise.Tests.Fakes;
+
 namespace Pilewise.Tests;
 
 public class OwnershipAndSyncHistoryTests
@@ -13,14 +15,14 @@ public class OwnershipAndSyncHistoryTests
     [Fact]
     public void Ownership_Matched_IsOwned()
     {
-        var row = CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400");
+        var row = CsvFormat.CreateRow("Steam", "Portal", "Steam:400");
         Assert.True(CsvGameExportService.Ownership(row, matched: true, SteamAndGog));
     }
 
     [Fact]
     public void Ownership_MissingFromFetchedStores_IsNotOwned()
     {
-        var row = CsvGameExportService.CreateRow("Steam/GOG", "Witcher", "Steam:1; GOG:2");
+        var row = CsvFormat.CreateRow("Steam/GOG", "Witcher", "Steam:1; GOG:2");
         Assert.False(CsvGameExportService.Ownership(row, matched: false, SteamAndGog));
     }
 
@@ -28,7 +30,7 @@ public class OwnershipAndSyncHistoryTests
     public void Ownership_AnyStoreNotFetched_IsUnknown()
     {
         // Epic session expired → Epic wasn't fetched, so a missing Epic game proves nothing.
-        var row = CsvGameExportService.CreateRow("Steam/Epic", "Alan Wake", "Steam:1; Epic:ns/cat");
+        var row = CsvFormat.CreateRow("Steam/Epic", "Alan Wake", "Steam:1; Epic:ns/cat");
         Assert.Null(CsvGameExportService.Ownership(row, matched: false, SteamAndGog));
     }
 
@@ -51,7 +53,7 @@ public class OwnershipAndSyncHistoryTests
         ];
 
         var plan = GoogleSheetsSyncPlanner.Plan(sheet,
-            [CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400")], SteamAndGog);
+            [CsvFormat.CreateRow("Steam", "Portal", "Steam:400")], SteamAndGog);
 
         Assert.Equal(
             [(1, (bool?)true), (2, false)],
@@ -105,11 +107,4 @@ public class OwnershipAndSyncHistoryTests
         Assert.Null(reloaded.Get(SyncHistory.Csv));
     }
 
-    private sealed class MemoryStateStore : IStateStore
-    {
-        private readonly Dictionary<string, string> _values = new();
-        public string? Load(string key) => _values.GetValueOrDefault(key);
-        public void Save(string key, string value) => _values[key] = value;
-        public void Delete(string key) => _values.Remove(key);
-    }
 }

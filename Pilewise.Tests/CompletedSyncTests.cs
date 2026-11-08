@@ -4,12 +4,14 @@ using System.Collections.Generic;
 using System.Linq;
 using Xunit;
 
+using Pilewise.Tests.Fakes;
+
 namespace Pilewise.Tests;
 
 public class CompletedSyncTests
 {
     private static CsvGameExportRow Game(string name, int steamId) =>
-        CsvGameExportService.CreateRow("Steam", name, $"Steam:{steamId}");
+        CsvFormat.CreateRow("Steam", name, $"Steam:{steamId}");
 
     [Fact]
     public void TickInOneTarget_ReachesTheOthers_AndAnUntickToo()
@@ -183,11 +185,4 @@ public class CompletedSyncTests
         Assert.Contains(vm.Filters, f => f.Key == LibraryViewModel.CompletedKey && f.Count == 1);
     }
 
-    private sealed class MemoryStateStore : IStateStore
-    {
-        private readonly Dictionary<string, string> _values = new();
-        public string? Load(string key) => _values.GetValueOrDefault(key);
-        public void Save(string key, string value) => _values[key] = value;
-        public void Delete(string key) => _values.Remove(key);
-    }
 }

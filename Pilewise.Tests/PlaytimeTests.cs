@@ -109,7 +109,7 @@ public class PlaytimeTests
         ];
         var portal = new CsvGameExportRow
             { Name = "Portal", HasSteam = true, SteamGameId = 400, PlaytimeMinutes = 750, LastPlayed = May1 };
-        var gwent = CsvGameExportService.CreateRow("GOG", "Gwent", "GOG:9"); // no playtime from GOG
+        var gwent = CsvFormat.CreateRow("GOG", "Gwent", "GOG:9"); // no playtime from GOG
         var halfLife = new CsvGameExportRow { Name = "Half-Life", HasSteam = true, SteamGameId = 70, PlaytimeMinutes = 60 };
 
         var plan = GoogleSheetsSyncPlanner.Plan(sheet, [portal, gwent, halfLife]);

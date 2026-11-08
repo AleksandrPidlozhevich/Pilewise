@@ -78,7 +78,7 @@ internal sealed class Program
             Console.Out,
             services.GetRequiredService<StoreSelection>(),
             services.GetRequiredService<SyncLog>(),
-            linux: services.GetRequiredService<SteamLinuxLookup>(),
+            linux: services.GetRequiredService<ISteamLinuxLookup>(),
             completed: services.GetRequiredService<CompletedGames>());
         return sync.RunAsync(command.Options, cancel.Token).GetAwaiter().GetResult();
     }

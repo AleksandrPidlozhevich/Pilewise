@@ -6,17 +6,8 @@ using System.Threading.Tasks;
 
 namespace Pilewise.Services;
 
-public sealed class CsvFileService
+public sealed class CsvFileService(ILogService log, CompletedGames? completed = null)
 {
-    private readonly ILogService _log;
-    private readonly CompletedGames? _completed;
-
-    public CsvFileService(ILogService log, CompletedGames? completed = null)
-    {
-        _log = log;
-        _completed = completed;
-    }
-
     public async Task<string?> ReadAsync(IStorageFile file)
     {
         await using var stream = await file.OpenReadAsync();
@@ -37,16 +28,16 @@ public sealed class CsvFileService
     {
         var path = file.TryGetLocalPath();
         var result = CsvGameExportService.MergeToCsv(existingContent, library.Rows, new CsvMergeOptions(
-            includeLinux, library.FetchedStores, library.Ignored, _completed,
+            includeLinux, library.FetchedStores, library.Ignored, completed,
             path != null ? CsvGameExportService.TargetOf(path) : $"CSV:{file.Name}"));
 
         var backup = await CsvBackup.WriteAsync(path, existingContent);
-        if (backup != null) _log.WriteInfo($"CSV backup written to {backup}.");
+        if (backup != null) log.WriteInfo($"CSV backup written to {backup}.");
 
         await WriteAsync(file, result.Content);
         result.Commit();
 
-        _log.WriteInfo($"CSV written: {result.Added} new, {result.Updated} matched, {result.Total} total rows.");
+        log.WriteInfo($"CSV written: {result.Added} new, {result.Updated} matched, {result.Total} total rows.");
         return (result, backup);
     }
 }

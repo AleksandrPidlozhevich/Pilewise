@@ -376,7 +376,7 @@ public class UiTests
 
     private static CsvGameExportRow Row(string platform, string name, string id, int? minutes = null)
     {
-        var row = CsvGameExportService.CreateRow(platform, name, id);
+        var row = CsvFormat.CreateRow(platform, name, id);
         row.PlaytimeMinutes = minutes;
         return row;
     }

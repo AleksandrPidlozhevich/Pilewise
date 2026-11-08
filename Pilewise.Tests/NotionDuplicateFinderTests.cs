@@ -12,7 +12,7 @@ public class NotionDuplicateFinderTests
     private static int _order;
 
     private static NotionGameRow Page(string id, string platform, string name, string gameId, int ageDays = 0) =>
-        new(CsvGameExportService.CreateRow(platform, name, gameId), id,
+        new(CsvFormat.CreateRow(platform, name, gameId), id,
             new HashSet<string>(platform.Split('/'), StringComparer.OrdinalIgnoreCase), gameId,
             CreatedTime: new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero).AddDays(-ageDays).AddSeconds(_order++));
 

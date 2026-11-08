@@ -4,6 +4,8 @@ using System.IO;
 using Pilewise.Services;
 using Xunit;
 
+using Pilewise.Tests.Fakes;
+
 namespace Pilewise.Tests;
 
 public class AutoSyncTests
@@ -119,11 +121,4 @@ public class AutoSyncTests
         Assert.Equal(["== Notion ==", "Done: 1", "next"], lines);
     }
 
-    private sealed class MemoryStateStore : IStateStore
-    {
-        private readonly Dictionary<string, string> _values = [];
-        public string? Load(string key) => _values.GetValueOrDefault(key);
-        public void Save(string key, string value) => _values[key] = value;
-        public void Delete(string key) => _values.Remove(key);
-    }
 }

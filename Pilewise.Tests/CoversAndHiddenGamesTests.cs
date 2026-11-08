@@ -6,6 +6,8 @@ using Pilewise.Services;
 using Pilewise.ViewModels;
 using Xunit;
 
+using Pilewise.Tests.Fakes;
+
 namespace Pilewise.Tests;
 
 public class CoversAndHiddenGamesTests
@@ -13,7 +15,7 @@ public class CoversAndHiddenGamesTests
     [Fact]
     public void SteamRow_LinksComeFromTheAppId()
     {
-        var row = CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400");
+        var row = CsvFormat.CreateRow("Steam", "Portal", "Steam:400");
         Assert.Equal("https://cdn.akamai.steamstatic.com/steam/apps/400/header.jpg", row.CoverUrl);
         Assert.Equal("https://store.steampowered.com/app/400/", row.StoreUrl);
     }
@@ -71,13 +73,13 @@ public class CoversAndHiddenGamesTests
     {
         var state = new MemoryStateStore();
         var ignored = new IgnoredGames(state);
-        ignored.Ignore(CsvGameExportService.CreateRow("Steam/GOG", "Demo", "Steam:9; GOG:5"));
+        ignored.Ignore(CsvFormat.CreateRow("Steam/GOG", "Demo", "Steam:9; GOG:5"));
 
         var reloaded = new IgnoredGames(state);
-        Assert.True(reloaded.IsIgnored(CsvGameExportService.CreateRow("GOG", "Demo (GOG)", "GOG:5")));
-        Assert.False(reloaded.IsIgnored(CsvGameExportService.CreateRow("Steam", "Demo", "Steam:10")));
+        Assert.True(reloaded.IsIgnored(CsvFormat.CreateRow("GOG", "Demo (GOG)", "GOG:5")));
+        Assert.False(reloaded.IsIgnored(CsvFormat.CreateRow("Steam", "Demo", "Steam:10")));
 
-        reloaded.Unignore(CsvGameExportService.CreateRow("Steam/GOG", "Demo", "Steam:9; GOG:5"));
+        reloaded.Unignore(CsvFormat.CreateRow("Steam/GOG", "Demo", "Steam:9; GOG:5"));
         Assert.Equal(0, new IgnoredGames(state).Count);
     }
 
@@ -99,8 +101,8 @@ public class CoversAndHiddenGamesTests
         ];
 
         var plan = GoogleSheetsSyncPlanner.Plan(values, [], new HashSet<string> { "Steam" },
-            [CsvGameExportService.CreateRow("Steam", "Demo", "Steam:9"),
-             CsvGameExportService.CreateRow("Steam", "New Demo", "Steam:10")]);
+            [CsvFormat.CreateRow("Steam", "Demo", "Steam:9"),
+             CsvFormat.CreateRow("Steam", "New Demo", "Steam:10")]);
 
         Assert.Empty(plan.NewRows);
         Assert.Empty(plan.NoLongerOwned);
@@ -111,9 +113,9 @@ public class CoversAndHiddenGamesTests
     {
         var ignored = new IgnoredGames(new MemoryStateStore());
         var vm = new LibraryViewModel(
-            [CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400"),
-             CsvGameExportService.CreateRow("Steam", "Demo", "Steam:9")],
-            [CsvGameExportService.CreateRow("Steam", "Old Tool", "Steam:7")],
+            [CsvFormat.CreateRow("Steam", "Portal", "Steam:400"),
+             CsvFormat.CreateRow("Steam", "Demo", "Steam:9")],
+            [CsvFormat.CreateRow("Steam", "Old Tool", "Steam:7")],
             ignored);
 
         Assert.Equal(["Demo", "Portal"], vm.VisibleGames.Select(g => g.Name));
@@ -123,20 +125,13 @@ public class CoversAndHiddenGamesTests
         vm.ToggleHiddenCommand.Execute(vm.VisibleGames.Single(g => g.Name == "Demo"));
 
         Assert.Equal(["Portal"], vm.VisibleGames.Select(g => g.Name));
-        Assert.True(ignored.IsIgnored(CsvGameExportService.CreateRow("Steam", "Demo", "Steam:9")));
+        Assert.True(ignored.IsIgnored(CsvFormat.CreateRow("Steam", "Demo", "Steam:9")));
         vm.SelectedFilter = vm.Filters.Single(f => f.Key == LibraryViewModel.HiddenKey);
         Assert.Equal(["Demo", "Old Tool"], vm.VisibleGames.Select(g => g.Name));
 
         vm.ToggleHiddenCommand.Execute(vm.VisibleGames.Single(g => g.Name == "Old Tool"));
         Assert.Equal(["Demo"], vm.VisibleGames.Select(g => g.Name));
-        Assert.False(ignored.IsIgnored(CsvGameExportService.CreateRow("Steam", "Old Tool", "Steam:7")));
+        Assert.False(ignored.IsIgnored(CsvFormat.CreateRow("Steam", "Old Tool", "Steam:7")));
     }
 
-    private sealed class MemoryStateStore : IStateStore
-    {
-        private readonly Dictionary<string, string> _values = [];
-        public string? Load(string key) => _values.GetValueOrDefault(key);
-        public void Save(string key, string value) => _values[key] = value;
-        public void Delete(string key) => _values.Remove(key);
-    }
 }

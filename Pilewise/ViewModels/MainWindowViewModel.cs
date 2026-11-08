@@ -50,7 +50,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly SyncLog _syncLog;
     private readonly SyncHistory _syncHistory;
     private readonly FirstSeenGames _firstSeen;
-    private readonly SteamLinuxLookup _linux;
+    private readonly ISteamLinuxLookup _linux;
     private readonly CompletedGames _completed;
 
     public MainWindowViewModel(
@@ -71,7 +71,7 @@ public partial class MainWindowViewModel : ViewModelBase
         BacklogProgress backlog,
         SyncLog syncLog,
         FirstSeenGames firstSeen,
-        SteamLinuxLookup linux,
+        ISteamLinuxLookup linux,
         CompletedGames completed)
     {
         _linux = linux;
@@ -224,7 +224,7 @@ public partial class MainWindowViewModel : ViewModelBase
         BacklogProgress Backlog,
         SyncLog SyncLog,
         FirstSeenGames FirstSeen,
-        SteamLinuxLookup Linux,
+        ISteamLinuxLookup Linux,
         CompletedGames Completed);
 
     private static TopLevel? DefaultTopLevel() =>

@@ -191,9 +191,9 @@ public class ReliabilityTests
     [Fact]
     public void LegacyBareId_TooLargeForSteam_IsNotWrappedIntoAnId()
     {
-        var row = CsvGameExportService.CreateRow("Steam", "Big", null);
+        var row = CsvFormat.CreateRow("Steam", "Big", null);
 
-        CsvGameExportService.ApplyLegacyBareId(row, "99999999999");
+        CsvFormat.ApplyLegacyBareId(row, "99999999999");
 
         Assert.Null(row.SteamGameId);
     }

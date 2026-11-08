@@ -6,11 +6,13 @@ using Pilewise.Services;
 using Pilewise.ViewModels;
 using Xunit;
 
+using Pilewise.Tests.Fakes;
+
 namespace Pilewise.Tests;
 
 public class BacklogProgressTests
 {
-    private static CsvGameExportRow Steam(string name, string id) => CsvGameExportService.CreateRow("Steam", name, "Steam:" + id);
+    private static CsvGameExportRow Steam(string name, string id) => CsvFormat.CreateRow("Steam", name, "Steam:" + id);
 
     [Fact]
     public void Notion_CompletedCheckbox_IsRead()
@@ -50,7 +52,7 @@ public class BacklogProgressTests
     public void Snapshot_CountsNewRowsInTheTotal_AndKeepsCompletedKeys()
     {
         var snapshot = BacklogSnapshot.From("Notion", DateTimeOffset.Now,
-            [(Steam("Portal", "400"), true), (Steam("Doom", "2280"), false), (CsvGameExportService.CreateRow("", "Gwent", ""), true)],
+            [(Steam("Portal", "400"), true), (Steam("Doom", "2280"), false), (CsvFormat.CreateRow("", "Gwent", ""), true)],
             newRows: 1);
 
         Assert.NotNull(snapshot);
@@ -133,11 +135,4 @@ public class BacklogProgressTests
         Assert.DoesNotContain(vm.Filters, f => f.Key == LibraryViewModel.CompletedKey);
     }
 
-    private sealed class MemoryStateStore : IStateStore
-    {
-        private readonly Dictionary<string, string> _values = [];
-        public string? Load(string key) => _values.GetValueOrDefault(key);
-        public void Save(string key, string value) => _values[key] = value;
-        public void Delete(string key) => _values.Remove(key);
-    }
 }
