@@ -7,14 +7,23 @@ namespace Pilewise.Tests;
 public class LinuxRatingTests
 {
     [Theory]
-    [InlineData(true, "gold", "Native")]
-    [InlineData(false, "gold", "Gold")]
-    [InlineData(false, "borked", "Borked")]
-    [InlineData(false, "pending", "Unknown")]
-    [InlineData(false, null, "Unknown")]
-    [InlineData(null, "platinum", "Unknown")]
-    public void Label_NativeWins_AndAMedalNeedsAConfirmedWindowsBuild(bool? native, string? tier, string expected) =>
-        Assert.Equal(expected, LinuxRating.Label(native, tier));
+    [InlineData(true, "gold", null, "Native")]
+    [InlineData(false, "gold", null, "Gold")]
+    [InlineData(false, "gold", "strong", "Gold")]
+    [InlineData(false, "gold", "moderate", "Gold")]
+    [InlineData(false, "gold", "good", "Gold")]
+    [InlineData(false, "gold", "low", "Gold?")]
+    [InlineData(false, "gold", "inadequate", "Gold?")]
+    [InlineData(false, "borked", "strong", "Borked")]
+    [InlineData(false, "borked", "low", "Unknown")]
+    [InlineData(false, "borked", "inadequate", "Unknown")]
+    [InlineData(false, "pending", null, "Unknown")]
+    [InlineData(false, null, null, "Unknown")]
+    [InlineData(null, "platinum", "strong", "Platinum")]
+    [InlineData(null, "platinum", "low", "Platinum?")]
+    public void Label_NativeWins_ProtonUsedWhenSteamInconclusive_LowConfidenceSoftened(
+        bool? native, string? tier, string? confidence, string expected) =>
+        Assert.Equal(expected, LinuxRating.Label(native, tier, confidence));
 
     [Fact]
     public void For_NoSteamId_IsUnknown_EvenWhenTheLookupKnowsOtherGames()
@@ -26,14 +35,37 @@ public class LinuxRatingTests
     }
 
     [Fact]
-    public void ReadNative_AndReadTier_ParseTheStoreResponses()
+    public void TryGet_TransientDoesNotEraseDurableRating()
+    {
+        var steam = CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400");
+        steam.Linux = "Gold";
+
+        Assert.True(LinuxRating.TryGet(steam, new Dictionary<int, string> { [400] = LinuxRating.Unavailable }, out var value));
+        Assert.Equal("Gold", value);
+    }
+
+    [Fact]
+    public void TryGet_TransientFillsEmptyRow()
+    {
+        var steam = CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400");
+
+        Assert.True(LinuxRating.TryGet(steam, new Dictionary<int, string> { [400] = LinuxRating.Unavailable }, out var value));
+        Assert.Equal(LinuxRating.Unavailable, value);
+    }
+
+    [Fact]
+    public void ReadNative_AndReadSummary_ParseTheStoreResponses()
     {
         const string steam = """{"730":{"success":true,"data":{"platforms":{"windows":true,"mac":true,"linux":true}}}}""";
         const string proton = """{"tier":"gold","confidence":"strong","total":10}""";
+        const string pending = """{"tier":"pending","provisionalTier":"silver","confidence":"inadequate","total":2}""";
 
         Assert.True(LinuxRating.ReadNative(steam, 730));
         Assert.Null(LinuxRating.ReadNative("""{"730":{"success":false}}""", 730));
+        Assert.Equal(("gold", "strong"), LinuxRating.ReadSummary(proton));
+        Assert.Equal(("silver", "inadequate"), LinuxRating.ReadSummary(pending));
         Assert.Equal("Gold", LinuxRating.ReadTier(proton));
+        Assert.Equal("Silver", LinuxRating.ReadTier(pending));
         Assert.Null(LinuxRating.ReadTier("""{"tier":"pending"}"""));
     }
 
@@ -91,6 +123,23 @@ public class LinuxRatingTests
 
         Assert.Equal("Native", steam.Linux);
         Assert.Equal(LinuxRating.Unknown, xbox.Linux);
+    }
+
+    [Fact]
+    public void Apply_Unavailable_DoesNotEraseKnownMedal()
+    {
+        var steam = CsvGameExportService.CreateRow("Steam", "Portal", "Steam:400");
+        steam.Linux = "Gold?";
+        var fresh = CsvGameExportService.CreateRow("Steam", "Half-Life", "Steam:70");
+
+        LinuxRating.Apply([steam, fresh], new Dictionary<int, string>
+        {
+            [400] = LinuxRating.Unavailable,
+            [70] = LinuxRating.Unavailable
+        });
+
+        Assert.Equal("Gold?", steam.Linux);
+        Assert.Equal(LinuxRating.Unavailable, fresh.Linux);
     }
 
     [Fact]

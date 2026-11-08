@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: 28 October 2026
+Last updated: 8 November 2026
 
 Pilewise is a desktop app for Windows, macOS and Linux. It reads the games you own on Steam,
 Epic, GOG and Xbox and writes the list to a place you choose: a Notion database, a Google Sheets
@@ -17,6 +17,12 @@ you connect.
 - **Game libraries.** Using the Steam API key and Steam ID you enter, and the logins you
   complete for Epic, GOG and Xbox, the app reads the list of games you own (titles, store IDs,
   playtime and last played date where the store provides them).
+- **Optional Linux compatibility column.** If you turn on **Linux column** on the Export page,
+  the app looks up public compatibility signals for Steam app IDs in your library: the Steam
+  Store `appdetails` platforms field, and ProtonDB report summaries. Only numeric Steam app IDs
+  are sent to those endpoints (not your Steam API key, password, or ProtonDB account). The
+  feature is off by default and can be turned off at any time. Epic / GOG / Xbox titles without
+  a Steam app ID are not queried.
 - **Notion.** If you use the Notion export, the app reads and writes the database you point it
   to, using the integration token you enter.
 - **Google.** If you use the Google Sheets export, the app asks for one permission:
@@ -31,16 +37,19 @@ Everything is stored on your device, in the app's data folder:
 - Refresh tokens (including the Google token), API keys and the settings you chose to
   remember are encrypted with the operating system's secure storage (DPAPI on Windows,
   Keychain on macOS, libsecret on Linux).
-- Logs and app state (window position, sync history, hidden games) are kept in plain files in
-  the same folder.
+- Logs and app state (window position, sync history, hidden games, and — when Linux column is
+  on — a local cache of Steam app IDs with their last looked-up Linux signals, kept so successful
+  results can be reused for about a week) are kept in plain files in the same folder.
 - The optional "Save settings" feature writes a plain-text file to a location you choose.
 
 ## Who receives your data
 
-Nobody besides the services you connect. The app sends requests only to Steam, Epic, GOG,
-Xbox / Microsoft, Notion and Google, and only to read your library or write your backlog to the
-place you selected. It also asks GitHub for new app releases. The developer has no access to
-any of this.
+Nobody besides the services you connect. The app sends requests only to Steam (including the
+Steam Store appdetails API when Linux column is enabled), Epic, GOG, Xbox / Microsoft, Notion
+and Google, and — when Linux column is enabled — ProtonDB, and only to read your library, look
+up public Linux compatibility signals for Steam app IDs you already own, or write your backlog
+to the place you selected. It also asks GitHub for new app releases. The developer has no
+access to any of this.
 
 There is no analytics, advertising or telemetry. Data is not sold, shared or transferred to any
 third party.

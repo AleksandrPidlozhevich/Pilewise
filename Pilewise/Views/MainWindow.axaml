@@ -315,7 +315,7 @@
                                           IsChecked="{Binding IncludeLinuxColumn}"
                                           IsEnabled="{Binding !Progress.IsBusy}" />
                                 <TextBlock Classes="hint" Margin="28,0,0,0" TextWrapping="Wrap"
-                                           Text="Adds a Linux column to CSV, Notion and Sheets: Native or a ProtonDB rating for Steam, Unknown otherwise. The first check is slow; results are reused for a week." />
+                                           Text="Adds a Linux column to CSV, Notion and Sheets: Native or a ProtonDB rating for Steam (a trailing ? means low confidence), Unknown when there is no signal, Unavailable when a check failed. The first check is slow; successful results are reused for a week." />
                             </StackPanel>
                         </Border>
 
