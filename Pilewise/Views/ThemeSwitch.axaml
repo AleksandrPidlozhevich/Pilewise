@@ -16,7 +16,8 @@
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
         <!-- No hover / pressed fill: the sliding highlight is the only background. -->
-        <Style Selector="Button.theme-option:pointerover /template/ ContentPresenter, Button.theme-option:pressed /template/ ContentPresenter">
+        <Style
+            Selector="Button.theme-option:pointerover /template/ ContentPresenter, Button.theme-option:pressed /template/ ContentPresenter">
             <Setter Property="Background" Value="Transparent" />
         </Style>
         <Style Selector="Button.theme-option PathIcon">

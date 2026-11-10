@@ -24,11 +24,23 @@ public sealed class StoreClientFactory : IStoreClientFactory
         _log = log;
     }
 
-    public IEpicClient CreateEpic() => new EpicApiClient(_secrets, _log);
+    public IEpicClient CreateEpic()
+    {
+        return new EpicApiClient(_secrets, _log);
+    }
 
-    public IGogClient CreateGog() => new GogApiClient(_secrets, _log);
+    public IGogClient CreateGog()
+    {
+        return new GogApiClient(_secrets, _log);
+    }
 
-    public IXboxClient CreateXbox() => new XboxApiClient(_secrets, _log);
+    public IXboxClient CreateXbox()
+    {
+        return new XboxApiClient(_secrets, _log);
+    }
 
-    public ISteamClient CreateSteam() => new SteamApiClient(_log);
+    public ISteamClient CreateSteam()
+    {
+        return new SteamApiClient(_log);
+    }
 }

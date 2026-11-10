@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Pilewise.Services;
 using Xunit;
+using Pilewise.Tests.Fakes;
 
 namespace Pilewise.Tests;
 
@@ -26,12 +27,15 @@ public class AutoSyncTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("24h")]
-    [InlineData("5h Notion")]          // not an offered interval
+    [InlineData("5h Notion")] // not an offered interval
     [InlineData("0h Notion")]
     [InlineData("24 Notion")]
-    [InlineData("24h steam")]          // not a sync target
+    [InlineData("24h steam")] // not a sync target
     [InlineData("daily Notion")]
-    public void Parse_Invalid_IsOff(string? value) => Assert.False(AutoSyncSettings.Parse(value).IsOn);
+    public void Parse_Invalid_IsOff(string? value)
+    {
+        Assert.False(AutoSyncSettings.Parse(value).IsOn);
+    }
 
     [Fact]
     public void Serialize_OffOrNoTargets_IsNull()
@@ -49,6 +53,36 @@ public class AutoSyncTests
     }
 
     [Fact]
+    public void NextCheck_SleepsUntilTheEarliestDueTarget_WithinTheBounds()
+    {
+        var hourly = new AutoSyncSettings(1, [SyncTarget.Notion, SyncTarget.Sheets]);
+        var last = new Dictionary<SyncTarget, DateTimeOffset>
+        {
+            [SyncTarget.Notion] = Now.AddMinutes(-50), // due in 10 min
+            [SyncTarget.Sheets] = Now.AddMinutes(-55) // due in 5 min
+        };
+        Assert.Equal(TimeSpan.FromMinutes(5),
+            AutoSyncPlanner.NextCheck(hourly, t => last[t], NoFailures, _ => true, Now));
+
+        // Overdue / never synced → the minimum; nothing to run or auto-sync off → the cap.
+        Assert.Equal(AutoSyncPlanner.MinCheck,
+            AutoSyncPlanner.NextCheck(hourly, _ => null, NoFailures, _ => true, Now));
+        Assert.Equal(AutoSyncPlanner.MaxCheck,
+            AutoSyncPlanner.NextCheck(hourly, _ => null, NoFailures, _ => false, Now));
+        Assert.Equal(AutoSyncPlanner.MaxCheck,
+            AutoSyncPlanner.NextCheck(AutoSyncSettings.Off, _ => null, NoFailures, _ => true, Now));
+
+        // Daily, synced an hour ago → the cap, not 23 h.
+        var daily = new AutoSyncSettings(24, [SyncTarget.Notion]);
+        Assert.Equal(AutoSyncPlanner.MaxCheck,
+            AutoSyncPlanner.NextCheck(daily, _ => Now.AddHours(-1), NoFailures, _ => true, Now));
+
+        // A failure 50 min ago holds a due target back until its hour is up.
+        var failed = new Dictionary<SyncTarget, DateTimeOffset> { [SyncTarget.Notion] = Now.AddMinutes(-50) };
+        Assert.Equal(TimeSpan.FromMinutes(10), AutoSyncPlanner.NextCheck(daily, _ => null, failed, _ => true, Now));
+    }
+
+    [Fact]
     public void Due_NeverSynced_IsDue()
     {
         var due = AutoSyncPlanner.Due(new AutoSyncSettings(24, [SyncTarget.Notion]),
@@ -61,8 +95,8 @@ public class AutoSyncTests
     {
         var last = new Dictionary<SyncTarget, DateTimeOffset>
         {
-            [SyncTarget.Notion] = Now.AddHours(-5),   // not yet (6h)
-            [SyncTarget.Sheets] = Now.AddHours(-6)    // exactly due
+            [SyncTarget.Notion] = Now.AddHours(-5), // not yet (6h)
+            [SyncTarget.Sheets] = Now.AddHours(-6) // exactly due
         };
         var due = AutoSyncPlanner.Due(new AutoSyncSettings(6, [SyncTarget.Notion, SyncTarget.Sheets]),
             t => last[t], NoFailures, _ => true, Now);
@@ -89,8 +123,10 @@ public class AutoSyncTests
     }
 
     [Fact]
-    public void Due_Off_IsEmpty() =>
+    public void Due_Off_IsEmpty()
+    {
         Assert.Empty(AutoSyncPlanner.Due(AutoSyncSettings.Off, _ => null, NoFailures, _ => true, Now));
+    }
 
     [Fact]
     public void SyncHistory_SeesRecordsMadeThroughAnotherInstance()
@@ -117,13 +153,5 @@ public class AutoSyncTests
         writer.Write("Done: 1\r\nnext");
         writer.Flush();
         Assert.Equal(["== Notion ==", "Done: 1", "next"], lines);
-    }
-
-    private sealed class MemoryStateStore : IStateStore
-    {
-        private readonly Dictionary<string, string> _values = [];
-        public string? Load(string key) => _values.GetValueOrDefault(key);
-        public void Save(string key, string value) => _values[key] = value;
-        public void Delete(string key) => _values.Remove(key);
     }
 }

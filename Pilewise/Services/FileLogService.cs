@@ -30,23 +30,38 @@ public sealed class FileLogService : ILogService
     public FileLogService(string directory)
     {
         _directory = directory;
-        Append($"{Rule}{Environment.NewLine}Pilewise_start_{DateTime.Now.ToString(TimeFormat)}{Environment.NewLine}{Rule}");
+        Append(
+            $"{Rule}{Environment.NewLine}Pilewise_start_{DateTime.Now.ToString(TimeFormat)}{Environment.NewLine}{Rule}");
     }
 
     /// <summary>Today's file: chosen per line, so an app left running in the tray rolls over at midnight.</summary>
     public string CurrentFilePath => Path.Combine(_directory, $"{DateTime.Now.ToString(ShortDateFormat)}_Pilewise.log");
 
-    public void WriteLog(string message, LogLevel level = LogLevel.Info) =>
+    public void WriteLog(string message, LogLevel level = LogLevel.Info)
+    {
         Append($"[{DateTime.Now.ToString(TimeFormat)}] [{level}] {message}");
+    }
 
-    public void WriteInfo(string message) => WriteLog(message);
+    public void WriteInfo(string message)
+    {
+        WriteLog(message);
+    }
 
-    public void WriteWarning(string message) => WriteLog(message, LogLevel.Warning);
+    public void WriteWarning(string message)
+    {
+        WriteLog(message, LogLevel.Warning);
+    }
 
-    public void WriteError(string message) => WriteLog(message, LogLevel.Error);
+    public void WriteError(string message)
+    {
+        WriteLog(message, LogLevel.Error);
+    }
 
-    public void WriteException(Exception ex, string additionalMessage = "") =>
-        WriteLog(string.IsNullOrEmpty(additionalMessage) ? ex.ToString() : $"{additionalMessage}\n{ex}", LogLevel.Error);
+    public void WriteException(Exception ex, string additionalMessage = "")
+    {
+        WriteLog(string.IsNullOrEmpty(additionalMessage) ? ex.ToString() : $"{additionalMessage}\n{ex}",
+            LogLevel.Error);
+    }
 
     private void Append(string text)
     {
@@ -54,7 +69,6 @@ public sealed class FileLogService : ILogService
         lock (_lock)
         {
             for (var attempt = 1; attempt <= WriteAttempts; attempt++)
-            {
                 try
                 {
                     Directory.CreateDirectory(_directory);
@@ -72,7 +86,6 @@ public sealed class FileLogService : ILogService
                 {
                     return;
                 }
-            }
         }
     }
 }

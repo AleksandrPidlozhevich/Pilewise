@@ -19,7 +19,10 @@ public sealed record SyncOptions(
 
 public sealed record SyncCommand(SyncOptions? Options, string? Message, int ExitCode)
 {
-    public static SyncCommand Error(string message) => new(null, message + "\n\n" + SyncCommandLine.Usage, 2);
+    public static SyncCommand Error(string message)
+    {
+        return new SyncCommand(null, message + "\n\n" + SyncCommandLine.Usage, 2);
+    }
 }
 
 public static class SyncCommandLine
@@ -39,8 +42,10 @@ public static class SyncCommandLine
         and connect your stores. Exit code: 0 = success, 1 = a sync failed, 2 = bad arguments.
         """;
 
-    public static bool IsHeadless(IReadOnlyList<string> args) =>
-        args.Any(a => a is "--sync" or "--help" or "-h" or "/?");
+    public static bool IsHeadless(IReadOnlyList<string> args)
+    {
+        return args.Any(a => a is "--sync" or "--help" or "-h" or "/?");
+    }
 
     public static SyncCommand Parse(IReadOnlyList<string> args)
     {
@@ -52,12 +57,12 @@ public static class SyncCommandLine
         var dryRun = false;
 
         for (var i = 0; i < args.Count; i++)
-        {
             switch (args[i])
             {
                 case "--sync":
                     if (++i >= args.Count) return SyncCommand.Error("--sync needs a target: csv, notion or sheets.");
-                    foreach (var name in args[i].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    foreach (var name in args[i].Split(',',
+                                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
                     {
                         SyncTarget? target = name.ToLowerInvariant() switch
                         {
@@ -85,7 +90,6 @@ public static class SyncCommandLine
                 default:
                     return SyncCommand.Error($"Unknown argument \"{args[i]}\".");
             }
-        }
 
         if (targets.Count == 0) return SyncCommand.Error("Nothing to sync: pass --sync csv, notion or sheets.");
 

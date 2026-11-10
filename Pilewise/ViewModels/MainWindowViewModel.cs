@@ -50,7 +50,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly SyncLog _syncLog;
     private readonly SyncHistory _syncHistory;
     private readonly FirstSeenGames _firstSeen;
-    private readonly SteamLinuxLookup _linux;
+    private readonly ISteamLinuxLookup _linux;
     private readonly CompletedGames _completed;
 
     public MainWindowViewModel(
@@ -71,7 +71,7 @@ public partial class MainWindowViewModel : ViewModelBase
         BacklogProgress backlog,
         SyncLog syncLog,
         FirstSeenGames firstSeen,
-        SteamLinuxLookup linux,
+        ISteamLinuxLookup linux,
         CompletedGames completed)
     {
         _linux = linux;
@@ -149,11 +149,20 @@ public partial class MainWindowViewModel : ViewModelBase
         // The IDE previewer builds this view model too: no sessions, update checks or auto-sync there.
         if (Design.IsDesignMode) return;
 
-        _ = Epic.InitializeFromCacheAsync();
-        _ = Gog.InitializeFromCacheAsync();
-        _ = Xbox.InitializeFromCacheAsync();
-        _ = CheckForUpdateAsync();
         ShowWhatsNew();
+        _ = StartBackgroundWorkAsync();
+    }
+
+    private static readonly TimeSpan LoginStartDelay = TimeSpan.FromSeconds(45);
+
+    private async Task StartBackgroundWorkAsync()
+    {
+        if (Environment.GetCommandLineArgs().Contains(AutoStart.MinimizedArgument))
+            await Task.Delay(LoginStartDelay);
+
+        _ = CheckForUpdateAsync();
+        await Task.WhenAll(Epic.InitializeFromCacheAsync(), Gog.InitializeFromCacheAsync(),
+            Xbox.InitializeFromCacheAsync());
         StartAutoSyncTimer();
     }
 
@@ -224,11 +233,13 @@ public partial class MainWindowViewModel : ViewModelBase
         BacklogProgress Backlog,
         SyncLog SyncLog,
         FirstSeenGames FirstSeen,
-        SteamLinuxLookup Linux,
+        ISteamLinuxLookup Linux,
         CompletedGames Completed);
 
-    private static TopLevel? DefaultTopLevel() =>
-        (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+    private static TopLevel? DefaultTopLevel()
+    {
+        return (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+    }
 
     private bool HasSteamCredentials => !string.IsNullOrWhiteSpace(SteamApiKey) && !string.IsNullOrWhiteSpace(SteamId);
 
@@ -265,15 +276,30 @@ public partial class MainWindowViewModel : ViewModelBase
         : CanExportSheets ? null
         : "Enter the Google Sheets table name.";
 
-    partial void OnSteamApiKeyChanged(string? value) => RefreshCanExport();
+    partial void OnSteamApiKeyChanged(string? value)
+    {
+        RefreshCanExport();
+    }
 
-    partial void OnSteamIdChanged(string? value) => RefreshCanExport();
+    partial void OnSteamIdChanged(string? value)
+    {
+        RefreshCanExport();
+    }
 
-    partial void OnNotionTokenChanged(string? value) => RefreshCanExport();
+    partial void OnNotionTokenChanged(string? value)
+    {
+        RefreshCanExport();
+    }
 
-    partial void OnDbIdChanged(string? value) => RefreshCanExport();
+    partial void OnDbIdChanged(string? value)
+    {
+        RefreshCanExport();
+    }
 
-    partial void OnGoogleSheetsTableNameChanged(string? value) => RefreshCanExport();
+    partial void OnGoogleSheetsTableNameChanged(string? value)
+    {
+        RefreshCanExport();
+    }
 
     private void RefreshCanExport()
     {
@@ -321,30 +347,52 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private static string ReadmeLink(string section) =>
-        $"https://github.com/AleksandrPidlozhevich/Pilewise#{section}";
+    private static string ReadmeLink(string section)
+    {
+        return $"https://github.com/AleksandrPidlozhevich/Pilewise#{section}";
+    }
 
     [RelayCommand]
-    private void OpenReadme() => _dialogs.OpenLink(ReadmeLink("readme"));
+    private void OpenReadme()
+    {
+        _dialogs.OpenLink(ReadmeLink("readme"));
+    }
 
     [RelayCommand]
-    private void OpenSteamApiKeyInfo() => _dialogs.OpenLink("https://steamcommunity.com/dev/apikey");
+    private void OpenSteamApiKeyInfo()
+    {
+        _dialogs.OpenLink("https://steamcommunity.com/dev/apikey");
+    }
 
     [RelayCommand]
-    private void OpenInfoLinkSteamId() => _dialogs.OpenLink(ReadmeLink("steam"));
+    private void OpenInfoLinkSteamId()
+    {
+        _dialogs.OpenLink(ReadmeLink("steam"));
+    }
 
     [RelayCommand]
-    private void OpenInfoLinkNotionToken() => _dialogs.OpenLink("https://www.notion.so/profile/integrations");
+    private void OpenInfoLinkNotionToken()
+    {
+        _dialogs.OpenLink("https://www.notion.so/profile/integrations");
+    }
 
     [RelayCommand]
-    private void OpenInfoLinkNotionDbId() =>
+    private void OpenInfoLinkNotionDbId()
+    {
         _dialogs.OpenLink("https://developers.notion.com/reference/retrieve-database");
+    }
 
     [RelayCommand]
-    private void OpenInfoGoogleSheets() => _dialogs.OpenLink(ReadmeLink("google-sheets-beta"));
+    private void OpenInfoGoogleSheets()
+    {
+        _dialogs.OpenLink(ReadmeLink("google-sheets-beta"));
+    }
 
     [RelayCommand]
-    private void OpenLinkKofi() => _dialogs.OpenLink("https://ko-fi.com/aliaksandrpidlazhevich");
+    private void OpenLinkKofi()
+    {
+        _dialogs.OpenLink("https://ko-fi.com/aliaksandrpidlazhevich");
+    }
 
     [RelayCommand]
     private void OpenLogsFolder()

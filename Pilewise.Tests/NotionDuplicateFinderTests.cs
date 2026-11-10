@@ -11,18 +11,20 @@ public class NotionDuplicateFinderTests
 {
     private static int _order;
 
-    private static NotionGameRow Page(string id, string platform, string name, string gameId, int ageDays = 0) =>
-        new(CsvGameExportService.CreateRow(platform, name, gameId), id,
+    private static NotionGameRow Page(string id, string platform, string name, string gameId, int ageDays = 0)
+    {
+        return new NotionGameRow(CsvFormat.CreateRow(platform, name, gameId), id,
             new HashSet<string>(platform.Split('/'), StringComparer.OrdinalIgnoreCase), gameId,
             CreatedTime: new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero).AddDays(-ageDays).AddSeconds(_order++));
+    }
 
     [Fact]
     public void SameStoreId_IsADuplicate_OldestPageKept_AndMergedIdsGoToIt()
     {
         var groups = NotionDuplicateFinder.Find([
-            Page("new", "Steam", "The Witcher 3: Wild Hunt", "Steam:292030", ageDays: 1),
-            Page("old", "Steam", "Witcher 3", "Steam:292030", ageDays: 30),
-            Page("gog", "GOG", "Witcher 3", "GOG:1207664643", ageDays: 2)
+            Page("new", "Steam", "The Witcher 3: Wild Hunt", "Steam:292030", 1),
+            Page("old", "Steam", "Witcher 3", "Steam:292030", 30),
+            Page("gog", "GOG", "Witcher 3", "GOG:1207664643", 2)
         ]);
 
         var group = Assert.Single(groups);
@@ -56,17 +58,19 @@ public class NotionDuplicateFinderTests
     }
 
     [Fact]
-    public void UniquePages_NoGroups() =>
+    public void UniquePages_NoGroups()
+    {
         Assert.Empty(NotionDuplicateFinder.Find([
             Page("a", "Steam", "Portal", "Steam:400"),
             Page("b", "Steam", "Portal 2", "Steam:620")
         ]));
+    }
 
     [Fact]
     public void Group_DescribesTheResult()
     {
         var group = Assert.Single(NotionDuplicateFinder.Find([
-            Page("a", "Steam", "Hades", "Steam:1145360", ageDays: 5),
+            Page("a", "Steam", "Hades", "Steam:1145360", 5),
             Page("b", "Epic", "Hades", "Epic:ns/cat")
         ]));
 

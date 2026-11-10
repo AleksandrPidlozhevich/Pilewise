@@ -3,13 +3,16 @@ using Pilewise.ViewModels;
 using System.Collections.Generic;
 using System.Linq;
 using Xunit;
+using Pilewise.Tests.Fakes;
 
 namespace Pilewise.Tests;
 
 public class CompletedSyncTests
 {
-    private static CsvGameExportRow Game(string name, int steamId) =>
-        CsvGameExportService.CreateRow("Steam", name, $"Steam:{steamId}");
+    private static CsvGameExportRow Game(string name, int steamId)
+    {
+        return CsvFormat.CreateRow("Steam", name, $"Steam:{steamId}");
+    }
 
     [Fact]
     public void TickInOneTarget_ReachesTheOthers_AndAnUntickToo()
@@ -98,7 +101,7 @@ public class CompletedSyncTests
 
         var result = CsvGameExportService.MergeToCsv(existing, [portal, hades], new CsvMergeOptions(
             FetchedStores: new HashSet<string> { Platforms.Steam }, Completed: completed, Target: "CSV:t"));
-        var lines = result.Content.Split('\n', System.StringSplitOptions.RemoveEmptyEntries)
+        var lines = result.Content.Split('\n', StringSplitOptions.RemoveEmptyEntries)
             .Select(l => l.TrimEnd('\r')).ToList();
 
         Assert.Equal("Platform,Name,ID,Notes,Completed,Playtime,Owned,Store link", lines[0]);
@@ -181,13 +184,5 @@ public class CompletedSyncTests
         Assert.Equal(1, vm.Stats.Completed);
         Assert.True(vm.CanMarkCompleted);
         Assert.Contains(vm.Filters, f => f.Key == LibraryViewModel.CompletedKey && f.Count == 1);
-    }
-
-    private sealed class MemoryStateStore : IStateStore
-    {
-        private readonly Dictionary<string, string> _values = new();
-        public string? Load(string key) => _values.GetValueOrDefault(key);
-        public void Save(string key, string value) => _values[key] = value;
-        public void Delete(string key) => _values.Remove(key);
     }
 }

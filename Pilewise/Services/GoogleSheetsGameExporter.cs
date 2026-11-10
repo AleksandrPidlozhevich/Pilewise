@@ -2,6 +2,7 @@ using Google.Apis.Drive.v3;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
 using Pilewise.Models;
+using static Pilewise.Services.GoogleSheetsApi;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,27 +21,14 @@ public sealed record GoogleSheetsExportResult(
     int NoLongerOwned = 0,
     bool DryRun = false);
 
-public sealed class GoogleSheetsGameExporter
+public sealed class GoogleSheetsGameExporter(
+    ISecretStore secrets,
+    IGameLibraryService libraryService,
+    ILogService log,
+    BacklogProgress? backlog = null,
+    ISteamLinuxLookup? linux = null,
+    CompletedGames? completed = null)
 {
-    private readonly ISecretStore _secrets;
-    private readonly IGameLibraryService _library;
-    private readonly ILogService _log;
-    private readonly BacklogProgress? _backlog;
-    private readonly SteamLinuxLookup? _linux;
-    private readonly CompletedGames? _completed;
-
-    public GoogleSheetsGameExporter(
-        ISecretStore secrets, IGameLibraryService library, ILogService log, BacklogProgress? backlog = null,
-        SteamLinuxLookup? linux = null, CompletedGames? completed = null)
-    {
-        _linux = linux;
-        _completed = completed;
-        _backlog = backlog;
-        _secrets = secrets;
-        _library = library;
-        _log = log;
-    }
-
     /// <param name="dryRun">Plan only: nothing is written and a missing spreadsheet isn't created
     /// (it's planned as empty). The counts in the result are what a real run would do.</param>
     public async Task<GoogleSheetsExportResult> ExportAsync(
@@ -53,12 +41,12 @@ public sealed class GoogleSheetsGameExporter
         var spreadsheetName = tableName.Trim();
 
         // Fetch first: fails fast on a bad Steam key before the Google login opens a browser.
-        var library = await _library.FetchAsync(steamApiKey, steamId, progress, onStatus, ct);
+        var library = await libraryService.FetchAsync(steamApiKey, steamId, progress, onStatus, ct);
         if (library.Rows.Count == 0)
             return new GoogleSheetsExportResult(library, 0, 0, null);
 
         onStatus?.Invoke("Connecting to Google…");
-        using var client = new GoogleSheetsApiClient(_secrets, _log);
+        using var client = new GoogleSheetsApiClient(secrets, log);
         if (!await client.ConnectAsync(ct) || client.DriveService == null || client.SheetsService == null)
             throw new InvalidOperationException(
                 "Google authorization failed. Please try again; details are in the log.");
@@ -70,7 +58,7 @@ public sealed class GoogleSheetsGameExporter
         if (dryRun && spreadsheetId == null)
         {
             var planPreview = await PlanAsync(library, null, spreadsheetName, progress, onStatus, ct);
-            return new GoogleSheetsExportResult(library, planPreview.NewRows.Count, 0, null, 0, DryRun: true);
+            return new GoogleSheetsExportResult(library, planPreview.NewRows.Count, 0, null, 0, true);
         }
 
         spreadsheetId ??= await CreateSpreadsheetAsync(client.DriveService, spreadsheetName, ct);
@@ -92,16 +80,17 @@ public sealed class GoogleSheetsGameExporter
         var plan = await PlanAsync(library, existing.Values, spreadsheetName, progress, onStatus, ct);
         if (dryRun)
             return new GoogleSheetsExportResult(library, plan.NewRows.Count, plan.Updates.Count,
-                spreadsheet.SpreadsheetUrl, plan.NoLongerOwned.Count, DryRun: true);
+                spreadsheet.SpreadsheetUrl, plan.NoLongerOwned.Count, true);
 
         await ApplyStructureAsync(sheets, spreadsheetId, sheetId, sheet.GridProperties, plan, ct);
         await WriteValuesAsync(sheets, spreadsheetId, sheetRef, plan, ct);
         await WriteCoversAsync(sheets, spreadsheetId, sheetRef, plan, ct);
         await ApplyCheckboxesAsync(sheets, spreadsheetId, sheetId, plan, ct);
-        _backlog?.Record(BacklogSnapshot.From(SyncHistory.GoogleSheets, DateTimeOffset.Now, plan.Tracked ?? []));
-        plan.Completion?.Commit((plan.Tracked ?? []).Where(t => t.Completed != null).Select(t => (t.Row, t.Completed!.Value)));
+        backlog?.Record(BacklogSnapshot.From(SyncHistory.GoogleSheets, DateTimeOffset.Now, plan.Tracked ?? []));
+        plan.Completion?.Commit((plan.Tracked ?? []).Where(t => t.Completed != null)
+            .Select(t => (t.Row, t.Completed!.Value)));
 
-        _log.WriteInfo(
+        log.WriteInfo(
             $"Google Sheets: added {plan.NewRows.Count}, updated {plan.Updates.Count} games in \"{spreadsheetName}\".");
         return new GoogleSheetsExportResult(
             library, plan.NewRows.Count, plan.Updates.Count, spreadsheet.SpreadsheetUrl, plan.NoLongerOwned.Count);
@@ -112,16 +101,18 @@ public sealed class GoogleSheetsGameExporter
     {
         using var sheet = await OpenExistingAsync(tableName, ct);
         var contents = GoogleSheetsSyncPlanner.Read(sheet.Values);
-        var shown = contents.Rows.Where(r => isHidden?.Invoke(r.Row) != true).Select(r => (r.Row, r.Completed)).ToList();
+        var shown = contents.Rows.Where(r => isHidden?.Invoke(r.Row) != true).Select(r => (r.Row, r.Completed))
+            .ToList();
         var snapshot = BacklogSnapshot.From(SyncHistory.GoogleSheets, DateTimeOffset.Now, shown);
-        _backlog?.Record(snapshot);
+        backlog?.Record(snapshot);
         // Ticks changed in the sheet go into Pilewise's list; nothing is written to the sheet.
-        _completed?.Begin(TargetOf(tableName), shown)
+        completed?.Begin(TargetOf(tableName), shown)
             .Commit(shown.Where(r => r.Completed != null).Select(r => (r.Row, r.Completed!.Value)));
         return snapshot;
     }
 
-    public async Task<IReadOnlyList<SheetDuplicateGroup>> FindDuplicatesAsync(string? tableName, CancellationToken ct = default)
+    public async Task<IReadOnlyList<SheetDuplicateGroup>> FindDuplicatesAsync(string? tableName,
+        CancellationToken ct = default)
     {
         using var sheet = await OpenExistingAsync(tableName, ct);
         var contents = GoogleSheetsSyncPlanner.Read(sheet.Values);
@@ -178,29 +169,33 @@ public sealed class GoogleSheetsGameExporter
             .BatchUpdate(new BatchUpdateSpreadsheetRequest { Requests = deletes }, sheet.SpreadsheetId)
             .ExecuteAsync(ct);
 
-        _log.WriteInfo($"Google Sheets: merged {groups.Count} duplicate games, deleted {deletes.Count} rows.");
+        log.WriteInfo($"Google Sheets: merged {groups.Count} duplicate games, deleted {deletes.Count} rows.");
     }
 
-    public static string TargetOf(string? tableName) => $"{SyncHistory.GoogleSheets}:{tableName?.Trim()}";
+    public static string TargetOf(string? tableName)
+    {
+        return $"{SyncHistory.GoogleSheets}:{tableName?.Trim()}";
+    }
 
     private async Task<GoogleSheetsSyncPlan> PlanAsync(
         GameLibraryResult library, IList<IList<object>>? values, string spreadsheetName,
         IProgress<StoreFetchProgress>? progress, Action<string>? onStatus, CancellationToken ct)
     {
         IReadOnlyDictionary<int, string>? labels = null;
-        if (_linux is { Enabled: true })
+        if (linux is { Enabled: true })
         {
             onStatus?.Invoke("Checking Linux support…");
             var ids = library.Rows.Select(r => r.SteamGameId).OfType<int>();
             if (values != null)
-                ids = ids.Concat(GoogleSheetsSyncPlanner.Read(values).Rows.Select(r => r.Row.SteamGameId).OfType<int>());
-            labels = await _linux.LookupAsync(ids, progress, ct);
+                ids = ids.Concat(GoogleSheetsSyncPlanner.Read(values).Rows.Select(r => r.Row.SteamGameId)
+                    .OfType<int>());
+            labels = await linux.LookupAsync(ids, progress, ct);
         }
 
         return GoogleSheetsSyncPlanner.Plan(
             values, library.Rows, library.FetchedStores, library.Ignored,
-            includeLinux: labels != null, linuxByAppId: labels,
-            completed: _completed, target: TargetOf(spreadsheetName));
+            labels != null, labels,
+            completed, TargetOf(spreadsheetName));
     }
 
     // The first tab of an existing spreadsheet, with its values; throws when it doesn't exist yet.
@@ -211,7 +206,7 @@ public sealed class GoogleSheetsGameExporter
             throw new InvalidOperationException("Enter the Google Sheets table name first.");
         var name = tableName.Trim();
 
-        var client = new GoogleSheetsApiClient(_secrets, _log);
+        var client = new GoogleSheetsApiClient(secrets, log);
         try
         {
             if (!await client.ConnectAsync(ct) || client.DriveService == null || client.SheetsService == null)
@@ -243,205 +238,16 @@ public sealed class GoogleSheetsGameExporter
     }
 
     private sealed record OpenedSheet(
-        GoogleSheetsApiClient Client, SheetsService Sheets, string SpreadsheetId, int SheetId, string SheetRef,
+        GoogleSheetsApiClient Client,
+        SheetsService Sheets,
+        string SpreadsheetId,
+        int SheetId,
+        string SheetRef,
         IList<IList<object>>? Values) : IDisposable
     {
-        public void Dispose() => Client.Dispose();
-    }
-
-    private static async Task<string?> FindSpreadsheetAsync(DriveService drive, string name, CancellationToken ct)
-    {
-        var listRequest = drive.Files.List();
-        // Drive query string literal: backslash and single quote must be escaped.
-        listRequest.Q =
-            "mimeType='application/vnd.google-apps.spreadsheet' and " +
-            $"name='{name.Replace("\\", "\\\\").Replace("'", "\\'")}' and trashed = false";
-        listRequest.Spaces = "drive";
-        listRequest.Fields = "files(id, name)";
-        var fileList = await listRequest.ExecuteAsync(ct);
-
-        return fileList.Files is { Count: > 0 } ? fileList.Files[0].Id : null;
-    }
-
-    private static async Task<string> CreateSpreadsheetAsync(DriveService drive, string name, CancellationToken ct)
-    {
-        var fileMetadata = new Google.Apis.Drive.v3.Data.File
+        public void Dispose()
         {
-            Name = name,
-            MimeType = "application/vnd.google-apps.spreadsheet"
-        };
-        var file = await drive.Files.Create(fileMetadata).ExecuteAsync(ct);
-        return file.Id;
-    }
-
-    // Migrates old layouts (insert Platform column / header row) and grows the grid so the value
-    // writes below fit — values.batchUpdate fails with "exceeds grid limits" instead of expanding.
-    private static async Task ApplyStructureAsync(
-        SheetsService sheets, string spreadsheetId, int sheetId, GridProperties? grid,
-        GoogleSheetsSyncPlan plan, CancellationToken ct)
-    {
-        var requests = new List<Request>();
-        if (plan.InsertPlatformColumn)
-            requests.Add(Insert(sheetId, "COLUMNS"));
-        if (plan.InsertHeaderRow)
-            requests.Add(Insert(sheetId, "ROWS"));
-
-        var rowCount = (grid?.RowCount ?? 0) + (plan.InsertHeaderRow ? 1 : 0);
-        var columnCount = (grid?.ColumnCount ?? 0) + (plan.InsertPlatformColumn ? 1 : 0);
-        if (plan.TotalRows > rowCount)
-            requests.Add(Append(sheetId, "ROWS", plan.TotalRows - rowCount));
-        if (plan.Columns.Width > columnCount)
-            requests.Add(Append(sheetId, "COLUMNS", plan.Columns.Width - columnCount));
-
-        if (requests.Count > 0)
-            await sheets.Spreadsheets
-                .BatchUpdate(new BatchUpdateSpreadsheetRequest { Requests = requests }, spreadsheetId)
-                .ExecuteAsync(ct);
-
-        static Request Insert(int sheetId, string dimension) => new()
-        {
-            InsertDimension = new InsertDimensionRequest
-            {
-                Range = new DimensionRange { SheetId = sheetId, Dimension = dimension, StartIndex = 0, EndIndex = 1 }
-            }
-        };
-
-        static Request Append(int sheetId, string dimension, int length) => new()
-        {
-            AppendDimension = new AppendDimensionRequest { SheetId = sheetId, Dimension = dimension, Length = length }
-        };
-    }
-
-    // Header cells, changed Platform/ID cells and the new rows, all in one RAW write (RAW so ids
-    // like "Steam:400" and names starting with "=" are stored verbatim).
-    private static async Task WriteValuesAsync(
-        SheetsService sheets, string spreadsheetId, string sheetRef, GoogleSheetsSyncPlan plan,
-        CancellationToken ct)
-    {
-        var data = new List<ValueRange>();
-
-        foreach (var cell in plan.HeaderCells)
-            data.Add(CellValue(sheetRef, cell.Column, 0, cell.Text));
-
-        foreach (var update in plan.Updates)
-        {
-            data.Add(CellValue(sheetRef, plan.Columns.Platform, update.RowIndex, update.Platform));
-            data.Add(CellValue(sheetRef, plan.Columns.Id, update.RowIndex, update.Id));
-            if (update.PlaytimeHours is { } hours)
-                data.Add(CellValue(sheetRef, plan.Columns.Playtime, update.RowIndex, hours));
-            if (update.LastPlayed is { } lastPlayed)
-                data.Add(CellValue(sheetRef, plan.Columns.LastPlayed, update.RowIndex, lastPlayed));
-            if (update.Owned is { } owned)
-                data.Add(CellValue(sheetRef, plan.Columns.Owned, update.RowIndex, owned));
-            if (update.StoreLink is { } link)
-                data.Add(CellValue(sheetRef, plan.Columns.StoreLink, update.RowIndex, link));
-            if (update.Linux is { } linux)
-                data.Add(CellValue(sheetRef, plan.Columns.Linux, update.RowIndex, linux));
-            if (update.Completed is { } completed)
-                data.Add(CellValue(sheetRef, plan.Columns.Completed, update.RowIndex, completed));
+            Client.Dispose();
         }
-
-        if (plan.NewRows.Count > 0)
-        {
-            data.Add(new ValueRange
-            {
-                Range = $"{sheetRef}!A{plan.FirstNewRowIndex + 1}",
-                Values = plan.NewRows.Select((row, i) => BuildRow(plan.Columns, row, plan.NewRowCompleted(i))).ToList()
-            });
-        }
-
-        if (data.Count == 0) return;
-
-        await sheets.Spreadsheets.Values
-            .BatchUpdate(new BatchUpdateValuesRequest { ValueInputOption = "RAW", Data = data }, spreadsheetId)
-            .ExecuteAsync(ct);
     }
-
-    // A full-width row; cells outside the Pilewise columns stay null, which the API skips.
-    private static IList<object> BuildRow(SheetColumns columns, CsvGameExportRow row, bool completed)
-    {
-        var cells = new object[columns.Width];
-        cells[columns.Platform] = row.PlatformText;
-        cells[columns.Name] = row.Name;
-        cells[columns.Id] = row.IdText;
-        cells[columns.Completed] = completed;
-        if (columns.Playtime >= 0 && row.PlaytimeHours is { } hours) cells[columns.Playtime] = hours;
-        if (columns.LastPlayed >= 0 && row.LastPlayedDate is { } lastPlayed) cells[columns.LastPlayed] = lastPlayed;
-        if (columns.Owned >= 0) cells[columns.Owned] = true;
-        if (columns.StoreLink >= 0 && row.StoreUrl is { } link) cells[columns.StoreLink] = link;
-        if (columns.Linux >= 0) cells[columns.Linux] = row.Linux ?? LinuxRating.Unknown;
-        return cells;
-    }
-
-    // Cover images as =IMAGE(…) formulas: a separate USER_ENTERED write, since the RAW write above
-    // stores text verbatim (on purpose, for names and ids).
-    private static async Task WriteCoversAsync(
-        SheetsService sheets, string spreadsheetId, string sheetRef, GoogleSheetsSyncPlan plan, CancellationToken ct)
-    {
-        if (plan.Columns.Cover < 0) return;
-
-        var data = plan.Updates
-            .Where(u => u.CoverUrl != null)
-            .Select(u => CellValue(sheetRef, plan.Columns.Cover, u.RowIndex, GoogleSheetsSyncPlanner.CoverFormula(u.CoverUrl!)))
-            .Concat(plan.NewRows
-                .Select((row, i) => (row.CoverUrl, Index: plan.FirstNewRowIndex + i))
-                .Where(c => c.CoverUrl != null)
-                .Select(c => CellValue(sheetRef, plan.Columns.Cover, c.Index, GoogleSheetsSyncPlanner.CoverFormula(c.CoverUrl!))))
-            .ToList();
-        if (data.Count == 0) return;
-
-        await sheets.Spreadsheets.Values
-            .BatchUpdate(new BatchUpdateValuesRequest { ValueInputOption = "USER_ENTERED", Data = data }, spreadsheetId)
-            .ExecuteAsync(ct);
-    }
-
-    // Completed (and the opt-in Owned column) as checkboxes for every data row — idempotent, and
-    // also covers a just-added column.
-    private static async Task ApplyCheckboxesAsync(
-        SheetsService sheets, string spreadsheetId, int sheetId, GoogleSheetsSyncPlan plan, CancellationToken ct)
-    {
-        if (plan.TotalRows <= 1) return;
-
-        var columns = new[] { plan.Columns.Completed, plan.Columns.Owned }.Where(c => c >= 0);
-        var requests = columns.Select(column => new Request
-        {
-            SetDataValidation = new SetDataValidationRequest
-            {
-                Range = new GridRange
-                {
-                    SheetId = sheetId,
-                    StartRowIndex = 1,
-                    EndRowIndex = plan.TotalRows,
-                    StartColumnIndex = column,
-                    EndColumnIndex = column + 1
-                },
-                Rule = new DataValidationRule
-                {
-                    Condition = new BooleanCondition { Type = "BOOLEAN" },
-                    Strict = true,
-                    ShowCustomUi = true
-                }
-            }
-        }).ToList();
-
-        await sheets.Spreadsheets
-            .BatchUpdate(new BatchUpdateSpreadsheetRequest { Requests = requests }, spreadsheetId)
-            .ExecuteAsync(ct);
-    }
-
-    private static ValueRange CellValue(string sheetRef, int column, int row, object value) => new()
-    {
-        Range = $"{sheetRef}!{ColumnLetter(column)}{row + 1}",
-        Values = [new List<object> { value }]
-    };
-
-    private static string ColumnLetter(int index)
-    {
-        var letters = string.Empty;
-        for (var n = index + 1; n > 0; n = (n - 1) / 26)
-            letters = (char)('A' + (n - 1) % 26) + letters;
-        return letters;
-    }
-
-    private static string QuoteSheetTitle(string title) => $"'{title.Replace("'", "''")}'";
 }

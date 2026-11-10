@@ -5,17 +5,22 @@ using Newtonsoft.Json.Linq;
 using Pilewise.Services;
 using Pilewise.ViewModels;
 using Xunit;
+using Pilewise.Tests.Fakes;
 
 namespace Pilewise.Tests;
 
 public class BacklogProgressTests
 {
-    private static CsvGameExportRow Steam(string name, string id) => CsvGameExportService.CreateRow("Steam", name, "Steam:" + id);
+    private static CsvGameExportRow Steam(string name, string id)
+    {
+        return CsvFormat.CreateRow("Steam", name, "Steam:" + id);
+    }
 
     [Fact]
     public void Notion_CompletedCheckbox_IsRead()
     {
-        var properties = JObject.Parse("""{ "Name": { "type": "title" }, "Completed": { "type": "checkbox", "checkbox": true } }""");
+        var properties =
+            JObject.Parse("""{ "Name": { "type": "title" }, "Completed": { "type": "checkbox", "checkbox": true } }""");
         Assert.True(NotionCompletion.Read(properties));
     }
 
@@ -50,8 +55,11 @@ public class BacklogProgressTests
     public void Snapshot_CountsNewRowsInTheTotal_AndKeepsCompletedKeys()
     {
         var snapshot = BacklogSnapshot.From("Notion", DateTimeOffset.Now,
-            [(Steam("Portal", "400"), true), (Steam("Doom", "2280"), false), (CsvGameExportService.CreateRow("", "Gwent", ""), true)],
-            newRows: 1);
+            [
+                (Steam("Portal", "400"), true), (Steam("Doom", "2280"), false),
+                (CsvFormat.CreateRow("", "Gwent", ""), true)
+            ],
+            1);
 
         Assert.NotNull(snapshot);
         Assert.Equal(2, snapshot.Completed);
@@ -61,8 +69,10 @@ public class BacklogProgressTests
     }
 
     [Fact]
-    public void Snapshot_WithoutAnyCompletionColumn_IsNull() =>
+    public void Snapshot_WithoutAnyCompletionColumn_IsNull()
+    {
         Assert.Null(BacklogSnapshot.From("Notion", DateTimeOffset.Now, [(Steam("Portal", "400"), null)]));
+    }
 
     [Fact]
     public void Store_KeepsTheLatestPerTarget_AndSurvivesARoundTrip()
@@ -81,7 +91,10 @@ public class BacklogProgressTests
     }
 
     [Fact]
-    public void Store_BrokenJson_IsIgnored() => Assert.Empty(BacklogProgress.Parse("{not json"));
+    public void Store_BrokenJson_IsIgnored()
+    {
+        Assert.Empty(BacklogProgress.Parse("{not json"));
+    }
 
     [Fact]
     public void Sheets_TrackedRows_CarryTheCompletedCell_HiddenLeftOut()
@@ -131,13 +144,5 @@ public class BacklogProgressTests
 
         Assert.False(vm.Stats.HasCompletion);
         Assert.DoesNotContain(vm.Filters, f => f.Key == LibraryViewModel.CompletedKey);
-    }
-
-    private sealed class MemoryStateStore : IStateStore
-    {
-        private readonly Dictionary<string, string> _values = [];
-        public string? Load(string key) => _values.GetValueOrDefault(key);
-        public void Save(string key, string value) => _values[key] = value;
-        public void Delete(string key) => _values.Remove(key);
     }
 }

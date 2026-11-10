@@ -36,8 +36,10 @@ public class ReliabilityTests
         }
     }
 
-    private static HttpResponseMessage Json(HttpStatusCode status, string body) =>
-        new(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
+    private static HttpResponseMessage Json(HttpStatusCode status, string body)
+    {
+        return new HttpResponseMessage(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
+    }
 
     private static HttpResponseMessage RateLimited()
     {
@@ -46,9 +48,15 @@ public class ReliabilityTests
         return response;
     }
 
-    private static NotionApiClient Client(FakeNotion handler) => new("token", "db", handler, TimeSpan.Zero);
+    private static NotionApiClient Client(FakeNotion handler)
+    {
+        return new NotionApiClient("token", "db", handler, TimeSpan.Zero);
+    }
 
-    private static NotionPageBody Page() => new(new { });
+    private static NotionPageBody Page()
+    {
+        return new NotionPageBody(new { });
+    }
 
     [Fact]
     public async Task NotionCreate_RateLimitedOnEveryTry_Throws()
@@ -132,7 +140,8 @@ public class ReliabilityTests
         try
         {
             var log = new FileLogService(folder);
-            log.WriteException(new InvalidOperationException("outer", new IOException("disk is full")), "Export failed");
+            log.WriteException(new InvalidOperationException("outer", new IOException("disk is full")),
+                "Export failed");
 
             var text = File.ReadAllText(log.CurrentFilePath);
             Assert.Contains(DateTime.Now.ToString("yyyy-MM-dd"), Path.GetFileName(log.CurrentFilePath));
@@ -154,7 +163,9 @@ public class ReliabilityTests
             var log = new FileLogService(folder);
             // Another process (a `--sync` run) appending at the same time.
             using (new FileStream(log.CurrentFilePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+            {
                 log.WriteInfo("while shared");
+            }
 
             Assert.Contains("while shared", File.ReadAllText(log.CurrentFilePath));
         }
@@ -172,7 +183,9 @@ public class ReliabilityTests
         {
             var log = new FileLogService(folder);
             using (new FileStream(log.CurrentFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            {
                 log.WriteError("dropped, not thrown");
+            }
         }
         finally
         {
@@ -191,9 +204,9 @@ public class ReliabilityTests
     [Fact]
     public void LegacyBareId_TooLargeForSteam_IsNotWrappedIntoAnId()
     {
-        var row = CsvGameExportService.CreateRow("Steam", "Big", null);
+        var row = CsvFormat.CreateRow("Steam", "Big", null);
 
-        CsvGameExportService.ApplyLegacyBareId(row, "99999999999");
+        CsvFormat.ApplyLegacyBareId(row, "99999999999");
 
         Assert.Null(row.SteamGameId);
     }

@@ -76,11 +76,11 @@ public class NotionDataFetcher : INotionDataFetcher
             var platforms = ReadMultiSelect(properties?[PlatformProperty]);
             var idField = ReadGameId(properties?[GameIdProperty]);
 
-            var row = CsvGameExportService.CreateRow(string.Join("/", platforms), name, idField);
+            var row = CsvFormat.CreateRow(string.Join("/", platforms), name, idField);
 
             // Back-compat: a bare numeric GameID (from the old Number column) has no
             // platform prefix — attribute it to the tagged platform, defaulting to Steam.
-            CsvGameExportService.ApplyLegacyBareId(row, idField);
+            CsvFormat.ApplyLegacyBareId(row, idField);
 
             return row.HasContent
                 ? new NotionGameRow(row, pageId, platforms, idField ?? string.Empty,
@@ -91,7 +91,9 @@ public class NotionDataFetcher : INotionDataFetcher
                     properties?[StoreLinkProperty]?["url"]?.Value<string>(),
                     page["created_time"]?.Type == JTokenType.Date
                         ? page["created_time"]!.Value<DateTime>()
-                        : DateTimeOffset.TryParse(page["created_time"]?.Value<string>(), out var created) ? created : null,
+                        : DateTimeOffset.TryParse(page["created_time"]?.Value<string>(), out var created)
+                            ? created
+                            : null,
                     NotionCompletion.Read(properties),
                     properties?[LinuxProperty]?["select"]?["name"]?.Value<string>())
                 : null;

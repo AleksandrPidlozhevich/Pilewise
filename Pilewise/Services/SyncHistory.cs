@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace Pilewise.Services;
 
-public sealed class SyncHistory
+public sealed class SyncHistory(IStateStore store)
 {
     public const string Csv = "CSV";
     public const string Notion = "Notion";
@@ -13,21 +13,17 @@ public sealed class SyncHistory
 
     private const string StateKey = "last-sync";
 
-    private readonly IStateStore _store;
-    private readonly Dictionary<string, DateTimeOffset> _entries;
+    private readonly Dictionary<string, DateTimeOffset> _entries = Parse(store.Load(StateKey));
 
-    public SyncHistory(IStateStore store)
+    public static string KeyOf(SyncTarget target)
     {
-        _store = store;
-        _entries = Parse(store.Load(StateKey));
+        return target switch
+        {
+            SyncTarget.Csv => Csv,
+            SyncTarget.Notion => Notion,
+            _ => GoogleSheets
+        };
     }
-
-    public static string KeyOf(SyncTarget target) => target switch
-    {
-        SyncTarget.Csv => Csv,
-        SyncTarget.Notion => Notion,
-        _ => GoogleSheets
-    };
 
     // Re-read on every access: the in-app auto-sync records through its own instance (via HeadlessSync),
     // so a cached copy would go stale and a later Record would overwrite the newer time.
@@ -41,7 +37,7 @@ public sealed class SyncHistory
     {
         Reload();
         _entries[target] = when;
-        _store.Save(StateKey, string.Join("\n",
+        store.Save(StateKey, string.Join("\n",
             _entries.Select(e => $"{e.Key}={e.Value.ToString("O", CultureInfo.InvariantCulture)}")));
     }
 
@@ -63,7 +59,7 @@ public sealed class SyncHistory
     private void Reload()
     {
         _entries.Clear();
-        foreach (var (key, value) in Parse(_store.Load(StateKey))) _entries[key] = value;
+        foreach (var (key, value) in Parse(store.Load(StateKey))) _entries[key] = value;
     }
 
     private static Dictionary<string, DateTimeOffset> Parse(string? content)

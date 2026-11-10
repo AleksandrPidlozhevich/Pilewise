@@ -222,7 +222,8 @@ public class EpicApiClient : RefreshTokenStoreClient, IEpicClient
             // A server error is temporary: the caller fails the fetch rather than lose these games.
             if ((int)response.StatusCode >= 500)
                 throw new HttpRequestException(
-                    $"Epic catalog request failed for namespace {ns}: {response.StatusCode}.", null, response.StatusCode);
+                    $"Epic catalog request failed for namespace {ns}: {response.StatusCode}.", null,
+                    response.StatusCode);
 
             // A client error (e.g. a delisted namespace) answers the same every time: skip its items.
             if (!response.IsSuccessStatusCode)

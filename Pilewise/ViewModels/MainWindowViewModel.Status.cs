@@ -8,22 +8,19 @@ namespace Pilewise.ViewModels;
 
 public partial class MainWindowViewModel
 {
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasResult))]
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasResult))]
     private string? resultMessage;
 
     public bool HasResult => ResultMessage is not null;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasResultAction))]
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasResultAction))]
     private string? resultActionLabel;
 
     public bool HasResultAction => ResultActionLabel is not null;
 
     private Action? _resultAction;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasResultSecondaryAction))]
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasResultSecondaryAction))]
     private string? resultSecondaryLabel;
 
     public bool HasResultSecondaryAction => ResultSecondaryLabel is not null;
@@ -42,7 +39,10 @@ public partial class MainWindowViewModel
     }
 
     [RelayCommand]
-    private void RunResultAction() => _resultAction?.Invoke();
+    private void RunResultAction()
+    {
+        _resultAction?.Invoke();
+    }
 
     [RelayCommand]
     private async Task RunResultSecondaryAction()
@@ -88,11 +88,16 @@ public partial class MainWindowViewModel
         RefreshLastSync();
     }
 
-    private void LogFailure(string target, Exception ex) =>
+    private void LogFailure(string target, Exception ex)
+    {
         _syncLog.Add(new SyncLogEntry(DateTimeOffset.Now, target, false, ex.Message, SyncLog.Manual));
+    }
 
     [RelayCommand]
-    public void ShowSyncHistory() => _dialogs.ShowSyncLog(new SyncLogViewModel(_syncLog));
+    public void ShowSyncHistory()
+    {
+        _dialogs.ShowSyncLog(new SyncLogViewModel(_syncLog));
+    }
 
     public string AppVersion => $"v{_updates.CurrentVersion}";
 
@@ -108,8 +113,7 @@ public partial class MainWindowViewModel
     [NotifyPropertyChangedFor(nameof(UpdateStatus), nameof(CheckUpdatesLabel), nameof(CheckUpdatesTip))]
     private bool isCheckingForUpdate;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(UpdateStatus))]
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(UpdateStatus))]
     private DateTimeOffset? lastUpdateCheck;
 
     public bool CanCheckForUpdates => _updates.IsInstalled;
@@ -121,12 +125,17 @@ public partial class MainWindowViewModel
         : "Only the installed app can check for updates";
 
     public string UpdateStatus =>
-        !_updates.IsInstalled ? $"Pilewise {AppVersion}. Updates work in the installed app (from the GitHub release), not in a development build."
-        : IsCheckingForUpdate ? "Checking GitHub for a newer version…"
-        : AvailableUpdateVersion is { } version ? $"Version {version} is available (you have {AppVersion})."
-        : _updates.LastCheckError is { } error ? $"Couldn't check for updates: {error}"
-        : LastUpdateCheck is { } checkedAt ? $"You're up to date ({AppVersion}), checked at {checkedAt:HH:mm}."
-        : $"You have {AppVersion}.";
+        !_updates.IsInstalled
+            ? $"Pilewise {AppVersion}. Updates work in the installed app (from the GitHub release), not in a development build."
+            : IsCheckingForUpdate
+                ? "Checking GitHub for a newer version…"
+                : AvailableUpdateVersion is { } version
+                    ? $"Version {version} is available (you have {AppVersion})."
+                    : _updates.LastCheckError is { } error
+                        ? $"Couldn't check for updates: {error}"
+                        : LastUpdateCheck is { } checkedAt
+                            ? $"You're up to date ({AppVersion}), checked at {checkedAt:HH:mm}."
+                            : $"You have {AppVersion}.";
 
     private static readonly TimeSpan UpdateCheckInterval = TimeSpan.FromHours(12);
 
@@ -151,8 +160,10 @@ public partial class MainWindowViewModel
     }
 
     [RelayCommand]
-    private Task CheckForUpdates() =>
-        IsCheckingForUpdate ? Task.CompletedTask : CheckForUpdateAsync(MinManualCheckDuration);
+    private Task CheckForUpdates()
+    {
+        return IsCheckingForUpdate ? Task.CompletedTask : CheckForUpdateAsync(MinManualCheckDuration);
+    }
 
     private async Task CheckForUpdatesIfStaleAsync()
     {

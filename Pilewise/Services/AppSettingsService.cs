@@ -3,9 +3,18 @@ using System;
 namespace Pilewise.Services;
 
 public sealed record AppSettings(
-    string? SteamApiKey, string? SteamId, string? NotionToken, string? DbId, string? GoogleSheetsTableName = null,
-    string? ExcludedStores = null, string? AutoSync = null, bool? CloseToTray = null, string? CsvFile = null,
-    string? Theme = null, bool? SidebarCollapsed = null, bool? LinuxColumn = null);
+    string? SteamApiKey,
+    string? SteamId,
+    string? NotionToken,
+    string? DbId,
+    string? GoogleSheetsTableName = null,
+    string? ExcludedStores = null,
+    string? AutoSync = null,
+    bool? CloseToTray = null,
+    string? CsvFile = null,
+    string? Theme = null,
+    bool? SidebarCollapsed = null,
+    bool? LinuxColumn = null);
 
 public static class AppSettingsService
 {
@@ -31,7 +40,9 @@ public static class AppSettingsService
                (string.IsNullOrEmpty(settings.CsvFile)
                    ? string.Empty
                    : $"CSV File: {settings.CsvFile}" + Environment.NewLine) +
-               (string.IsNullOrEmpty(settings.Theme) ? string.Empty : $"Theme: {settings.Theme}" + Environment.NewLine) +
+               (string.IsNullOrEmpty(settings.Theme)
+                   ? string.Empty
+                   : $"Theme: {settings.Theme}" + Environment.NewLine) +
                (settings.SidebarCollapsed == true ? "Sidebar: collapsed" + Environment.NewLine : string.Empty) +
                (settings.LinuxColumn == true ? "Linux Column: yes" + Environment.NewLine : string.Empty);
     }
@@ -42,8 +53,15 @@ public static class AppSettingsService
     /// </summary>
     public static AppSettings Parse(string content)
     {
-        string? steamApiKey = null, steamId = null, notionToken = null, dbId = null, sheetsTable = null,
-            excludedStores = null, autoSync = null, csvFile = null, theme = null;
+        string? steamApiKey = null,
+            steamId = null,
+            notionToken = null,
+            dbId = null,
+            sheetsTable = null,
+            excludedStores = null,
+            autoSync = null,
+            csvFile = null,
+            theme = null;
         bool? closeToTray = null, sidebarCollapsed = null, linuxColumn = null;
 
         foreach (var line in content.Split(["\r\n", "\r", "\n"], StringSplitOptions.RemoveEmptyEntries))

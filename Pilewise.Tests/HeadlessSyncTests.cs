@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Pilewise.Models;
 using Pilewise.Services;
 using Xunit;
+using Pilewise.Tests.Fakes;
 
 namespace Pilewise.Tests;
 
@@ -14,9 +15,15 @@ public class HeadlessSyncTests : IDisposable
 {
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "PilewiseTests-" + Guid.NewGuid().ToString("N"));
 
-    public HeadlessSyncTests() => Directory.CreateDirectory(_dir);
+    public HeadlessSyncTests()
+    {
+        Directory.CreateDirectory(_dir);
+    }
 
-    public void Dispose() => Directory.Delete(_dir, recursive: true);
+    public void Dispose()
+    {
+        Directory.Delete(_dir, true);
+    }
 
     [Fact]
     public void Parse_MultipleTargets_AndOptions()
@@ -85,7 +92,7 @@ public class HeadlessSyncTests : IDisposable
 
         await sync.RunAsync(Options(path));
 
-        var rows = CsvGameExportService.Parse(await File.ReadAllTextAsync(path));
+        var rows = CsvFormat.Parse(await File.ReadAllTextAsync(path));
         Assert.Equal(["Gwent", "Portal"], rows.Select(r => r.Name).Order());
         Assert.Contains("(2 total)", output.ToString());
 
@@ -208,7 +215,8 @@ public class HeadlessSyncTests : IDisposable
     {
         var collapsed = AppSettingsService.Serialize(new AppSettings("k", "i", "t", "d", SidebarCollapsed: true));
         Assert.True(AppSettingsService.Parse(collapsed).SidebarCollapsed);
-        Assert.DoesNotContain("Sidebar", AppSettingsService.Serialize(new AppSettings("k", "i", "t", "d", SidebarCollapsed: false)));
+        Assert.DoesNotContain("Sidebar",
+            AppSettingsService.Serialize(new AppSettings("k", "i", "t", "d", SidebarCollapsed: false)));
     }
 
     [Fact]
@@ -224,7 +232,8 @@ public class HeadlessSyncTests : IDisposable
         MemorySecrets secrets, StringWriter output, SyncLog syncLog, string source, params CsvGameExportRow[] rows)
     {
         var log = new SilentLog();
-        var library = new FixedLibrary(new GameLibraryResult(rows.ToList(), false, false, false, false, false, false, true));
+        var library =
+            new FixedLibrary(new GameLibraryResult(rows.ToList(), false, false, false, false, false, false, true));
         return new HeadlessSync(
             secrets, secrets, library,
             new NotionGameExporter(library, new NotionGateway(log), log),
@@ -232,16 +241,23 @@ public class HeadlessSyncTests : IDisposable
             log, output, null, syncLog, source);
     }
 
-    private static SyncOptions Options(string csvPath) => new([SyncTarget.Csv], csvPath, null, false);
+    private static SyncOptions Options(string csvPath)
+    {
+        return new SyncOptions([SyncTarget.Csv], csvPath, null, false);
+    }
 
-    private static CsvGameExportRow Steam(string name, int id) =>
-        new() { Name = name, HasSteam = true, SteamGameId = id };
+    private static CsvGameExportRow Steam(string name, int id)
+    {
+        return new CsvGameExportRow { Name = name, HasSteam = true, SteamGameId = id };
+    }
 
-    private static (HeadlessSync Sync, StringWriter Output, MemorySecrets Secrets) Create(params CsvGameExportRow[] rows)
+    private static (HeadlessSync Sync, StringWriter Output, MemorySecrets Secrets) Create(
+        params CsvGameExportRow[] rows)
     {
         var secrets = new MemorySecrets();
         var log = new SilentLog();
-        var library = new FixedLibrary(new GameLibraryResult(rows.ToList(), false, false, false, false, false, false, true));
+        var library =
+            new FixedLibrary(new GameLibraryResult(rows.ToList(), false, false, false, false, false, false, true));
         var output = new StringWriter();
         var sync = new HeadlessSync(
             secrets, secrets, library,
@@ -255,23 +271,29 @@ public class HeadlessSyncTests : IDisposable
     {
         public Task<GameLibraryResult> FetchAsync(
             string? steamApiKey, string? steamId, IProgress<StoreFetchProgress>? progress = null,
-            Action<string>? onStatus = null, CancellationToken ct = default) => Task.FromResult(result);
+            Action<string>? onStatus = null, CancellationToken ct = default)
+        {
+            return Task.FromResult(result);
+        }
     }
 
     private sealed class MemorySecrets : ISecretStore, IStateStore
     {
         private readonly Dictionary<string, string> _values = new();
-        public string? Load(string key) => _values.GetValueOrDefault(key);
-        public void Save(string key, string value) => _values[key] = value;
-        public void Delete(string key) => _values.Remove(key);
-    }
 
-    private sealed class SilentLog : ILogService
-    {
-        public void WriteLog(string message, LogLevel level = LogLevel.Info) { }
-        public void WriteInfo(string message) { }
-        public void WriteWarning(string message) { }
-        public void WriteError(string message) { }
-        public void WriteException(Exception ex, string additionalMessage = "") { }
+        public string? Load(string key)
+        {
+            return _values.GetValueOrDefault(key);
+        }
+
+        public void Save(string key, string value)
+        {
+            _values[key] = value;
+        }
+
+        public void Delete(string key)
+        {
+            _values.Remove(key);
+        }
     }
 }

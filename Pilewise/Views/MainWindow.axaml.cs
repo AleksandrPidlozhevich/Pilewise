@@ -47,7 +47,13 @@ public partial class MainWindow : Window
         _log = log;
         _state = state;
         RestorePlacement();
-        if (OperatingSystem.IsWindows()) _ = PrewarmGogLoginAsync(AddPrewarmWebView());
+        if (OperatingSystem.IsWindows()) Opened += PrewarmOnce;
+    }
+
+    private void PrewarmOnce(object? sender, EventArgs e)
+    {
+        Opened -= PrewarmOnce;
+        _ = PrewarmGogLoginAsync(AddPrewarmWebView());
     }
 
     // Hidden pre-warm WebView2 (Windows only): warms up the runtime at startup, and a few seconds in
@@ -84,7 +90,8 @@ public partial class MainWindow : Window
             if (saved == null) return;
 
             var screens = Screens.All
-                .Select(s => new ScreenArea(s.WorkingArea.X, s.WorkingArea.Y, s.WorkingArea.Width, s.WorkingArea.Height))
+                .Select(s =>
+                    new ScreenArea(s.WorkingArea.X, s.WorkingArea.Y, s.WorkingArea.Width, s.WorkingArea.Height))
                 .ToList();
             var scaling = Screens.Primary?.Scaling ?? 1;
             var (width, height, keepPosition) = saved.Fit(screens, scaling, MinWidth, MinHeight);
@@ -195,8 +202,7 @@ public partial class MainWindow : Window
         try
         {
             await Task.Delay(TimeSpan.FromSeconds(3));
-            await Dispatcher.UIThread.InvokeAsync(
-                () => { webView.Source = _clients!.CreateGog().LoginRequestUri; });
+            await Dispatcher.UIThread.InvokeAsync(() => { webView.Source = _clients!.CreateGog().LoginRequestUri; });
         }
         catch (Exception ex)
         {

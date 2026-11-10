@@ -21,13 +21,13 @@ public sealed class HeadlessSync
     private readonly StoreSelection? _selection;
     private readonly SyncLog? _syncLog;
     private readonly string _source;
-    private readonly SteamLinuxLookup? _linux;
+    private readonly ISteamLinuxLookup? _linux;
     private readonly CompletedGames? _completed;
 
     public HeadlessSync(
         ISecretStore secrets, IStateStore state, IGameLibraryService library, NotionGameExporter notion,
         GoogleSheetsGameExporter sheets, ILogService log, TextWriter output, StoreSelection? selection = null,
-        SyncLog? syncLog = null, string source = SyncLog.CommandLine, SteamLinuxLookup? linux = null,
+        SyncLog? syncLog = null, string source = SyncLog.CommandLine, ISteamLinuxLookup? linux = null,
         CompletedGames? completed = null)
     {
         _completed = completed;
@@ -69,7 +69,8 @@ public sealed class HeadlessSync
                 if (!options.DryRun)
                 {
                     history.Record(SyncHistory.KeyOf(target), DateTimeOffset.Now);
-                    _syncLog?.Add(new SyncLogEntry(DateTimeOffset.Now, SyncHistory.KeyOf(target), true, summary, _source));
+                    _syncLog?.Add(new SyncLogEntry(DateTimeOffset.Now, SyncHistory.KeyOf(target), true, summary,
+                        _source));
                 }
             }
             // A timeout is an OperationCanceledException too, but only a real cancel stops the run.
@@ -84,7 +85,8 @@ public sealed class HeadlessSync
                 _log.WriteException(ex, $"Headless sync of {target} failed");
                 Write($"FAILED: {Flatten(ex)}");
                 if (!options.DryRun)
-                    _syncLog?.Add(new SyncLogEntry(DateTimeOffset.Now, SyncHistory.KeyOf(target), false, Flatten(ex), _source));
+                    _syncLog?.Add(new SyncLogEntry(DateTimeOffset.Now, SyncHistory.KeyOf(target), false, Flatten(ex),
+                        _source));
             }
         }
 
@@ -105,7 +107,7 @@ public sealed class HeadlessSync
         var existing = File.Exists(path) ? await File.ReadAllTextAsync(path, ct) : null;
         if (existing != null)
         {
-            var missing = CsvGameExportService.GetMissingColumns(existing);
+            var missing = CsvFormat.GetMissingColumns(existing);
             if (missing.Count > 0)
                 throw new InvalidOperationException(
                     $"{path} is not a Pilewise CSV (missing columns: {string.Join(", ", missing)}).");
@@ -169,11 +171,13 @@ public sealed class HeadlessSync
         return $"Done: {result.Added} added, {result.Updated} updated{gone}. {result.SpreadsheetUrl}";
     }
 
-    private Task StampLinuxAsync(IEnumerable<CsvGameExportRow> rows, CancellationToken ct) =>
-        _linux == null
+    private Task StampLinuxAsync(IEnumerable<CsvGameExportRow> rows, CancellationToken ct)
+    {
+        return _linux == null
             ? Task.CompletedTask
             : _linux.StampAsync(rows, new Progress<StoreFetchProgress>(p =>
                 Write($"{p.Stage} {p.Completed}/{p.Total}")), ct);
+    }
 
     private async Task<GameLibraryResult> FetchAsync(AppSettings settings, CancellationToken ct)
     {
@@ -185,13 +189,18 @@ public sealed class HeadlessSync
 
     private void WarnExpiredSessions(GameLibraryResult library)
     {
-        if (library.EpicSessionExpired) Write("WARNING: Epic session expired, Epic games skipped. Reconnect in the app.");
+        if (library.EpicSessionExpired)
+            Write("WARNING: Epic session expired, Epic games skipped. Reconnect in the app.");
         if (library.GogSessionExpired) Write("WARNING: GOG session expired, GOG games skipped. Reconnect in the app.");
-        if (library.XboxSessionExpired) Write("WARNING: Xbox session expired, Xbox games skipped. Reconnect in the app.");
+        if (library.XboxSessionExpired)
+            Write("WARNING: Xbox session expired, Xbox games skipped. Reconnect in the app.");
     }
 
-    private static InvalidOperationException NoGames() => new(
-        "No games found. Check the Steam credentials and store connections in the app.");
+    private static InvalidOperationException NoGames()
+    {
+        return new InvalidOperationException(
+            "No games found. Check the Steam credentials and store connections in the app.");
+    }
 
     private static string Flatten(Exception ex)
     {

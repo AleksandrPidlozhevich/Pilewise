@@ -13,25 +13,35 @@
              AvaloniaXamlLoader.Load(this) and look named controls up themselves, so the code reads
              the same in an IDE that doesn't run Avalonia's source generator. -->
         <AvaloniaNameGeneratorIsEnabled>false</AvaloniaNameGeneratorIsEnabled>
+        <!-- A tray app idles most of the time: no background GC thread (less memory and wakeups), no PGO
+             instrumentation overhead, precompiled (ReadyToRun) release builds for a faster first start,
+             and no satellite-resource folders for languages the UI doesn't have. -->
+        <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+        <TieredPGO>false</TieredPGO>
+        <PublishReadyToRun Condition="'$(RuntimeIdentifier)' != ''">true</PublishReadyToRun>
+        <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     </PropertyGroup>
 
     <ItemGroup>
-        <AvaloniaResource Include="Assets\**" />
+        <AvaloniaResource Include="Assets\**"/>
+    </ItemGroup>
+    <ItemGroup>
+        <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5"/>
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Avalonia" Version="12.1.4" />
-        <PackageReference Include="Avalonia.Controls.WebView" Version="12.1.1" />
-        <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
-        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
-        <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.4" />
-        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-        <PackageReference Include="Google.Apis.Drive.v3" Version="1.77.0.4276" />
-        <PackageReference Include="Google.Apis.Sheets.v4" Version="1.77.0.4290" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.13" />
-        <PackageReference Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.91.0" />
-        <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-        <PackageReference Include="Svg.Controls.Skia.Avalonia" Version="12.0.0.17" />
-        <PackageReference Include="Velopack" Version="1.2.161" />
+        <PackageReference Include="Avalonia" Version="12.1.4"/>
+        <PackageReference Include="Avalonia.Controls.WebView" Version="12.1.1"/>
+        <PackageReference Include="Avalonia.Desktop" Version="12.1.4"/>
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4"/>
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.4"/>
+        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2"/>
+        <PackageReference Include="Google.Apis.Drive.v3" Version="1.77.0.4276"/>
+        <PackageReference Include="Google.Apis.Sheets.v4" Version="1.77.0.4290"/>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.13"/>
+        <PackageReference Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.91.0"/>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.4"/>
+        <PackageReference Include="Svg.Controls.Skia.Avalonia" Version="12.0.0.17"/>
+        <PackageReference Include="Velopack" Version="1.2.161"/>
     </ItemGroup>
 </Project>

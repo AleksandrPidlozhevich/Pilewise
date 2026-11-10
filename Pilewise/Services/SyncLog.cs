@@ -60,10 +60,15 @@ public sealed class SyncLog
         Changed?.Invoke();
     }
 
-    public static List<SyncLogEntry> Trim(IEnumerable<SyncLogEntry> entries) =>
-        entries.OrderByDescending(e => e.When).Take(MaxEntries).ToList();
+    public static List<SyncLogEntry> Trim(IEnumerable<SyncLogEntry> entries)
+    {
+        return entries.OrderByDescending(e => e.When).Take(MaxEntries).ToList();
+    }
 
-    public static string Serialize(IEnumerable<SyncLogEntry> entries) => JsonConvert.SerializeObject(entries.ToList());
+    public static string Serialize(IEnumerable<SyncLogEntry> entries)
+    {
+        return JsonConvert.SerializeObject(entries.ToList());
+    }
 
     public static List<SyncLogEntry> Parse(string? json)
     {
@@ -86,5 +91,8 @@ public sealed class SyncLog
         if (_store != null) _entries = Parse(_store.Load(StateKey));
     }
 
-    private void Save() => _store?.Save(StateKey, Serialize(_entries));
+    private void Save()
+    {
+        _store?.Save(StateKey, Serialize(_entries));
+    }
 }

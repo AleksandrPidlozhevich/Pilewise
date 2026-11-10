@@ -70,7 +70,8 @@ public class SteamApiClient : ISteamClient
                     $"Steam API answered {(int)response.StatusCode} {response.StatusCode}. " + CheckHint, null,
                     response.StatusCode);
 
-            var result = JsonConvert.DeserializeObject<SteamGamesResponse>(await response.Content.ReadAsStringAsync(ct));
+            var result =
+                JsonConvert.DeserializeObject<SteamGamesResponse>(await response.Content.ReadAsStringAsync(ct));
             if (result?.Response?.Games == null)
             {
                 _log.WriteError("Steam API returned empty or invalid game list.");

@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Last updated: 28 October 2026
+Last updated: 8 November 2026
 
 Pilewise is a desktop app for Windows, macOS and Linux. It reads the games you own on Steam,
 Epic, GOG and Xbox and writes the list to a place you choose: a Notion database, a Google Sheets
@@ -23,6 +23,11 @@ you connect.
   `https://www.googleapis.com/auth/drive.file`. It lets Pilewise create a spreadsheet in your
   Google Drive and read and update that spreadsheet. Pilewise cannot see any other file in
   your Drive, including spreadsheets you created yourself.
+- **Linux column (opt-in).** When you enable the Linux column on Export, the app may ask the
+  Steam Store (`appdetails`, platforms filter) and ProtonDB (`reports/summaries`) for a rough
+  Linux / Proton signal for each Steam app ID in your library. Only those numeric Steam app IDs
+  are sent — not your Steam name, API key or other account details. Results are cached on your
+  device for about a week. This is an estimate only, not a guarantee that a game will run.
 
 ## What is stored, and where
 
@@ -39,7 +44,8 @@ Everything is stored on your device, in the app's data folder:
 
 Nobody besides the services you connect. The app sends requests only to Steam, Epic, GOG,
 Xbox / Microsoft, Notion and Google, and only to read your library or write your backlog to the
-place you selected. It also asks GitHub for new app releases. The developer has no access to
+place you selected. With the opt-in Linux column it also queries the Steam Store and ProtonDB
+as described above. It also asks GitHub for new app releases. The developer has no access to
 any of this.
 
 There is no analytics, advertising or telemetry. Data is not sold, shared or transferred to any

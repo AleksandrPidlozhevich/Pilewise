@@ -9,7 +9,10 @@ namespace Pilewise.Services;
 /// Pages of the same game found by <see cref="NotionDuplicateFinder"/>: the one to keep (the oldest,
 /// most likely the one with the user's notes / status) and the ones to move to Notion's trash.
 /// </summary>
-public sealed record NotionDuplicateGroup(NotionGameRow Keep, IReadOnlyList<NotionGameRow> Remove, CsvGameExportRow Merged)
+public sealed record NotionDuplicateGroup(
+    NotionGameRow Keep,
+    IReadOnlyList<NotionGameRow> Remove,
+    CsvGameExportRow Merged)
     : IDuplicateGroupView
 {
     public string Name => Keep.Row.Name;

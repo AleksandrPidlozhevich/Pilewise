@@ -10,32 +10,35 @@ using System.Threading.Tasks;
 
 namespace Pilewise.Services;
 
-/// <summary>
-/// Resolves Linux ratings for Steam app ids (native from the store, else ProtonDB).
-/// Cached a week. Failures are omitted — callers keep any value already on the row.
-/// </summary>
-public sealed class SteamLinuxLookup
+public sealed class SteamLinuxLookup : ISteamLinuxLookup
 {
     public const string StateKey = "linux-ratings";
 
     // shortcut: sequential 1 req/s — Steam appdetails rate-limits hard; parallelise if a bulk API appears.
-    private static readonly TimeSpan Spacing = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan DefaultSpacing = TimeSpan.FromSeconds(1);
     private const int MaxFailures = 3;
-    private static readonly HttpClient Http = CreateClient();
+    private const int FlushEvery = 25;
+    private static readonly HttpClient SharedHttp = CreateClient();
 
     private readonly IStateStore _state;
     private readonly ILogService _log;
+    private readonly HttpClient _http;
+    private readonly TimeSpan _spacing;
 
     public bool Enabled { get; set; }
 
-    public SteamLinuxLookup(IStateStore state, ILogService log)
+    public SteamLinuxLookup(IStateStore state, ILogService log, HttpMessageHandler? handler = null,
+        TimeSpan? spacing = null)
     {
         _state = state;
         _log = log;
+        _http = handler == null ? SharedHttp : CreateClient(handler);
+        _spacing = spacing ?? DefaultSpacing;
     }
 
     public async Task StampAsync(
-        IEnumerable<CsvGameExportRow> rows, IProgress<StoreFetchProgress>? progress = null, CancellationToken ct = default)
+        IEnumerable<CsvGameExportRow> rows, IProgress<StoreFetchProgress>? progress = null,
+        CancellationToken ct = default)
     {
         if (!Enabled) return;
         var list = rows as IList<CsvGameExportRow> ?? rows.ToList();
@@ -71,28 +74,32 @@ public sealed class SteamLinuxLookup
                     continue;
                 }
 
+                var pace = Task.Delay(_spacing, ct);
                 try
                 {
                     var native = await FetchNativeAsync(id, ct);
-                    // Native games still have Proton reports (e.g. CS2); only ask ProtonDB for Windows-only.
-                    var tier = native == false ? await FetchTierAsync(id, ct) : null;
-                    cache[id.ToString()] = new Cached { Native = native, Tier = tier, At = today.ToString("yyyy-MM-dd") };
+                    var tier = native == true ? null : await FetchTierAsync(id, ct);
+                    cache[id.ToString()] = new Cached
+                        { Native = native, Tier = tier, At = today.ToString("yyyy-MM-dd") };
                     result[id] = LinuxRating.Label(native, tier);
-                    fetched++;
+                    if (++fetched % FlushEvery == 0) Save(cache);
                     failures = 0;
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
                 {
                     _log.WriteWarning($"Linux: Steam app {id}: {ex.Message}");
+                    result[id] = LinuxRating.Unavailable;
                     if (++failures >= MaxFailures)
                     {
                         _log.WriteWarning($"Linux: stopping after {MaxFailures} consecutive failures.");
+                        for (var j = i + 1; j < ids.Count; j++)
+                            result[ids[j]] = LinuxRating.Unavailable;
                         break;
                     }
                 }
 
                 if (i + 1 < ids.Count)
-                    await Task.Delay(Spacing, ct);
+                    await pace;
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -125,11 +132,11 @@ public sealed class SteamLinuxLookup
         return LinuxRating.ReadTier(await response.Content.ReadAsStringAsync(ct));
     }
 
-    private static async Task<HttpResponseMessage> SendAsync(string url, CancellationToken ct)
+    private async Task<HttpResponseMessage> SendAsync(string url, CancellationToken ct)
     {
-        for (var attempt = 0; ; attempt++)
+        for (var attempt = 0;; attempt++)
         {
-            var response = await Http.GetAsync(url, ct);
+            var response = await _http.GetAsync(url, ct);
             if (response.StatusCode != HttpStatusCode.TooManyRequests || attempt == 3)
                 return response;
 
@@ -145,24 +152,29 @@ public sealed class SteamLinuxLookup
         {
             var json = _state.Load(StateKey);
             return string.IsNullOrWhiteSpace(json)
-                ? new()
-                : JsonConvert.DeserializeObject<Dictionary<string, Cached>>(json) ?? new();
+                ? new Dictionary<string, Cached>()
+                : JsonConvert.DeserializeObject<Dictionary<string, Cached>>(json) ?? new Dictionary<string, Cached>();
         }
         catch (JsonException)
         {
-            return new();
+            return new Dictionary<string, Cached>();
         }
     }
 
-    private void Save(Dictionary<string, Cached> cache) =>
-        _state.Save(StateKey, JsonConvert.SerializeObject(cache));
-
-    private static bool Fresh(Cached cached, DateOnly today) =>
-        DateOnly.TryParse(cached.At, out var day) && day <= today && today <= day.AddDays(7);
-
-    private static HttpClient CreateClient()
+    private void Save(Dictionary<string, Cached> cache)
     {
-        var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        _state.Save(StateKey, JsonConvert.SerializeObject(cache));
+    }
+
+    private static bool Fresh(Cached cached, DateOnly today)
+    {
+        return DateOnly.TryParse(cached.At, out var day) && day <= today && today <= day.AddDays(7);
+    }
+
+    private static HttpClient CreateClient(HttpMessageHandler? handler = null)
+    {
+        var client = handler is null ? new HttpClient() : new HttpClient(handler);
+        client.Timeout = TimeSpan.FromSeconds(10);
         client.DefaultRequestHeaders.UserAgent.ParseAdd("Pilewise");
         return client;
     }

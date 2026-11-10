@@ -35,16 +35,24 @@ public class NotionApiClient : INotionApiClient
 
     private string? _dataSourceId;
 
+    private static readonly SocketsHttpHandler SharedHandler = new()
+    {
+        PooledConnectionIdleTimeout = TimeSpan.FromMinutes(1),
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5)
+    };
+
     public NotionApiClient(string? apiKey, string? databaseId)
-        : this(apiKey, databaseId, new HttpClientHandler(), DefaultDelayBetweenRequests)
+        : this(apiKey, databaseId, SharedHandler, DefaultDelayBetweenRequests, false)
     {
     }
 
-    public NotionApiClient(string? apiKey, string? databaseId, HttpMessageHandler handler, TimeSpan delayBetweenRequests)
+    public NotionApiClient(
+        string? apiKey, string? databaseId, HttpMessageHandler handler, TimeSpan delayBetweenRequests,
+        bool disposeHandler = true)
     {
         _databaseId = databaseId?.Trim() ?? string.Empty;
         _delayBetweenRequests = delayBetweenRequests;
-        _httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
+        _httpClient = new HttpClient(handler, disposeHandler) { Timeout = TimeSpan.FromSeconds(30) };
         _httpClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", apiKey?.Trim() ?? string.Empty);
         _httpClient.DefaultRequestHeaders.Add("Notion-Version", NotionVersion);
@@ -124,9 +132,12 @@ public class NotionApiClient : INotionApiClient
     public Task UpdatePagesParallel(
         IEnumerable<(string PageId, NotionPageBody Body)> updates,
         Action? onPageDone = null,
-        CancellationToken ct = default) =>
-        WriteAllAsync(updates, u => SendAsync(HttpMethod.Patch, $"{ApiBase}/pages/{u.PageId}", u.Body.ToJson(), ct),
+        CancellationToken ct = default)
+    {
+        return WriteAllAsync(updates,
+            u => SendAsync(HttpMethod.Patch, $"{ApiBase}/pages/{u.PageId}", u.Body.ToJson(), ct),
             onPageDone, ct);
+    }
 
     public Task TrashPagesParallel(
         IEnumerable<string> pageIds, Action? onPageDone = null, CancellationToken ct = default)
@@ -210,11 +221,16 @@ public class NotionApiClient : INotionApiClient
         }
     }
 
-    private static bool IsTransient(HttpStatusCode status) =>
-        status is HttpStatusCode.TooManyRequests or HttpStatusCode.Conflict ||
-        (int)status >= 500;
+    private static bool IsTransient(HttpStatusCode status)
+    {
+        return status is HttpStatusCode.TooManyRequests or HttpStatusCode.Conflict ||
+               (int)status >= 500;
+    }
 
-    private static TimeSpan Backoff(int attempt) => TimeSpan.FromSeconds(Math.Pow(2, attempt));
+    private static TimeSpan Backoff(int attempt)
+    {
+        return TimeSpan.FromSeconds(Math.Pow(2, attempt));
+    }
 
     // Waits until this request's slot: each caller reserves the next one under the lock, so parallel
     // writers line up _delayBetweenRequests apart instead of bursting together.

@@ -1,26 +1,26 @@
 using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 
 namespace Pilewise.Services;
 
-/// <summary>
-/// Values for the opt-in Linux column. Native comes from Steam; medals from ProtonDB.
-/// A missing report is <see cref="Unknown"/>, not "won't run".
-/// </summary>
 public static class LinuxRating
 {
     public const string Column = "Linux";
     public const string Unknown = "Unknown";
+    public const string Unavailable = "Unavailable";
 
-    public static string Label(bool? native, string? tier) =>
-        native == true ? "Native"
-        : native == false && Medal(tier) is { } medal ? medal
-        : Unknown;
+    public static string Label(bool? native, string? tier)
+    {
+        if (native == true) return "Native";
+        if (string.IsNullOrWhiteSpace(tier)) return Unknown;
 
-    /// <summary>
-    /// True when the value is known. No Steam id → Unknown. A Steam id absent from
-    /// <paramref name="byAppId"/> was not checked — keep whatever the row already has.
-    /// </summary>
+        var text = tier.Trim();
+        var soft = text.EndsWith('?');
+        var medal = Medal(soft ? text[..^1] : text);
+        return medal == null ? Unknown : soft ? medal + "?" : medal;
+    }
+
     public static bool TryGet(CsvGameExportRow row, IReadOnlyDictionary<int, string>? byAppId, out string value)
     {
         if (row.SteamGameId is not int id)
@@ -29,11 +29,10 @@ public static class LinuxRating
             return true;
         }
 
-        if (byAppId != null && byAppId.TryGetValue(id, out value!))
-            return true;
-
         value = string.Empty;
-        return false;
+        return byAppId != null && byAppId.TryGetValue(id, out value!)
+                               && !(value == Unavailable && !string.IsNullOrEmpty(row.Linux) &&
+                                    row.Linux != Unavailable);
     }
 
     public static void Apply(IEnumerable<CsvGameExportRow> rows, IReadOnlyDictionary<int, string> byAppId)
@@ -43,15 +42,18 @@ public static class LinuxRating
                 row.Linux = value;
     }
 
-    public static string? Medal(string? tier) => tier?.Trim().ToLowerInvariant() switch
+    public static string? Medal(string? tier)
     {
-        "platinum" => "Platinum",
-        "gold" => "Gold",
-        "silver" => "Silver",
-        "bronze" => "Bronze",
-        "borked" => "Borked",
-        _ => null
-    };
+        return tier?.Trim().ToLowerInvariant() switch
+        {
+            "platinum" => "Platinum",
+            "gold" => "Gold",
+            "silver" => "Silver",
+            "bronze" => "Bronze",
+            "borked" => "Borked",
+            _ => null
+        };
+    }
 
     public static bool? ReadNative(string json, int appId)
     {
@@ -61,5 +63,20 @@ public static class LinuxRating
         return linux?.Type == JTokenType.Boolean ? linux.Value<bool>() : null;
     }
 
-    public static string? ReadTier(string json) => Medal(JObject.Parse(json)["tier"]?.Value<string>());
+    public static string? ReadTier(string json)
+    {
+        var obj = JObject.Parse(json);
+        var tier = obj["tier"]?.Value<string>();
+        if (string.Equals(tier, "pending", StringComparison.OrdinalIgnoreCase))
+            tier = obj["provisionalTier"]?.Value<string>();
+
+        var medal = Medal(tier);
+        if (medal == null) return null;
+
+        var confidence = obj["confidence"]?.Value<string>()?.Trim().ToLowerInvariant();
+        if (confidence is "inadequate" or "low")
+            return medal == "Borked" ? null : medal + "?";
+
+        return medal;
+    }
 }

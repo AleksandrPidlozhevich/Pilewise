@@ -9,7 +9,10 @@ namespace Pilewise.Tests;
 
 public class LibraryActionsTests
 {
-    private static CsvGameExportRow Steam(string name, string id) => CsvGameExportService.CreateRow("Steam", name, "Steam:" + id);
+    private static CsvGameExportRow Steam(string name, string id)
+    {
+        return CsvFormat.CreateRow("Steam", name, "Steam:" + id);
+    }
 
     [Fact]
     public async Task RefreshBacklog_ReMarksTheList_AndSaysWhereFrom()
@@ -18,7 +21,8 @@ public class LibraryActionsTests
         var vm = new LibraryViewModel(
             [Steam("Portal", "400"), Steam("Doom", "2280")],
             backlog: new BacklogSnapshot("Notion", DateTimeOffset.Now.AddDays(-2), 1, 2, ["Steam:400"]),
-            actions: new LibraryActions(RefreshBacklog: _ => Task.FromResult<BacklogSnapshot?>(fresh), BacklogSource: "Notion"));
+            actions: new LibraryActions(RefreshBacklog: _ => Task.FromResult<BacklogSnapshot?>(fresh),
+                BacklogSource: "Notion"));
         Assert.Equal(["Portal"], vm.VisibleGames.Where(g => g.IsCompleted).Select(g => g.Name));
 
         await vm.RefreshBacklogCommand.ExecuteAsync(null);
@@ -58,14 +62,18 @@ public class LibraryActionsTests
         var portal = Steam("Portal", "400");
         portal.PlaytimeMinutes = 750;
         var vm = new LibraryViewModel([portal, Steam("Doom", "2280")],
-            actions: new LibraryActions(CopyText: text => { copied = text; return Task.CompletedTask; }))
+            actions: new LibraryActions(CopyText: text =>
+            {
+                copied = text;
+                return Task.CompletedTask;
+            }))
         {
             SearchText = "port"
         };
 
         await vm.CopyListCommand.ExecuteAsync(null);
 
-        Assert.Equal("Portal\tSteam\t12.5 h\t—", copied);
+        Assert.Equal("Portal\tSteam\t12.5 h\t—\t—", copied);
         Assert.Equal("Copied 1 games to the clipboard.", vm.Notice);
     }
 }

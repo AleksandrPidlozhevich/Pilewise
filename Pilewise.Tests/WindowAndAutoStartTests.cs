@@ -21,7 +21,10 @@ public class WindowAndAutoStartTests
     [InlineData("1,2,3")]
     [InlineData("a,2,800,600,normal")]
     [InlineData("1,2,0,600,normal")]
-    public void Placement_Invalid_IsNull(string? value) => Assert.Null(WindowPlacement.Parse(value));
+    public void Placement_Invalid_IsNull(string? value)
+    {
+        Assert.Null(WindowPlacement.Parse(value));
+    }
 
     [Fact]
     public void Fit_OnScreen_KeepsPositionAndSize()
@@ -49,8 +52,8 @@ public class WindowAndAutoStartTests
     public void Fit_ClampsTheSize()
     {
         var (width, height, _) = new WindowPlacement(0, 0, 500, 5000, false).Fit([Primary], 2, 780, 420);
-        Assert.Equal(780, width);      // at least the minimum
-        Assert.Equal(520, height);     // at most the screen (1040 px at 200 % = 520 DIPs)
+        Assert.Equal(780, width); // at least the minimum
+        Assert.Equal(520, height); // at most the screen (1040 px at 200 % = 520 DIPs)
     }
 
     [Fact]
@@ -71,7 +74,8 @@ public class WindowAndAutoStartTests
     [Fact]
     public void LaunchAgent_RunsAtLoadWithTheMinimizedFlag()
     {
-        var plist = AutoStart.LaunchAgentPlist("com.example.pilewise", "/Applications/Pile & Wise.app/Contents/MacOS/Pilewise");
+        var plist = AutoStart.LaunchAgentPlist("com.example.pilewise",
+            "/Applications/Pile & Wise.app/Contents/MacOS/Pilewise");
         Assert.Contains("<string>/Applications/Pile &amp; Wise.app/Contents/MacOS/Pilewise</string>", plist);
         Assert.Contains("<string>--minimized</string>", plist);
         Assert.Contains("<key>RunAtLoad</key>", plist);
@@ -106,5 +110,26 @@ public class WindowAndAutoStartTests
         var on = AppSettingsService.Serialize(new AppSettings("k", "i", null, null, CloseToTray: true));
         Assert.True(AppSettingsService.Parse(on).CloseToTray);
         Assert.Null(AppSettingsService.Parse("Steam ID: 1").CloseToTray);
+    }
+
+    [Fact]
+    public void BackgroundMode_LowersAndRestoresPriority_OnWindows()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        try
+        {
+            BackgroundMode.Set(true);
+            using (var process = System.Diagnostics.Process.GetCurrentProcess())
+            {
+                Assert.Equal(System.Diagnostics.ProcessPriorityClass.BelowNormal, process.PriorityClass);
+            }
+        }
+        finally
+        {
+            BackgroundMode.Set(false);
+        }
+
+        using var after = System.Diagnostics.Process.GetCurrentProcess();
+        Assert.Equal(System.Diagnostics.ProcessPriorityClass.Normal, after.PriorityClass);
     }
 }

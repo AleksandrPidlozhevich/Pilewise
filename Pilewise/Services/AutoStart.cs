@@ -80,36 +80,43 @@ public sealed class AutoStart : IAutoStart
         _log.WriteInfo($"Auto-start {(enabled ? "enabled" : "disabled")} ({_executable}).");
     }
 
-    public static string WindowsCommand(string executable) => $"\"{executable}\" {MinimizedArgument}";
+    public static string WindowsCommand(string executable)
+    {
+        return $"\"{executable}\" {MinimizedArgument}";
+    }
 
-    public static string DesktopEntry(string executable) =>
-        "[Desktop Entry]\n" +
-        "Type=Application\n" +
-        "Name=Pilewise\n" +
-        "Comment=Sync your game library in the background\n" +
-        $"Exec={QuoteExec(executable)} {MinimizedArgument}\n" +
-        "Terminal=false\n" +
-        "X-GNOME-Autostart-enabled=true\n";
+    public static string DesktopEntry(string executable)
+    {
+        return "[Desktop Entry]\n" +
+               "Type=Application\n" +
+               "Name=Pilewise\n" +
+               "Comment=Sync your game library in the background\n" +
+               $"Exec={QuoteExec(executable)} {MinimizedArgument}\n" +
+               "Terminal=false\n" +
+               "X-GNOME-Autostart-enabled=true\n";
+    }
 
-    public static string LaunchAgentPlist(string label, string executable) =>
-        $"""
-         <?xml version="1.0" encoding="UTF-8"?>
-         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-         <plist version="1.0">
-         <dict>
-             <key>Label</key>
-             <string>{SecurityElement.Escape(label)}</string>
-             <key>ProgramArguments</key>
-             <array>
-                 <string>{SecurityElement.Escape(executable)}</string>
-                 <string>{MinimizedArgument}</string>
-             </array>
-             <key>RunAtLoad</key>
-             <true/>
-         </dict>
-         </plist>
+    public static string LaunchAgentPlist(string label, string executable)
+    {
+        return $"""
+                <?xml version="1.0" encoding="UTF-8"?>
+                <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+                <plist version="1.0">
+                <dict>
+                    <key>Label</key>
+                    <string>{SecurityElement.Escape(label)}</string>
+                    <key>ProgramArguments</key>
+                    <array>
+                        <string>{SecurityElement.Escape(executable)}</string>
+                        <string>{MinimizedArgument}</string>
+                    </array>
+                    <key>RunAtLoad</key>
+                    <true/>
+                </dict>
+                </plist>
 
-         """;
+                """;
+    }
 
     // Desktop Entry spec: quote the argument, escaping " ` $ and \ inside the quotes.
     private static string QuoteExec(string value)
@@ -160,6 +167,6 @@ public sealed class AutoStart : IAutoStart
     {
         using var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(RunKey);
         if (command != null) key.SetValue(RunValue, command);
-        else key.DeleteValue(RunValue, throwOnMissingValue: false);
+        else key.DeleteValue(RunValue, false);
     }
 }

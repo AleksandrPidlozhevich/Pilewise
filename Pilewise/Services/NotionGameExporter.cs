@@ -1,4 +1,5 @@
 using Pilewise.Models;
+using static Pilewise.Services.NotionPages;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -8,27 +9,14 @@ using System.Threading.Tasks;
 
 namespace Pilewise.Services;
 
-public sealed class NotionGameExporter
+public sealed class NotionGameExporter(
+    IGameLibraryService libraryService,
+    INotionGateway notion,
+    ILogService log,
+    BacklogProgress? backlog = null,
+    ISteamLinuxLookup? linux = null,
+    CompletedGames? completed = null)
 {
-    private readonly IGameLibraryService _library;
-    private readonly INotionGateway _notion;
-    private readonly ILogService _log;
-    private readonly BacklogProgress? _backlog;
-    private readonly SteamLinuxLookup? _linux;
-    private readonly CompletedGames? _completed;
-
-    public NotionGameExporter(
-        IGameLibraryService library, INotionGateway notion, ILogService log, BacklogProgress? backlog = null,
-        SteamLinuxLookup? linux = null, CompletedGames? completed = null)
-    {
-        _linux = linux;
-        _completed = completed;
-        _backlog = backlog;
-        _library = library;
-        _notion = notion;
-        _log = log;
-    }
-
     public async Task ExportAsync(
         string? steamApiKey, string? steamId, string? notionToken, string? dbId,
         IProgress<StoreFetchProgress>? progress = null, Action<string>? onStatus = null,
@@ -43,20 +31,19 @@ public sealed class NotionGameExporter
         IProgress<StoreFetchProgress>? progress = null, Action<string>? onStatus = null,
         CancellationToken ct = default)
     {
-        using var notionApiClient = _notion.CreateClient(notionToken, dbId);
-        var fetcher = _notion.CreateFetcher(notionApiClient);
+        using var notionApiClient = notion.CreateClient(notionToken, dbId);
+        var fetcher = notion.CreateFetcher(notionApiClient);
 
-        // Check the schema first: a misnamed title or wrong type fails here, before the (slow)
-        // library fetch, with a message saying exactly what to fix in Notion.
+        // Schema first: fail before the slow library fetch.
         onStatus?.Invoke("Checking the Notion database…");
-        var includeLinux = _linux is { Enabled: true };
+        var includeLinux = linux is { Enabled: true };
         var schema = NotionSchemaCheck.Check(await notionApiClient.GetPropertyTypesAsync(ct), includeLinux);
         if (!schema.IsUsable)
             throw new InvalidOperationException(
                 "The Notion database needs a fix before Pilewise can export to it:\n• " +
                 string.Join("\n• ", schema.Problems));
 
-        var libraryTask = _library.FetchAsync(steamApiKey, steamId, progress, onStatus, ct);
+        var libraryTask = libraryService.FetchAsync(steamApiKey, steamId, progress, onStatus, ct);
         var existingTask = fetcher.FetchRowsAsync(ct);
         await Task.WhenAll(libraryTask, existingTask);
 
@@ -73,7 +60,7 @@ public sealed class NotionGameExporter
         {
             onStatus?.Invoke("Checking Linux support…");
             var ids = library.Rows.Concat(existing.Select(e => e.Row)).Select(r => r.SteamGameId).OfType<int>();
-            linuxLabels = await _linux!.LookupAsync(ids, progress, ct);
+            linuxLabels = await linux!.LookupAsync(ids, progress, ct);
             LinuxRating.Apply(library.Rows, linuxLabels);
         }
 
@@ -111,63 +98,68 @@ public sealed class NotionGameExporter
         // Completed ticks: merged with Pilewise's list, written when the database has a checkbox for them.
         // Hidden pages keep theirs (and their Linux cell), whatever else on the page changes.
         var tracked = existing.Where(e => !hiddenRows.Contains(e.Row)).ToList();
-        var completion = _completed?.Begin(TargetOf(dbId), tracked.Select(e => (e.Row, e.Completed)));
+        var completion = completed?.Begin(TargetOf(dbId), tracked.Select(e => (e.Row, e.Completed)));
         var writesCompleted = optional.Completed != null && completion != null;
-        bool? WantedCompleted(NotionGameRow e) =>
-            writesCompleted && !hiddenRows.Contains(e.Row) ? completion!.IsCompleted(e.Row) : null;
-        NotionOptionalColumns PageColumns(NotionGameRow e) =>
-            hiddenRows.Contains(e.Row) ? optional with { Linux = false, Completed = null } : optional;
+        var hiddenColumns = optional with { Linux = false, Completed = null };
 
-        var toCreate = newRows.Select(row => new NotionPageCreate(row.Name, row.PlatformText,
-                BuildProperties(row, true, optional, true, setLink: true,
-                    completed: writesCompleted ? completion!.IsCompleted(row) : null), row.CoverUrl))
+        var created = newRows
+            .Select(row => (Row: row, Completed: writesCompleted ? completion!.IsCompleted(row) : (bool?)null))
+            .ToList();
+        var toCreate = created.Select(c => new NotionPageCreate(c.Row.Name, c.Row.PlatformText,
+                BuildProperties(c.Row, true, optional, true, true, c.Completed), c.Row.CoverUrl))
             .ToList();
 
-        // Update any existing page whose stored value no longer matches the desired one.
-        // This covers merged-in platforms AND normalising legacy bare ids to the prefixed
-        // form (e.g. "1920490" → "Steam:1920490") — even for games no longer owned, since
-        // the row's own Platform's tag already tells us the platform.
-        // Rows matched by nothing, from stores that were all fetched, are no longer owned.
         var fetched = library.FetchedStores;
-        var owned = existing.ToDictionary(
-            e => e.PageId, e => CsvGameExportService.Ownership(e.Row, matched.Contains(e.Row), fetched));
-        var noLongerOwned = existing
-            .Where(e => owned[e.PageId] == false)
-            .Select(e => new NotionGoneGame(e.Row.Name, string.Join("/", e.Platforms.OrderBy(PlatformOrder))))
+        var pages = existing.Select(e =>
+        {
+            var hidden = hiddenRows.Contains(e.Row);
+            return (Page: e, Hidden: hidden,
+                Owned: CsvGameExportService.Ownership(e.Row, matched.Contains(e.Row), fetched),
+                Completed: writesCompleted && !hidden ? completion!.IsCompleted(e.Row) : (bool?)null,
+                Columns: hidden ? hiddenColumns : optional,
+                Cover: NeedsCover(e), Link: NeedsLink(e));
+        }).ToList();
+
+        var noLongerOwned = pages
+            .Where(p => p.Owned == false)
+            .Select(p => new NotionGoneGame(p.Page.Row.Name, PlatformsText(p.Page)))
             .OrderBy(g => g.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        // With the opt-in Playtime / Last played / Owned columns, a changed value also triggers an update;
-        // so does a page without a cover or an empty Store link that we can now fill.
-        var toUpdate = existing
-            .Where(e => NotionSignature(e.Row, PageColumns(e), owned[e.PageId], WantedCompleted(e)) !=
-                        StoredSignature(e, PageColumns(e), owned[e.PageId], WantedCompleted(e) != null) ||
-                        NeedsCover(e) || NeedsLink(e))
-            .Select(e => new NotionPageUpdate(
-                e.PageId,
-                e.Row.Name,
-                Describe(string.Join("/", e.Platforms.OrderBy(PlatformOrder)), e.GameId,
-                    Wanted(optional.Playtime, e.Row.PlaytimeHours, e.PlaytimeHours),
-                    Wanted(optional.LastPlayed, e.Row.LastPlayedDate, e.LastPlayed),
-                    Wanted(optional.Owned, owned[e.PageId], e.Owned),
-                    linux: optional.Linux ? e.Linux : null,
-                    completed: WantedCompleted(e) != null ? e.Completed ?? false : null),
-                Describe(e.Row.PlatformText, e.Row.IdText,
-                    Wanted(optional.Playtime, e.Row.PlaytimeHours, e.Row.PlaytimeHours),
-                    Wanted(optional.LastPlayed, e.Row.LastPlayedDate, e.Row.LastPlayedDate),
-                    Wanted(optional.Owned, owned[e.PageId], owned[e.PageId]),
-                    NeedsCover(e), NeedsLink(e),
-                    linux: optional.Linux ? e.Row.Linux : null,
-                    completed: WantedCompleted(e)),
-                BuildProperties(e.Row, false, PageColumns(e), owned[e.PageId], NeedsLink(e), WantedCompleted(e)),
-                NeedsCover(e) ? e.Row.CoverUrl : null))
+        var toUpdate = pages
+            .Where(p => Desired(p.Page.Row, p.Columns, p.Owned, p.Completed) !=
+                Stored(p.Page, p.Columns, p.Owned, p.Completed != null) || p.Cover || p.Link)
+            .Select(p =>
+            {
+                var (e, owned) = (p.Page, p.Owned);
+                return new NotionPageUpdate(
+                    e.PageId,
+                    e.Row.Name,
+                    Describe(PlatformsText(e), e.GameId,
+                        Wanted(optional.Playtime, e.Row.PlaytimeHours, e.PlaytimeHours),
+                        Wanted(optional.LastPlayed, e.Row.LastPlayedDate, e.LastPlayed),
+                        Wanted(optional.Owned, owned, e.Owned),
+                        linux: optional.Linux ? e.Linux : null,
+                        completed: p.Completed != null ? e.Completed ?? false : null),
+                    Describe(e.Row.PlatformText, e.Row.IdText,
+                        Wanted(optional.Playtime, e.Row.PlaytimeHours, e.Row.PlaytimeHours),
+                        Wanted(optional.LastPlayed, e.Row.LastPlayedDate, e.Row.LastPlayedDate),
+                        Wanted(optional.Owned, owned, owned),
+                        p.Cover, p.Link,
+                        optional.Linux ? e.Row.Linux : null,
+                        p.Completed),
+                    BuildProperties(e.Row, false, p.Columns, owned, p.Link, p.Completed),
+                    p.Cover ? e.Row.CoverUrl : null);
+            })
             .ToList();
 
-        // The ticks the database holds once the plan is applied (what the completion sync records).
-        var completionAfter = tracked
-            .Where(e => WantedCompleted(e) != null || e.Completed != null)
-            .Select(e => (e.Row, WantedCompleted(e) ?? e.Completed!.Value))
-            .Concat(newRows.Select(row => (row, writesCompleted && completion!.IsCompleted(row))))
+        var trackedTicks = pages.Where(p => !p.Hidden)
+            .Select(p => (p.Page.Row, Completed: p.Completed ?? p.Page.Completed))
+            .ToList();
+        var completionAfter = trackedTicks
+            .Where(t => t.Completed != null)
+            .Select(t => (t.Row, t.Completed!.Value))
+            .Concat(created.Select(c => (c.Row, c.Completed ?? false)))
             .ToList();
 
         return new NotionExportPlan(
@@ -178,14 +170,15 @@ public sealed class NotionGameExporter
             existing.Count - toUpdate.Count,
             noLongerOwned,
             optional.Owned,
-            BacklogSnapshot.From(SyncHistory.Notion, DateTimeOffset.Now,
-                tracked.Select(e => (e.Row, WantedCompleted(e) ?? e.Completed))
-                    .Concat(newRows.Select(row => (row, writesCompleted ? completion!.IsCompleted(row) : (bool?)null)))),
+            BacklogSnapshot.From(SyncHistory.Notion, DateTimeOffset.Now, trackedTicks.Concat(created)),
             completion,
             completionAfter);
     }
 
-    public static string TargetOf(string? dbId) => $"Notion:{dbId?.Trim()}";
+    public static string TargetOf(string? dbId)
+    {
+        return $"Notion:{dbId?.Trim()}";
+    }
 
     public async Task ApplyAsync(
         string? notionToken, string? dbId, NotionExportPlan plan,
@@ -193,16 +186,16 @@ public sealed class NotionGameExporter
         CancellationToken ct = default)
     {
         // Read during the plan; recorded only for a real export (a dry run never applies).
-        _backlog?.Record(plan.Backlog);
+        backlog?.Record(plan.Backlog);
 
         if (plan.IsEmpty)
         {
             plan.Completion?.Commit(plan.CompletionAfter ?? []);
-            _log.WriteInfo("Notion: already up to date.");
+            log.WriteInfo("Notion: already up to date.");
             return;
         }
 
-        using var notionApiClient = _notion.CreateClient(notionToken, dbId);
+        using var notionApiClient = notion.CreateClient(notionToken, dbId);
 
         // Missing properties go in first, so the page writes below can fill them.
         if (plan.PropertiesToCreate.Count > 0)
@@ -210,7 +203,7 @@ public sealed class NotionGameExporter
             onStatus?.Invoke("Adding database properties…");
             await notionApiClient.AddPropertiesAsync(
                 plan.PropertiesToCreate.ToDictionary(p => p.Name, p => p.Type), ct);
-            _log.WriteInfo(
+            log.WriteInfo(
                 $"Notion: added properties {string.Join(", ", plan.PropertiesToCreate.Select(p => p.Name))}.");
         }
 
@@ -241,19 +234,20 @@ public sealed class NotionGameExporter
                 ReportPage, ct);
 
         plan.Completion?.Commit(plan.CompletionAfter ?? []);
-        _log.WriteInfo($"Notion: created {plan.ToCreate.Count}, updated {plan.ToUpdate.Count} games.");
+        log.WriteInfo($"Notion: created {plan.ToCreate.Count}, updated {plan.ToUpdate.Count} games.");
     }
 
     public async Task<BacklogSnapshot?> ReadBacklogAsync(
-        string? notionToken, string? dbId, Func<CsvGameExportRow, bool>? isHidden = null, CancellationToken ct = default)
+        string? notionToken, string? dbId, Func<CsvGameExportRow, bool>? isHidden = null,
+        CancellationToken ct = default)
     {
-        using var notionApiClient = _notion.CreateClient(notionToken, dbId);
-        var pages = await _notion.CreateFetcher(notionApiClient).FetchRowsAsync(ct);
+        using var notionApiClient = notion.CreateClient(notionToken, dbId);
+        var pages = await notion.CreateFetcher(notionApiClient).FetchRowsAsync(ct);
         var shown = pages.Where(p => isHidden?.Invoke(p.Row) != true).Select(p => (p.Row, p.Completed)).ToList();
         var snapshot = BacklogSnapshot.From(SyncHistory.Notion, DateTimeOffset.Now, shown);
-        _backlog?.Record(snapshot);
+        backlog?.Record(snapshot);
         // Ticks changed in Notion go into Pilewise's list; nothing is written to Notion.
-        _completed?.Begin(TargetOf(dbId), shown)
+        completed?.Begin(TargetOf(dbId), shown)
             .Commit(shown.Where(p => p.Completed != null).Select(p => (p.Row, p.Completed!.Value)));
         return snapshot;
     }
@@ -261,8 +255,8 @@ public sealed class NotionGameExporter
     public async Task<IReadOnlyList<NotionDuplicateGroup>> FindDuplicatesAsync(
         string? notionToken, string? dbId, CancellationToken ct = default)
     {
-        using var notionApiClient = _notion.CreateClient(notionToken, dbId);
-        var rows = await _notion.CreateFetcher(notionApiClient).FetchRowsAsync(ct);
+        using var notionApiClient = notion.CreateClient(notionToken, dbId);
+        var rows = await notion.CreateFetcher(notionApiClient).FetchRowsAsync(ct);
         return NotionDuplicateFinder.Find(rows);
     }
 
@@ -271,14 +265,16 @@ public sealed class NotionGameExporter
         IProgress<StoreFetchProgress>? progress = null, CancellationToken ct = default)
     {
         if (groups.Count == 0) return;
-        using var notionApiClient = _notion.CreateClient(notionToken, dbId);
+        using var notionApiClient = notion.CreateClient(notionToken, dbId);
 
         var removed = groups.SelectMany(g => g.Remove.Select(r => r.PageId)).ToList();
         var total = groups.Count + removed.Count;
         var done = 0;
 
-        void ReportPage() =>
+        void ReportPage()
+        {
             progress?.Report(new StoreFetchProgress(Interlocked.Increment(ref done), total, "Merging duplicates"));
+        }
 
         // Tags + ids only: no opt-in columns, and the Store link is left as the user has it.
         var none = new NotionOptionalColumns(false, false);
@@ -288,127 +284,6 @@ public sealed class NotionGameExporter
             ReportPage, ct);
         await notionApiClient.TrashPagesParallel(removed, ReportPage, ct);
 
-        _log.WriteInfo($"Notion: merged {groups.Count} duplicate groups, moved {removed.Count} pages to the trash.");
+        log.WriteInfo($"Notion: merged {groups.Count} duplicate groups, moved {removed.Count} pages to the trash.");
     }
-
-    // "Steam/GOG · Steam:1; GOG:2 · 12.5 h · last played 2024-05-01" — preview before/after text.
-    private static string Describe(
-        string platforms, string gameId, double? hours = null, string? lastPlayed = null, bool? owned = null,
-        bool addsCover = false, bool addsLink = false, string? linux = null, bool? completed = null) =>
-        string.Join(" · ", new[]
-        {
-            platforms, gameId,
-            hours is { } h ? $"{h.ToString(CultureInfo.InvariantCulture)} h" : null,
-            lastPlayed != null ? $"last played {lastPlayed}" : null,
-            owned switch { true => "owned", false => "not owned", null => null },
-            addsCover ? "+ cover" : null,
-            addsLink ? "+ store link" : null,
-            linux,
-            completed == true ? "✓ completed" : null
-        }.Where(part => !string.IsNullOrEmpty(part)));
-
-    // A page gets a cover only when it has none (a cover the user picked is never replaced) …
-    private static bool NeedsCover(NotionGameRow page) => !page.HasCover && page.Row.CoverUrl != null;
-
-    // … and a Store link only while the cell is empty.
-    private static bool NeedsLink(NotionGameRow page) =>
-        string.IsNullOrWhiteSpace(page.StoreLink) && page.Row.StoreUrl != null;
-
-    // An opt-in column's value, only when the column exists and fresh data was fetched for the row
-    // (games no longer owned / stores without playtime keep whatever the page already holds).
-    private static T? Wanted<T>(bool enabled, T? fresh, T? value) => enabled && fresh != null ? value : default;
-
-    private static int PlatformOrder(string label)
-    {
-        var index = Array.FindIndex(PlatformCatalog.All, d => d.Label == label);
-        return index < 0 ? int.MaxValue : index;
-    }
-
-    private static string NotionSignature(
-        CsvGameExportRow row, NotionOptionalColumns optional, bool? owned, bool? completed)
-    {
-        var tags = string.Concat(PlatformCatalog.All.Select(d => d.Has(row)));
-        return $"{tags}{row.IsGamePass}|{row.IdText}" +
-               $"|{Format(Wanted(optional.Playtime, row.PlaytimeHours, row.PlaytimeHours))}" +
-               $"|{Wanted(optional.LastPlayed, row.LastPlayedDate, row.LastPlayedDate)}" +
-               $"|{Wanted(optional.Owned, owned, owned)}" +
-               $"|{(optional.Linux ? row.Linux : null)}" +
-               $"|{completed}";
-    }
-
-    private static string StoredSignature(
-        NotionGameRow info, NotionOptionalColumns optional, bool? owned, bool writesCompleted)
-    {
-        var tags = string.Concat(PlatformCatalog.All.Select(d => info.Platforms.Contains(d.Label)));
-        return $"{tags}{info.Platforms.Contains(Platforms.GamePass)}|{info.GameId}" +
-               $"|{Format(Wanted(optional.Playtime, info.Row.PlaytimeHours, info.PlaytimeHours))}" +
-               $"|{Wanted(optional.LastPlayed, info.Row.LastPlayedDate, info.LastPlayed)}" +
-               // An unticked checkbox reads back as false; an unknown ownership never rewrites it.
-               $"|{Wanted(optional.Owned, owned, info.Owned ?? false)}" +
-               $"|{(optional.Linux ? info.Linux : null)}" +
-               // A Completed column created in this export reads back as nothing yet: unticked.
-               $"|{(writesCompleted ? info.Completed ?? false : null)}";
-    }
-
-    private static string? Format(double? hours) => hours?.ToString(CultureInfo.InvariantCulture);
-
-    private static object BuildProperties(
-        CsvGameExportRow row, bool includeName, NotionOptionalColumns optional, bool? owned, bool setLink,
-        bool? completed = null)
-    {
-        var platforms = new List<object>();
-        foreach (var d in PlatformCatalog.All)
-            if (d.Has(row))
-                platforms.Add(new { name = d.Label });
-        if (row.IsGamePass) platforms.Add(new { name = Platforms.GamePass });
-
-        var properties = new Dictionary<string, object>
-        {
-            [NotionDataFetcher.PlatformProperty] = new { multi_select = platforms },
-            [NotionDataFetcher.GameIdProperty] =
-                new { rich_text = new[] { new { text = new { content = row.IdText } } } }
-        };
-
-        if (includeName)
-            properties[NotionDataFetcher.NameProperty] =
-                new { title = new[] { new { text = new { content = row.Name } } } };
-
-        if (optional.Playtime && row.PlaytimeHours is { } hours)
-            properties[NotionDataFetcher.PlaytimeProperty] = new { number = hours };
-        if (optional.LastPlayed && row.LastPlayedDate is { } lastPlayed)
-            properties[NotionDataFetcher.LastPlayedProperty] = new { date = new { start = lastPlayed } };
-        if (optional.Owned && owned is { } isOwned)
-            properties[NotionDataFetcher.OwnedProperty] = new { checkbox = isOwned };
-        if (setLink && row.StoreUrl is { } link)
-            properties[NotionDataFetcher.StoreLinkProperty] = new { url = link };
-        if (optional.Linux)
-            properties[NotionDataFetcher.LinuxProperty] =
-                new { select = new { name = row.Linux ?? LinuxRating.Unknown } };
-        if (optional.Completed is { } completedProperty && completed is { } isCompleted)
-            properties[completedProperty] = new { checkbox = isCompleted };
-
-        return properties;
-    }
-}
-
-public sealed record NotionPageCreate(string Name, string Platforms, object Properties, string? CoverUrl = null);
-
-public sealed record NotionGoneGame(string Name, string Platforms);
-
-public sealed record NotionPageUpdate(
-    string PageId, string Name, string Before, string After, object Properties, string? CoverUrl = null);
-
-public sealed record NotionExportPlan(
-    GameLibraryResult Library,
-    IReadOnlyList<NotionPropertyToCreate> PropertiesToCreate,
-    IReadOnlyList<NotionPageCreate> ToCreate,
-    IReadOnlyList<NotionPageUpdate> ToUpdate,
-    int Unchanged,
-    IReadOnlyList<NotionGoneGame> NoLongerOwned,
-    bool HasOwnedColumn,
-    BacklogSnapshot? Backlog = null,
-    CompletionSync? Completion = null,
-    IReadOnlyList<(CsvGameExportRow Row, bool Completed)>? CompletionAfter = null)
-{
-    public bool IsEmpty => PropertiesToCreate.Count == 0 && ToCreate.Count == 0 && ToUpdate.Count == 0;
 }

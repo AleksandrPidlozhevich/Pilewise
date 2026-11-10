@@ -19,7 +19,11 @@ public sealed record NotionPropertyToCreate(string Name, string Type)
 /// <param name="Completed">The completion checkbox the export writes (null: none, or a Status / select
 /// that Pilewise only reads).</param>
 public sealed record NotionOptionalColumns(
-    bool Playtime, bool LastPlayed, bool Owned = false, bool Linux = false, string? Completed = null);
+    bool Playtime,
+    bool LastPlayed,
+    bool Owned = false,
+    bool Linux = false,
+    string? Completed = null);
 
 public sealed record NotionSchemaResult(
     IReadOnlyList<NotionPropertyToCreate> ToCreate,
@@ -77,7 +81,8 @@ public static class NotionSchemaCheck
         string? CompletionProperty()
         {
             var checkbox = propertyTypes.FirstOrDefault(p =>
-                p.Value == "checkbox" && NotionCompletion.PropertyNames.Contains(p.Key.Trim(), StringComparer.OrdinalIgnoreCase)).Key;
+                p.Value == "checkbox" &&
+                NotionCompletion.PropertyNames.Contains(p.Key.Trim(), StringComparer.OrdinalIgnoreCase)).Key;
             if (checkbox != null) return checkbox;
 
             var readOnly = propertyTypes.Any(p =>

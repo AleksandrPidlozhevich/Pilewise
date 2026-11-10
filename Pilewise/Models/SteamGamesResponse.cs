@@ -22,5 +22,6 @@ public class SteamGame
     [JsonProperty("playtime_forever")] public int PlaytimeMinutes { get; set; }
 
     /// <summary>Unix time of the last session, 0 when never played (or hidden by privacy settings).</summary>
-    [JsonProperty("rtime_last_played")] public long LastPlayedUnix { get; set; }
+    [JsonProperty("rtime_last_played")]
+    public long LastPlayedUnix { get; set; }
 }

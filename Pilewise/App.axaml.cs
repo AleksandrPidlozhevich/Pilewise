@@ -12,6 +12,7 @@ using Pilewise.ViewModels;
 using Pilewise.Views;
 using System;
 using System.Linq;
+using System.Runtime;
 using System.Threading.Tasks;
 
 namespace Pilewise;
@@ -36,7 +37,8 @@ public partial class App : Application
         {
             _desktop = desktop;
             var services = AppServices.Build();
-            HookUnhandledExceptions(services.GetRequiredService<ILogService>(), services.GetRequiredService<IDialogService>());
+            HookUnhandledExceptions(services.GetRequiredService<ILogService>(),
+                services.GetRequiredService<IDialogService>());
             var window = services.GetRequiredService<MainWindow>();
             var viewModel = services.GetRequiredService<MainWindowViewModel>();
             window.DataContext = viewModel;
@@ -55,9 +57,22 @@ public partial class App : Application
                 {
                     e.Cancel = true;
                     window.Hide();
+                    Dispatcher.UIThread.Post(TrimMemory, DispatcherPriority.Background);
                 }
             };
+            // A sync that ran in the tray leaves its library / plan garbage behind: give it back too.
+            viewModel.Progress.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(ProgressViewModel.IsBusy) && !viewModel.Progress.IsBusy &&
+                    !window.IsVisible)
+                    Dispatcher.UIThread.Post(TrimMemory, DispatcherPriority.Background);
+            };
             window.Closed += (_, _) => desktop.Shutdown();
+            // Hidden in the tray: efficiency mode; shown again: normal (BackgroundMode, Windows only).
+            window.PropertyChanged += (_, e) =>
+            {
+                if (e.Property == Visual.IsVisibleProperty) BackgroundMode.Set(!window.IsVisible);
+            };
 
             viewModel.IsTrayAvailable = TraySupport.IsAvailable();
             CreateTrayIcon(viewModel);
@@ -68,9 +83,14 @@ public partial class App : Application
             // keeps the lifetime from showing it, while dialogs can still find it. Without a tray
             // the window opens normally, or there'd be no way to reach it.
             if (viewModel.IsTrayAvailable && desktop.Args?.Contains(AutoStart.MinimizedArgument) == true)
+            {
+                BackgroundMode.Set(true);
                 Dispatcher.UIThread.Post(() => desktop.MainWindow = window);
+            }
             else
+            {
                 desktop.MainWindow = window;
+            }
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -162,6 +182,14 @@ public partial class App : Application
         RefreshUpdate();
     }
 
+    // Hidden in the tray, Pilewise mostly waits: one compacting collection hands the memory the
+    // window / last sync used back to the OS instead of keeping it committed.
+    private static void TrimMemory()
+    {
+        GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, true, true);
+    }
+
     private void ShowMainWindow()
     {
         if (_window == null || _desktop == null) return;
@@ -174,7 +202,10 @@ public partial class App : Application
     private void Quit()
     {
         _quitting = true;
-        if (_window is { IsVisible: true }) _window.Close();
+        if (_window is { IsVisible: true })
+        {
+            _window.Close();
+        }
         else
         {
             if (_window?.DataContext is MainWindowViewModel viewModel) viewModel.SaveOnExit();
@@ -206,7 +237,8 @@ public partial class App : Application
         {
             context.DrawImage(source, new Rect(0, 0, 32, 32));
             context.DrawEllipse(Brushes.White, null, new Point(24, 24), 8, 8);
-            context.DrawEllipse(new SolidColorBrush(Color.FromRgb(0xEF, 0x44, 0x44)), null, new Point(24, 24), 6.5, 6.5);
+            context.DrawEllipse(new SolidColorBrush(Color.FromRgb(0xEF, 0x44, 0x44)), null, new Point(24, 24), 6.5,
+                6.5);
         }
 
         return target;

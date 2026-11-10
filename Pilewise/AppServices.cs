@@ -33,7 +33,7 @@ public static class AppServices
         services.AddSingleton<FirstSeenGames>(sp => new FirstSeenGames(sp.GetRequiredService<IStateStore>()));
         services.AddSingleton<CompletedGames>(sp => new CompletedGames(sp.GetRequiredService<IStateStore>()));
         services.AddSingleton<IGameLibraryService, GameLibraryService>();
-        services.AddSingleton<SteamLinuxLookup>();
+        services.AddSingleton<ISteamLinuxLookup, SteamLinuxLookup>();
         services.AddSingleton<INotionGateway, NotionGateway>();
         services.AddSingleton<NotionGameExporter>();
         services.AddSingleton<GoogleSheetsGameExporter>();
@@ -45,6 +45,8 @@ public static class AppServices
     }
 
     // Resolved lazily: the main window doesn't exist yet when the container is built.
-    private static TopLevel? MainWindow() =>
-        (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+    private static TopLevel? MainWindow()
+    {
+        return (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+    }
 }

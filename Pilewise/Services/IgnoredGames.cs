@@ -29,7 +29,10 @@ public sealed class IgnoredGames
 
     public int Count => _keys.Count;
 
-    public bool IsIgnored(CsvGameExportRow row) => KeysOf(row).Any(_keys.Contains);
+    public bool IsIgnored(CsvGameExportRow row)
+    {
+        return KeysOf(row).Any(_keys.Contains);
+    }
 
     public void Ignore(CsvGameExportRow row)
     {
@@ -45,18 +48,7 @@ public sealed class IgnoredGames
 
     public static IReadOnlyList<string> KeysOf(CsvGameExportRow row)
     {
-        var keys = new List<string>();
-        foreach (var d in PlatformCatalog.All)
-            if (d.FormatId(row) is { } id)
-                keys.Add($"{d.Label}:{id}");
-
-        if (keys.Count == 0)
-        {
-            var name = CsvGameExportService.NormalizeGameName(row.Name);
-            if (name.Length > 0) keys.Add($"Name:{name}");
-        }
-
-        return keys;
+        return row.Keys;
     }
 
     public (List<CsvGameExportRow> Kept, List<CsvGameExportRow> Ignored) Split(IEnumerable<CsvGameExportRow> rows)
@@ -67,6 +59,8 @@ public sealed class IgnoredGames
         return (kept, ignored);
     }
 
-    private void Save() =>
+    private void Save()
+    {
         _store?.Save(StateKey, string.Join("\n", _keys.Order(StringComparer.OrdinalIgnoreCase)));
+    }
 }

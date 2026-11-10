@@ -16,7 +16,7 @@ public sealed class VelopackUpdateService : IUpdateService
 {
     private const string RepoUrl = "https://github.com/AleksandrPidlozhevich/Pilewise";
 
-    private readonly UpdateManager _manager = new(new GithubSource(RepoUrl, accessToken: null, prerelease: false));
+    private readonly UpdateManager _manager = new(new GithubSource(RepoUrl, null, false));
     private readonly ILogService _log;
     private UpdateInfo? _pending;
 

@@ -32,8 +32,14 @@ internal static class PlatformCatalog
             (r, v) => r.HasSteam = v,
             r => r.SteamGameId.HasValue,
             r => r.SteamGameId?.ToString(),
-            (r, id) => { if (int.TryParse(id.Trim(), out var n)) r.SteamGameId = n; },
-            (r, o) => { if (o.SteamGameId.HasValue) r.SteamGameId = o.SteamGameId; },
+            (r, id) =>
+            {
+                if (int.TryParse(id.Trim(), out var n)) r.SteamGameId = n;
+            },
+            (r, o) =>
+            {
+                if (o.SteamGameId.HasValue) r.SteamGameId = o.SteamGameId;
+            },
             r => r.SteamGameId?.ToString()),
 
         new(Platforms.Epic,
@@ -56,8 +62,14 @@ internal static class PlatformCatalog
             (r, v) => r.HasGog = v,
             r => r.GogId.HasValue,
             r => r.GogId?.ToString(),
-            (r, id) => { if (long.TryParse(id.Trim(), out var n)) r.GogId = n; },
-            (r, o) => { if (o.GogId.HasValue) r.GogId = o.GogId; },
+            (r, id) =>
+            {
+                if (long.TryParse(id.Trim(), out var n)) r.GogId = n;
+            },
+            (r, o) =>
+            {
+                if (o.GogId.HasValue) r.GogId = o.GogId;
+            },
             r => r.GogId?.ToString()),
 
         new(Platforms.Xbox,
@@ -66,9 +78,12 @@ internal static class PlatformCatalog
             r => !string.IsNullOrEmpty(r.XboxTitleId),
             r => string.IsNullOrEmpty(r.XboxTitleId) ? null : r.XboxTitleId,
             (r, id) => r.XboxTitleId = NullIfEmpty(id),
-            (r, o) => { if (!string.IsNullOrEmpty(o.XboxTitleId)) r.XboxTitleId = o.XboxTitleId; },
+            (r, o) =>
+            {
+                if (!string.IsNullOrEmpty(o.XboxTitleId)) r.XboxTitleId = o.XboxTitleId;
+            },
             // Xbox title ids were matched case-insensitively; lowercase the key to preserve that.
-            r => string.IsNullOrEmpty(r.XboxTitleId) ? null : r.XboxTitleId.ToLowerInvariant()),
+            r => string.IsNullOrEmpty(r.XboxTitleId) ? null : r.XboxTitleId.ToLowerInvariant())
     ];
 
     public static string? BuildEpicKey(string? ns, string? catalogItemId)
@@ -89,5 +104,8 @@ internal static class PlatformCatalog
         }
     }
 
-    private static string? NullIfEmpty(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private static string? NullIfEmpty(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
 }
