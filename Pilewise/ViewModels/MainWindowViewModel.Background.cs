@@ -87,17 +87,45 @@ public partial class MainWindowViewModel
         }
     }
 
-    // Checked once a minute, so the first auto-sync starts a minute after launch (after the cached
-    // store sessions have been restored). The same tick re-checks for app updates every 12 hours.
     private void StartAutoSyncTimer()
     {
         _autoSyncTimer.Tick += async (_, _) =>
         {
-            await RunDueAutoSyncAsync();
-            await CheckForUpdatesIfStaleAsync();
+            _autoSyncTimer.Stop();
+            try
+            {
+                await RunDueAutoSyncAsync();
+                await CheckForUpdatesIfStaleAsync();
+            }
+            finally
+            {
+                ScheduleAutoSyncCheck(AutoSyncPlanner.NextCheck(CurrentAutoSync(),
+                    t => _syncHistory.Get(SyncHistory.KeyOf(t)), _autoSyncFailures, CanAutoSync, DateTimeOffset.Now));
+            }
         };
         _autoSyncTimer.Start();
     }
+
+    private void ScheduleAutoSyncCheck(TimeSpan delay)
+    {
+        _autoSyncTimer.Stop();
+        _autoSyncTimer.Interval = delay;
+        _autoSyncTimer.Start();
+    }
+
+    // A changed schedule is picked up within a minute instead of at the next (up to 30 min) check.
+    private void AutoSyncSettingChanged()
+    {
+        if (_autoSyncTimer.IsEnabled) ScheduleAutoSyncCheck(AutoSyncPlanner.MinCheck);
+    }
+
+    partial void OnAutoSyncIntervalIndexChanged(int value) => AutoSyncSettingChanged();
+
+    partial void OnAutoSyncNotionChanged(bool value) => AutoSyncSettingChanged();
+
+    partial void OnAutoSyncSheetsChanged(bool value) => AutoSyncSettingChanged();
+
+    partial void OnAutoSyncCsvChanged(bool value) => AutoSyncSettingChanged();
 
     private AutoSyncSettings CurrentAutoSync()
     {

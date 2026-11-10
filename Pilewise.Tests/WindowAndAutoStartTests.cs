@@ -107,4 +107,23 @@ public class WindowAndAutoStartTests
         Assert.True(AppSettingsService.Parse(on).CloseToTray);
         Assert.Null(AppSettingsService.Parse("Steam ID: 1").CloseToTray);
     }
+
+    [Fact]
+    public void BackgroundMode_LowersAndRestoresPriority_OnWindows()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        try
+        {
+            BackgroundMode.Set(true);
+            using (var process = System.Diagnostics.Process.GetCurrentProcess())
+                Assert.Equal(System.Diagnostics.ProcessPriorityClass.BelowNormal, process.PriorityClass);
+        }
+        finally
+        {
+            BackgroundMode.Set(false);
+        }
+
+        using var after = System.Diagnostics.Process.GetCurrentProcess();
+        Assert.Equal(System.Diagnostics.ProcessPriorityClass.Normal, after.PriorityClass);
+    }
 }

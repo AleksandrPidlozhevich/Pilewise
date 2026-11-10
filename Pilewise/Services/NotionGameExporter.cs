@@ -96,58 +96,65 @@ public sealed class NotionGameExporter(
         var tracked = existing.Where(e => !hiddenRows.Contains(e.Row)).ToList();
         var completion = completed?.Begin(TargetOf(dbId), tracked.Select(e => (e.Row, e.Completed)));
         var writesCompleted = optional.Completed != null && completion != null;
-        bool? WantedCompleted(NotionGameRow e) =>
-            writesCompleted && !hiddenRows.Contains(e.Row) ? completion!.IsCompleted(e.Row) : null;
-        NotionOptionalColumns PageColumns(NotionGameRow e) =>
-            hiddenRows.Contains(e.Row) ? optional with { Linux = false, Completed = null } : optional;
+        var hiddenColumns = optional with { Linux = false, Completed = null };
 
-        var toCreate = newRows.Select(row => new NotionPageCreate(row.Name, row.PlatformText,
-                BuildProperties(row, true, optional, true, setLink: true,
-                    completed: writesCompleted ? completion!.IsCompleted(row) : null), row.CoverUrl))
+        var created = newRows
+            .Select(row => (Row: row, Completed: writesCompleted ? completion!.IsCompleted(row) : (bool?)null))
+            .ToList();
+        var toCreate = created.Select(c => new NotionPageCreate(c.Row.Name, c.Row.PlatformText,
+                BuildProperties(c.Row, true, optional, true, setLink: true, completed: c.Completed), c.Row.CoverUrl))
             .ToList();
 
-        // Pages whose stored tags/ids differ from the desired ones are updated (this also normalises
-        // legacy bare ids, even for games no longer owned).
         var fetched = library.FetchedStores;
-        var owned = existing.ToDictionary(
-            e => e.PageId, e => CsvGameExportService.Ownership(e.Row, matched.Contains(e.Row), fetched));
-        var noLongerOwned = existing
-            .Where(e => owned[e.PageId] == false)
-            .Select(e => new NotionGoneGame(e.Row.Name, string.Join("/", e.Platforms.OrderBy(PlatformOrder))))
+        var pages = existing.Select(e =>
+        {
+            var hidden = hiddenRows.Contains(e.Row);
+            return (Page: e, Hidden: hidden,
+                Owned: CsvGameExportService.Ownership(e.Row, matched.Contains(e.Row), fetched),
+                Completed: writesCompleted && !hidden ? completion!.IsCompleted(e.Row) : (bool?)null,
+                Columns: hidden ? hiddenColumns : optional,
+                Cover: NeedsCover(e), Link: NeedsLink(e));
+        }).ToList();
+
+        var noLongerOwned = pages
+            .Where(p => p.Owned == false)
+            .Select(p => new NotionGoneGame(p.Page.Row.Name, PlatformsText(p.Page)))
             .OrderBy(g => g.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        // With the opt-in Playtime / Last played / Owned columns, a changed value also triggers an update;
-        // so does a page without a cover or an empty Store link that we can now fill.
-        var toUpdate = existing
-            .Where(e => NotionSignature(e.Row, PageColumns(e), owned[e.PageId], WantedCompleted(e)) !=
-                        StoredSignature(e, PageColumns(e), owned[e.PageId], WantedCompleted(e) != null) ||
-                        NeedsCover(e) || NeedsLink(e))
-            .Select(e => new NotionPageUpdate(
-                e.PageId,
-                e.Row.Name,
-                Describe(string.Join("/", e.Platforms.OrderBy(PlatformOrder)), e.GameId,
-                    Wanted(optional.Playtime, e.Row.PlaytimeHours, e.PlaytimeHours),
-                    Wanted(optional.LastPlayed, e.Row.LastPlayedDate, e.LastPlayed),
-                    Wanted(optional.Owned, owned[e.PageId], e.Owned),
-                    linux: optional.Linux ? e.Linux : null,
-                    completed: WantedCompleted(e) != null ? e.Completed ?? false : null),
-                Describe(e.Row.PlatformText, e.Row.IdText,
-                    Wanted(optional.Playtime, e.Row.PlaytimeHours, e.Row.PlaytimeHours),
-                    Wanted(optional.LastPlayed, e.Row.LastPlayedDate, e.Row.LastPlayedDate),
-                    Wanted(optional.Owned, owned[e.PageId], owned[e.PageId]),
-                    NeedsCover(e), NeedsLink(e),
-                    linux: optional.Linux ? e.Row.Linux : null,
-                    completed: WantedCompleted(e)),
-                BuildProperties(e.Row, false, PageColumns(e), owned[e.PageId], NeedsLink(e), WantedCompleted(e)),
-                NeedsCover(e) ? e.Row.CoverUrl : null))
+        var toUpdate = pages
+            .Where(p => Desired(p.Page.Row, p.Columns, p.Owned, p.Completed) !=
+                        Stored(p.Page, p.Columns, p.Owned, p.Completed != null) || p.Cover || p.Link)
+            .Select(p =>
+            {
+                var (e, owned) = (p.Page, p.Owned);
+                return new NotionPageUpdate(
+                    e.PageId,
+                    e.Row.Name,
+                    Describe(PlatformsText(e), e.GameId,
+                        Wanted(optional.Playtime, e.Row.PlaytimeHours, e.PlaytimeHours),
+                        Wanted(optional.LastPlayed, e.Row.LastPlayedDate, e.LastPlayed),
+                        Wanted(optional.Owned, owned, e.Owned),
+                        linux: optional.Linux ? e.Linux : null,
+                        completed: p.Completed != null ? e.Completed ?? false : null),
+                    Describe(e.Row.PlatformText, e.Row.IdText,
+                        Wanted(optional.Playtime, e.Row.PlaytimeHours, e.Row.PlaytimeHours),
+                        Wanted(optional.LastPlayed, e.Row.LastPlayedDate, e.Row.LastPlayedDate),
+                        Wanted(optional.Owned, owned, owned),
+                        p.Cover, p.Link,
+                        linux: optional.Linux ? e.Row.Linux : null,
+                        completed: p.Completed),
+                    BuildProperties(e.Row, false, p.Columns, owned, p.Link, p.Completed),
+                    p.Cover ? e.Row.CoverUrl : null);
+            })
             .ToList();
 
-        // The ticks the database holds once the plan is applied (what the completion sync records).
-        var completionAfter = tracked
-            .Where(e => WantedCompleted(e) != null || e.Completed != null)
-            .Select(e => (e.Row, WantedCompleted(e) ?? e.Completed!.Value))
-            .Concat(newRows.Select(row => (row, writesCompleted && completion!.IsCompleted(row))))
+        var trackedTicks = pages.Where(p => !p.Hidden).Select(p => (p.Page.Row, Completed: p.Completed ?? p.Page.Completed))
+            .ToList();
+        var completionAfter = trackedTicks
+            .Where(t => t.Completed != null)
+            .Select(t => (t.Row, t.Completed!.Value))
+            .Concat(created.Select(c => (c.Row, c.Completed ?? false)))
             .ToList();
 
         return new NotionExportPlan(
@@ -158,9 +165,7 @@ public sealed class NotionGameExporter(
             existing.Count - toUpdate.Count,
             noLongerOwned,
             optional.Owned,
-            BacklogSnapshot.From(SyncHistory.Notion, DateTimeOffset.Now,
-                tracked.Select(e => (e.Row, WantedCompleted(e) ?? e.Completed))
-                    .Concat(newRows.Select(row => (row, writesCompleted ? completion!.IsCompleted(row) : (bool?)null)))),
+            BacklogSnapshot.From(SyncHistory.Notion, DateTimeOffset.Now, trackedTicks.Concat(created)),
             completion,
             completionAfter);
     }

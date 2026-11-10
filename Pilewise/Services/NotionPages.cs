@@ -36,39 +36,47 @@ internal static class NotionPages
     // (games no longer owned / stores without playtime keep whatever the page already holds).
     internal static T? Wanted<T>(bool enabled, T? fresh, T? value) => enabled && fresh != null ? value : default;
 
-    internal static int PlatformOrder(string label)
+    internal static string PlatformsText(NotionGameRow page) => string.Join("/", page.Platforms.OrderBy(PlatformOrder));
+
+    private static int PlatformOrder(string label)
     {
         var index = Array.FindIndex(PlatformCatalog.All, d => d.Label == label);
         return index < 0 ? int.MaxValue : index;
     }
 
-    internal static string NotionSignature(
-        CsvGameExportRow row, NotionOptionalColumns optional, bool? owned, bool? completed)
+    internal readonly record struct PageState(
+        int Tags, string? GameId, double? Hours, string? LastPlayed, bool? Owned, string? Linux, bool? Completed);
+
+    internal static PageState Desired(
+        CsvGameExportRow row, NotionOptionalColumns optional, bool? owned, bool? completed) => new(
+        Tags(d => d.Has(row), row.IsGamePass),
+        Text(row.IdText),
+        Wanted(optional.Playtime, row.PlaytimeHours, row.PlaytimeHours),
+        Text(Wanted(optional.LastPlayed, row.LastPlayedDate, row.LastPlayedDate)),
+        Wanted(optional.Owned, owned, owned),
+        Text(optional.Linux ? row.Linux : null),
+        completed);
+
+    internal static PageState Stored(
+        NotionGameRow info, NotionOptionalColumns optional, bool? owned, bool writesCompleted) => new(
+        Tags(d => info.Platforms.Contains(d.Label), info.Platforms.Contains(Platforms.GamePass)),
+        Text(info.GameId),
+        Wanted(optional.Playtime, info.Row.PlaytimeHours, info.PlaytimeHours),
+        Text(Wanted(optional.LastPlayed, info.Row.LastPlayedDate, info.LastPlayed)),
+        Wanted(optional.Owned, owned, info.Owned ?? false),
+        Text(optional.Linux ? info.Linux : null),
+
+        writesCompleted ? info.Completed ?? false : null);
+
+    private static int Tags(Func<PlatformDescriptor, bool> has, bool gamePass)
     {
-        var tags = string.Concat(PlatformCatalog.All.Select(d => d.Has(row)));
-        return $"{tags}{row.IsGamePass}|{row.IdText}" +
-               $"|{Format(Wanted(optional.Playtime, row.PlaytimeHours, row.PlaytimeHours))}" +
-               $"|{Wanted(optional.LastPlayed, row.LastPlayedDate, row.LastPlayedDate)}" +
-               $"|{Wanted(optional.Owned, owned, owned)}" +
-               $"|{(optional.Linux ? row.Linux : null)}" +
-               $"|{completed}";
+        var bits = gamePass ? 1 : 0;
+        for (var i = 0; i < PlatformCatalog.All.Length; i++)
+            if (has(PlatformCatalog.All[i])) bits |= 2 << i;
+        return bits;
     }
 
-    internal static string StoredSignature(
-        NotionGameRow info, NotionOptionalColumns optional, bool? owned, bool writesCompleted)
-    {
-        var tags = string.Concat(PlatformCatalog.All.Select(d => info.Platforms.Contains(d.Label)));
-        return $"{tags}{info.Platforms.Contains(Platforms.GamePass)}|{info.GameId}" +
-               $"|{Format(Wanted(optional.Playtime, info.Row.PlaytimeHours, info.PlaytimeHours))}" +
-               $"|{Wanted(optional.LastPlayed, info.Row.LastPlayedDate, info.LastPlayed)}" +
-               // An unticked checkbox reads back as false; an unknown ownership never rewrites it.
-               $"|{Wanted(optional.Owned, owned, info.Owned ?? false)}" +
-               $"|{(optional.Linux ? info.Linux : null)}" +
-               // A Completed column created in this export reads back as nothing yet: unticked.
-               $"|{(writesCompleted ? info.Completed ?? false : null)}";
-    }
-
-    internal static string? Format(double? hours) => hours?.ToString(CultureInfo.InvariantCulture);
+    private static string? Text(string? value) => string.IsNullOrEmpty(value) ? null : value;
 
     internal static object BuildProperties(
         CsvGameExportRow row, bool includeName, NotionOptionalColumns optional, bool? owned, bool setLink,

@@ -157,6 +157,34 @@ public class GameLibraryServiceTests
     }
 
     [Fact]
+    public async Task FetchAsync_StoresLoadInParallel_OnOneProgressBar()
+    {
+        var epicGate = new TaskCompletionSource();
+        var epic = new FakeEpicClient(StoreAuthFromCacheStatus.Authenticated)
+        {
+            Games = { new EpicGame { Title = "Alan Wake", Namespace = "ns", CatalogItemId = "cat" } },
+            Gate = epicGate.Task,
+            Reports = { new StoreFetchProgress(1, 4) }
+        };
+        var gog = new FakeGogClient(StoreAuthFromCacheStatus.Authenticated)
+        {
+            Games = { new GogGame { Title = "Gog Game", Id = 5 } },
+            Reports = { new StoreFetchProgress(2, 2) }
+        };
+        var reports = new List<StoreFetchProgress>();
+        var service = new GameLibraryService(new FakeFactory { Epic = epic, Gog = gog });
+
+        var fetch = service.FetchAsync(null, null, new SyncProgress(reports.Add));
+        Assert.True(gog.GamesFetched);   // GOG didn't wait for Epic
+        Assert.False(fetch.IsCompleted);
+        epicGate.SetResult();
+        var result = await fetch;
+
+        Assert.Equal(2, result.Rows.Count);
+        Assert.Equal(new StoreFetchProgress(3, 6), reports[^1] with { Stage = "" });
+    }
+
+    [Fact]
     public void StoreSelection_RoundTripsThroughSettings()
     {
         var selection = new StoreSelection();
@@ -215,14 +243,18 @@ file sealed class FakeEpicClient(StoreAuthFromCacheStatus status) : FakeStoreCli
 {
     public List<EpicGame> Games { get; init; } = [];
     public bool GamesFetched { get; private set; }
+    public Task Gate { get; init; } = Task.CompletedTask;
+    public List<StoreFetchProgress> Reports { get; } = [];
 
     public Task<StoreAuthFromCacheStatus> TryAuthenticateFromCacheAsync() => Task.FromResult(status);
 
-    public Task<List<EpicGame>> GetOwnedGamesAsync(
+    public async Task<List<EpicGame>> GetOwnedGamesAsync(
         IProgress<StoreFetchProgress>? progress = null, CancellationToken ct = default)
     {
         GamesFetched = true;
-        return Task.FromResult(Games);
+        Reports.ForEach(r => progress?.Report(r));
+        await Gate;
+        return Games;
     }
 }
 
@@ -230,6 +262,7 @@ file sealed class FakeGogClient(StoreAuthFromCacheStatus status) : FakeStoreClie
 {
     public List<GogGame> Games { get; init; } = [];
     public bool GamesFetched { get; private set; }
+    public List<StoreFetchProgress> Reports { get; } = [];
 
     public Task<StoreAuthFromCacheStatus> TryAuthenticateFromCacheAsync() => Task.FromResult(status);
 
@@ -237,6 +270,7 @@ file sealed class FakeGogClient(StoreAuthFromCacheStatus status) : FakeStoreClie
         IProgress<StoreFetchProgress>? progress = null, CancellationToken ct = default)
     {
         GamesFetched = true;
+        Reports.ForEach(r => progress?.Report(r));
         return Task.FromResult(Games);
     }
 }
@@ -260,4 +294,10 @@ file sealed class FakeSteamClient(SteamGamesResponse response) : ISteamClient
 {
     public Task<SteamGamesResponse> GetOwnedGames(string? steamId, string? apiKey, CancellationToken ct = default) =>
         Task.FromResult(response);
+}
+
+// Reports synchronously (Progress<T> would post to a sync context).
+file sealed class SyncProgress(Action<StoreFetchProgress> report) : IProgress<StoreFetchProgress>
+{
+    public void Report(StoreFetchProgress value) => report(value);
 }

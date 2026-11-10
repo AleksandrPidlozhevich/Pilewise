@@ -139,12 +139,14 @@
             <DockPanel>
                 <Border DockPanel.Dock="Top" Classes="list-header">
                     <!-- Same widths as the item template below (+ the item's own padding). -->
-                    <Grid ColumnDefinitions="*,170,80,100,200,76" Margin="0,0,0,0">
+                    <Grid ColumnDefinitions="*,170,80,100,90,200,76" Margin="0,0,0,0">
                         <TextBlock Grid.Column="0" Classes="column-header" Text="NAME" />
                         <TextBlock Grid.Column="1" Classes="column-header" Text="PLATFORM" />
                         <TextBlock Grid.Column="2" Classes="column-header" Text="PLAYTIME" />
                         <TextBlock Grid.Column="3" Classes="column-header" Text="LAST PLAYED" />
-                        <TextBlock Grid.Column="4" Classes="column-header" Text="ID" />
+                        <TextBlock Grid.Column="4" Classes="column-header" Text="LINUX"
+                                   ToolTip.Tip="Steam / ProtonDB estimate — enable Linux column on Export" />
+                        <TextBlock Grid.Column="5" Classes="column-header" Text="ID" />
                     </Grid>
                 </Border>
                 <Panel>
@@ -153,7 +155,7 @@
                              DoubleTapped="OnGameDoubleTapped">
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="vm:LibraryGameItem">
-                                <Grid ColumnDefinitions="*,170,80,100,200,76" MinHeight="30">
+                                <Grid ColumnDefinitions="*,170,80,100,90,200,76" MinHeight="30">
                                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6"
                                                 VerticalAlignment="Center" Margin="0,0,8,0">
                                         <CheckBox Classes="include" Padding="0" VerticalAlignment="Center"
@@ -198,10 +200,13 @@
                                                Text="{Binding PlaytimeText}" />
                                     <TextBlock Grid.Column="3" VerticalAlignment="Center" FontSize="12"
                                                Text="{Binding LastPlayedText}" />
-                                    <TextBlock Grid.Column="4" VerticalAlignment="Center" FontSize="11"
+                                    <TextBlock Grid.Column="4" VerticalAlignment="Center" FontSize="12"
+                                               Text="{Binding LinuxText}"
+                                               ToolTip.Tip="{Binding LinuxText}" />
+                                    <TextBlock Grid.Column="5" VerticalAlignment="Center" FontSize="11"
                                                Opacity="0.6" TextTrimming="CharacterEllipsis"
                                                Text="{Binding Id}" ToolTip.Tip="{Binding Id}" />
-                                    <Button Grid.Column="5" FontSize="11" Padding="10,3" HorizontalAlignment="Right"
+                                    <Button Grid.Column="6" FontSize="11" Padding="10,3" HorizontalAlignment="Right"
                                             Content="{Binding HideLabel}" ToolTip.Tip="{Binding HideTip}"
                                             IsVisible="{Binding $parent[ListBox].((vm:LibraryViewModel)DataContext).CanHide}"
                                             Command="{Binding $parent[ListBox].((vm:LibraryViewModel)DataContext).ToggleHiddenCommand}"

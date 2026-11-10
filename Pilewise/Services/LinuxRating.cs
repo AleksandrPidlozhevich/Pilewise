@@ -21,10 +21,6 @@ public static class LinuxRating
         return medal == null ? Unknown : soft ? medal + "?" : medal;
     }
 
-    /// <summary>
-    /// Missing Steam id → Unknown. Id absent from <paramref name="byAppId"/> → leave the row alone.
-    /// <see cref="Unavailable"/> never replaces a rating already on the row.
-    /// </summary>
     public static bool TryGet(CsvGameExportRow row, IReadOnlyDictionary<int, string>? byAppId, out string value)
     {
         if (row.SteamGameId is not int id)
@@ -73,7 +69,6 @@ public static class LinuxRating
         var medal = Medal(tier);
         if (medal == null) return null;
 
-        // ProtonDB: inadequate/low is too thin to assert hard — soften, and never claim Borked.
         var confidence = obj["confidence"]?.Value<string>()?.Trim().ToLowerInvariant();
         if (confidence is "inadequate" or "low")
             return medal == "Borked" ? null : medal + "?";

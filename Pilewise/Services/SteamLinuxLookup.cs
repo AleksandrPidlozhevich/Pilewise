@@ -17,6 +17,7 @@ public sealed class SteamLinuxLookup : ISteamLinuxLookup
     // shortcut: sequential 1 req/s — Steam appdetails rate-limits hard; parallelise if a bulk API appears.
     private static readonly TimeSpan DefaultSpacing = TimeSpan.FromSeconds(1);
     private const int MaxFailures = 3;
+    private const int FlushEvery = 25;
     private static readonly HttpClient SharedHttp = CreateClient();
 
     private readonly IStateStore _state;
@@ -71,13 +72,14 @@ public sealed class SteamLinuxLookup : ISteamLinuxLookup
                     continue;
                 }
 
+                var pace = Task.Delay(_spacing, ct);
                 try
                 {
                     var native = await FetchNativeAsync(id, ct);
                     var tier = native == true ? null : await FetchTierAsync(id, ct);
                     cache[id.ToString()] = new Cached { Native = native, Tier = tier, At = today.ToString("yyyy-MM-dd") };
                     result[id] = LinuxRating.Label(native, tier);
-                    fetched++;
+                    if (++fetched % FlushEvery == 0) Save(cache);
                     failures = 0;
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
@@ -94,7 +96,7 @@ public sealed class SteamLinuxLookup : ISteamLinuxLookup
                 }
 
                 if (i + 1 < ids.Count)
-                    await Task.Delay(_spacing, ct);
+                    await pace;
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)

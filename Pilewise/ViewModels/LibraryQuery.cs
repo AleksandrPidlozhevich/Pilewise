@@ -55,7 +55,7 @@ internal static class LibraryQuery
                 LibraryViewModel.RecentKey => g.IsNew,
                 _ => g.Platforms.Contains(key)
             })
-            .Where(g => string.IsNullOrEmpty(query) || g.Name.Contains(query, StringComparison.CurrentCultureIgnoreCase));
+            .Where(g => string.IsNullOrEmpty(query) || g.Name.Contains(query, StringComparison.OrdinalIgnoreCase));
 
         return (sort switch
         {

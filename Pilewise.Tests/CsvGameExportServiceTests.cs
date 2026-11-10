@@ -336,4 +336,27 @@ public class CsvGameExportServiceTests
         Assert.Contains("Name", missing);
         Assert.Contains("ID", missing);
     }
+
+    [Fact]
+    public void Row_CachedTexts_FollowEveryChange()
+    {
+        var row = CsvFormat.CreateRow("Steam", "Portal™", "Steam:400");
+        Assert.Equal(("Steam", "Steam:400", "portal"), (row.PlatformText, row.IdText, row.NameKey));
+        Assert.Equal(["Steam:400"], row.Keys);
+
+        row.GogId = 7;
+        row.HasGog = true;
+        row.IsGamePass = true;
+        row.Name = "Portal 2";
+        Assert.Equal(("Steam/GOG/Game Pass", "Steam:400; GOG:7", "portal 2"), (row.PlatformText, row.IdText, row.NameKey));
+        Assert.Equal(["Steam:400", "GOG:7"], row.Keys);
+
+        var clone = row.Clone();
+        clone.SteamGameId = null;
+        Assert.Equal(["GOG:7"], clone.Keys);
+        Assert.Equal(["Steam:400", "GOG:7"], row.Keys);   // the original keeps its own cache
+
+        var unnamed = CsvFormat.CreateRow("Epic", "Alan Wake", null);
+        Assert.Equal(["Name:alan wake"], unnamed.Keys);
+    }
 }

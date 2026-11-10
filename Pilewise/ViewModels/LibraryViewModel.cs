@@ -65,13 +65,6 @@ public sealed partial class LibraryViewModel : ViewModelBase
 
     private readonly Random _random;
 
-    /// <param name="rows">The games that will be exported.</param>
-    /// <param name="hidden">Fetched games the user hid (shown under the "Hidden" filter).</param>
-    /// <param name="ignored">Where Hide / Unhide is saved; null makes the viewer read-only.</param>
-    /// <param name="backlog">Completed marks from the last tracker export (Notion / Sheets), if any.</param>
-    /// <param name="actions">Store pages, clipboard and ✓ refresh (see <see cref="LibraryActions"/>).</param>
-    /// <param name="completed">Pilewise's completed list: the ✓ marks, set from the list itself (null:
-    /// read-only marks from <paramref name="backlog"/>).</param>
     public LibraryViewModel(
         IEnumerable<CsvGameExportRow> rows, IEnumerable<CsvGameExportRow>? hidden = null, IgnoredGames? ignored = null,
         BacklogSnapshot? backlog = null, LibraryActions? actions = null, Random? random = null,
@@ -226,14 +219,13 @@ public sealed partial class LibraryViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            // The clipboard can be held by another app (Windows) or missing (headless Linux).
             Notice = $"⚠ Couldn't copy to the clipboard: {ex.Message}";
         }
     }
 
     public static string ListText(IEnumerable<LibraryGameItem> games) =>
         string.Join(Environment.NewLine, games.Select(g =>
-            string.Join('\t', g.Name, string.Join("/", g.Platforms), g.PlaytimeText, g.LastPlayedText)));
+            string.Join('\t', g.Name, string.Join("/", g.Platforms), g.PlaytimeText, g.LastPlayedText, g.LinuxText)));
 
     [RelayCommand]
     private void PickForMe()
@@ -268,7 +260,7 @@ public sealed partial class LibraryViewModel : ViewModelBase
         if (item?.Row == null || _completed == null) return;
 
         _completed.Set(item.Row, !item.IsCompleted);
-        var index = _all.IndexOf(item);
+        var index = IndexOf(item);
         if (index >= 0) _all[index] = item with { IsCompleted = !item.IsCompleted };
         if (Picked == item) Picked = null;
 
@@ -283,11 +275,13 @@ public sealed partial class LibraryViewModel : ViewModelBase
         if (item.IsHidden) _ignored.Unignore(item.Row);
         else _ignored.Ignore(item.Row);
 
-        var index = _all.IndexOf(item);
+        var index = IndexOf(item);
         if (index >= 0) _all[index] = item with { IsHidden = !item.IsHidden };
 
         Rebuild();
     }
+
+    private int IndexOf(LibraryGameItem item) => _all.FindIndex(g => ReferenceEquals(g.Row, item.Row));
 
     private void Rebuild()
     {

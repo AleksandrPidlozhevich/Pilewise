@@ -47,7 +47,13 @@ public partial class MainWindow : Window
         _log = log;
         _state = state;
         RestorePlacement();
-        if (OperatingSystem.IsWindows()) _ = PrewarmGogLoginAsync(AddPrewarmWebView());
+        if (OperatingSystem.IsWindows()) Opened += PrewarmOnce;
+    }
+
+    private void PrewarmOnce(object? sender, EventArgs e)
+    {
+        Opened -= PrewarmOnce;
+        _ = PrewarmGogLoginAsync(AddPrewarmWebView());
     }
 
     // Hidden pre-warm WebView2 (Windows only): warms up the runtime at startup, and a few seconds in

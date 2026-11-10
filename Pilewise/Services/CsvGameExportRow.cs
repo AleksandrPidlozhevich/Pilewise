@@ -7,28 +7,27 @@ namespace Pilewise.Services;
 
 public sealed class CsvGameExportRow
 {
-    public string Name { get; set; } = string.Empty;
+    public string Name { get; set { field = value; Changed(); } } = string.Empty;
 
-    public bool HasSteam { get; set; }
+    public bool HasSteam { get; set { field = value; Changed(); } }
 
-    public bool HasEpic { get; set; }
+    public bool HasEpic { get; set { field = value; Changed(); } }
 
-    public bool HasGog { get; set; }
+    public bool HasGog { get; set { field = value; Changed(); } }
 
-    public int? SteamGameId { get; set; }
+    public int? SteamGameId { get; set { field = value; Changed(); } }
 
-    public string? CatalogItemId { get; set; }
+    public string? CatalogItemId { get; set { field = value; Changed(); } }
 
-    public string? Namespace { get; set; }
+    public string? Namespace { get; set { field = value; Changed(); } }
 
-    public long? GogId { get; set; }
+    public long? GogId { get; set { field = value; Changed(); } }
 
-    public bool HasXbox { get; set; }
+    public bool HasXbox { get; set { field = value; Changed(); } }
 
-    public string? XboxTitleId { get; set; }
+    public string? XboxTitleId { get; set { field = value; Changed(); } }
 
-    /// <summary>Game Pass play (not ownership) — exported as a "Game Pass" platform tag.</summary>
-    public bool IsGamePass { get; set; }
+    public bool IsGamePass { get; set { field = value; Changed(); } }
 
     public int? PlaytimeMinutes { get; set; }
 
@@ -40,7 +39,6 @@ public sealed class CsvGameExportRow
 
     public string? FetchedStoreUrl { get; set; }
 
-    /// <summary>Extra CSV cells (Completed, opt-in and user columns), keyed by header.</summary>
     public IReadOnlyDictionary<string, string>? Cells { get; set; }
 
     public CsvGameExportRow Clone() => (CsvGameExportRow)MemberwiseClone();
@@ -56,15 +54,35 @@ public sealed class CsvGameExportRow
     public bool HasContent =>
         !string.IsNullOrWhiteSpace(Name) || PlatformCatalog.All.Any(d => d.HasId(this));
 
-    public string IdText => BuildIdField();
+    // Setters that feed these must call Changed().
+    private string? _idText, _platformText, _nameKey;
+    private string[]? _keys;
 
-    public string PlatformText => BuildPlatformField();
+    private void Changed()
+    {
+        _idText = _platformText = _nameKey = null;
+        _keys = null;
+    }
+
+    public string IdText => _idText ??= BuildIdField();
+
+    public string PlatformText => _platformText ??= BuildPlatformField();
+
+    public string NameKey => _nameKey ??= CsvGameExportService.NormalizeGameName(Name);
+
+    public IReadOnlyList<string> Keys => _keys ??= BuildKeys();
+
+    private string[] BuildKeys()
+    {
+        var keys = PlatformCatalog.All
+            .Select(d => d.FormatId(this) is { } id ? $"{d.Label}:{id}" : null)
+            .OfType<string>()
+            .ToArray();
+        return keys.Length > 0 || NameKey.Length == 0 ? keys : [$"Name:{NameKey}"];
+    }
 
     public string ToCsvLine() =>
-        string.Join(",",
-            EscapeCsvField(BuildPlatformField()),
-            EscapeCsvField(Name),
-            EscapeCsvField(BuildIdField()));
+        string.Join(",", EscapeCsvField(PlatformText), EscapeCsvField(Name), EscapeCsvField(IdText));
 
     private string BuildPlatformField()
     {
@@ -98,7 +116,6 @@ public sealed class CsvGameExportRow
 
         IsGamePass |= other.IsGamePass;
 
-        // Steam playtime + Steam/Xbox last-played: keep the max / newest.
         if (other.PlaytimeMinutes is { } minutes && minutes > (PlaytimeMinutes ?? -1))
             PlaytimeMinutes = minutes;
         if (other.LastPlayed is { } lastPlayed && (LastPlayed == null || lastPlayed > LastPlayed))

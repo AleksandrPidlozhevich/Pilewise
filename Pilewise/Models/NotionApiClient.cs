@@ -35,16 +35,24 @@ public class NotionApiClient : INotionApiClient
 
     private string? _dataSourceId;
 
+    private static readonly SocketsHttpHandler SharedHandler = new()
+    {
+        PooledConnectionIdleTimeout = TimeSpan.FromMinutes(1),
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5)
+    };
+
     public NotionApiClient(string? apiKey, string? databaseId)
-        : this(apiKey, databaseId, new HttpClientHandler(), DefaultDelayBetweenRequests)
+        : this(apiKey, databaseId, SharedHandler, DefaultDelayBetweenRequests, disposeHandler: false)
     {
     }
 
-    public NotionApiClient(string? apiKey, string? databaseId, HttpMessageHandler handler, TimeSpan delayBetweenRequests)
+    public NotionApiClient(
+        string? apiKey, string? databaseId, HttpMessageHandler handler, TimeSpan delayBetweenRequests,
+        bool disposeHandler = true)
     {
         _databaseId = databaseId?.Trim() ?? string.Empty;
         _delayBetweenRequests = delayBetweenRequests;
-        _httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
+        _httpClient = new HttpClient(handler, disposeHandler) { Timeout = TimeSpan.FromSeconds(30) };
         _httpClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", apiKey?.Trim() ?? string.Empty);
         _httpClient.DefaultRequestHeaders.Add("Notion-Version", NotionVersion);
@@ -175,7 +183,7 @@ public class NotionApiClient : INotionApiClient
     private async Task<JObject> SendAsync(HttpMethod method, string url, object? body, CancellationToken ct)
     {
         var json = body == null ? null : JsonConvert.SerializeObject(body);
-        for (var attempt = 0;; attempt++)
+        for (var attempt = 0; ; attempt++)
         {
             await WaitForTurnAsync(ct);
 

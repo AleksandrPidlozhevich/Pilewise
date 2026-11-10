@@ -42,7 +42,7 @@ public static class DuplicateFinder
                     break;
                 }
 
-            var name = CsvGameExportService.NormalizeGameName(row.Name);
+            var name = row.NameKey;
             if (target == null && name.Length > 0 && byName.TryGetValue(name, out var sameName))
                 target = sameName.FirstOrDefault(g => !Conflicts(g.Merged, row));
 

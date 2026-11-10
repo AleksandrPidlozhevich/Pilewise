@@ -14,7 +14,8 @@ public sealed record LibraryGameItem(
     bool IsHidden = false,
     CsvGameExportRow? Row = null,
     bool IsCompleted = false,
-    DateOnly? AddedOn = null)
+    DateOnly? AddedOn = null,
+    string? Linux = null)
 {
     public static LibraryGameItem From(
         CsvGameExportRow row, bool hidden = false, bool completed = false, DateOnly? addedOn = null)
@@ -22,19 +23,17 @@ public sealed record LibraryGameItem(
         var platforms = PlatformCatalog.All.Where(d => d.Has(row)).Select(d => d.Label).ToList();
         if (row.IsGamePass) platforms.Add(Services.Platforms.GamePass);
         return new LibraryGameItem(row.Name, platforms, row.IdText, row.PlaytimeMinutes, row.LastPlayed, hidden, row,
-            completed, addedOn);
+            completed, addedOn, row.Linux);
     }
 
-    public bool IsNew => FirstSeenGames.IsRecent(AddedOn, DateOnly.FromDateTime(DateTime.Today));
+    public bool IsNew { get; } = FirstSeenGames.IsRecent(AddedOn, DateOnly.FromDateTime(DateTime.Today));
 
     public string AddedText => AddedOn is { } day
         ? $"Added {day.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture)}"
         : "";
 
-    /// <summary>Owned on two or more stores (Game Pass is a tag, not a purchase).</summary>
-    public bool IsMultiStore => Platforms.Count(p => p != Services.Platforms.GamePass) > 1;
+    public bool IsMultiStore { get; } = Platforms.Count(p => p != Services.Platforms.GamePass) > 1;
 
-    /// <summary>Known to be untouched: a store reported 0 minutes and no store reports a session.</summary>
     public bool IsNeverPlayed => PlaytimeMinutes == 0 && LastPlayed == null;
 
     public string PlaytimeText => PlaytimeMinutes switch
@@ -47,6 +46,8 @@ public sealed record LibraryGameItem(
 
     public string LastPlayedText => LastPlayed?.ToLocalTime().ToString("d") ?? "—";
 
+    public string LinuxText => string.IsNullOrEmpty(Linux) ? "—" : Linux;
+
     public string? StoreUrl => Row?.StoreUrl;
 
     public bool HasStoreUrl => StoreUrl != null;
@@ -58,10 +59,6 @@ public sealed record LibraryGameItem(
         : "Leave this game out of every export (demos, test servers, tools…)";
 }
 
-/// <summary>
-/// Totals for the library (hidden games excluded). Only Steam and Xbox report playtime, so the
-/// played share is out of the games that have playtime data.
-/// </summary>
 public sealed record LibraryStats(
     int Games, int Tracked, int Played, int NeverPlayed, int MultiStore, int TotalMinutes, LibraryGameItem? MostPlayed,
     int Completed = 0, string? CompletedSource = null, int RecentlyAdded = 0)

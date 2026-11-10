@@ -43,21 +43,7 @@ public sealed class IgnoredGames
         Save();
     }
 
-    public static IReadOnlyList<string> KeysOf(CsvGameExportRow row)
-    {
-        var keys = new List<string>();
-        foreach (var d in PlatformCatalog.All)
-            if (d.FormatId(row) is { } id)
-                keys.Add($"{d.Label}:{id}");
-
-        if (keys.Count == 0)
-        {
-            var name = CsvGameExportService.NormalizeGameName(row.Name);
-            if (name.Length > 0) keys.Add($"Name:{name}");
-        }
-
-        return keys;
-    }
+    public static IReadOnlyList<string> KeysOf(CsvGameExportRow row) => row.Keys;
 
     public (List<CsvGameExportRow> Kept, List<CsvGameExportRow> Ignored) Split(IEnumerable<CsvGameExportRow> rows)
     {

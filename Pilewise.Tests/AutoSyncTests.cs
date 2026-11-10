@@ -51,6 +51,31 @@ public class AutoSyncTests
     }
 
     [Fact]
+    public void NextCheck_SleepsUntilTheEarliestDueTarget_WithinTheBounds()
+    {
+        var hourly = new AutoSyncSettings(1, [SyncTarget.Notion, SyncTarget.Sheets]);
+        var last = new Dictionary<SyncTarget, DateTimeOffset>
+        {
+            [SyncTarget.Notion] = Now.AddMinutes(-50),   // due in 10 min
+            [SyncTarget.Sheets] = Now.AddMinutes(-55)    // due in 5 min
+        };
+        Assert.Equal(TimeSpan.FromMinutes(5), AutoSyncPlanner.NextCheck(hourly, t => last[t], NoFailures, _ => true, Now));
+
+        // Overdue / never synced → the minimum; nothing to run or auto-sync off → the cap.
+        Assert.Equal(AutoSyncPlanner.MinCheck, AutoSyncPlanner.NextCheck(hourly, _ => null, NoFailures, _ => true, Now));
+        Assert.Equal(AutoSyncPlanner.MaxCheck, AutoSyncPlanner.NextCheck(hourly, _ => null, NoFailures, _ => false, Now));
+        Assert.Equal(AutoSyncPlanner.MaxCheck, AutoSyncPlanner.NextCheck(AutoSyncSettings.Off, _ => null, NoFailures, _ => true, Now));
+
+        // Daily, synced an hour ago → the cap, not 23 h.
+        var daily = new AutoSyncSettings(24, [SyncTarget.Notion]);
+        Assert.Equal(AutoSyncPlanner.MaxCheck, AutoSyncPlanner.NextCheck(daily, _ => Now.AddHours(-1), NoFailures, _ => true, Now));
+
+        // A failure 50 min ago holds a due target back until its hour is up.
+        var failed = new Dictionary<SyncTarget, DateTimeOffset> { [SyncTarget.Notion] = Now.AddMinutes(-50) };
+        Assert.Equal(TimeSpan.FromMinutes(10), AutoSyncPlanner.NextCheck(daily, _ => null, failed, _ => true, Now));
+    }
+
+    [Fact]
     public void Due_NeverSynced_IsDue()
     {
         var due = AutoSyncPlanner.Due(new AutoSyncSettings(24, [SyncTarget.Notion]),

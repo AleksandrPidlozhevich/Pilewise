@@ -65,7 +65,7 @@ public class LibraryActionsTests
 
         await vm.CopyListCommand.ExecuteAsync(null);
 
-        Assert.Equal("Portal\tSteam\t12.5 h\t—", copied);
+        Assert.Equal("Portal\tSteam\t12.5 h\t—\t—", copied);
         Assert.Equal("Copied 1 games to the clipboard.", vm.Notice);
     }
 }

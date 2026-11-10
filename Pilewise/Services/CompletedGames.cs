@@ -5,17 +5,13 @@ using System.Linq;
 
 namespace Pilewise.Services;
 
-/// <summary>
-/// Shared completed list (state key <c>completed-games</c>), keyed like <see cref="IgnoredGames"/>.
-/// Per-target sync is a three-way merge: a tick that differs from that target's last <c>seen</c>
-/// is treated as a change there; otherwise the list wins.
-/// </summary>
 public sealed class CompletedGames
 {
     private const string StateKey = "completed-games";
 
     private readonly IStateStore? _store;
     private State _state = new();
+    private string? _raw;
 
     public CompletedGames(IStateStore? store = null)
     {
@@ -27,9 +23,14 @@ public sealed class CompletedGames
 
     public int Count => _state.Done.Count;
 
-    public void Reload() => _state = Parse(_store?.Load(StateKey));
+    public void Reload()
+    {
+        var json = _store?.Load(StateKey);
+        if (json != null && json == _raw) return;
+        _raw = json;
+        _state = Parse(json);
+    }
 
-    /// <summary>First run after upgrade: seed from the latest backlog snapshot keys for <paramref name="target"/>.</summary>
     public void SeedOnce(string target, IEnumerable<string> keys)
     {
         if (_store == null || _store.Load(StateKey) != null) return;
@@ -47,7 +48,6 @@ public sealed class CompletedGames
         Save();
     }
 
-    /// <summary>Plan a merge against <paramref name="target"/>; nothing is saved until <see cref="CompletionSync.Commit"/>.</summary>
     public CompletionSync Begin(string target, IEnumerable<(CsvGameExportRow Row, bool? Completed)> rows)
     {
         Reload();
@@ -93,7 +93,8 @@ public sealed class CompletedGames
                 p => p.Key, List<string>? (p) => p.Value.Order(StringComparer.OrdinalIgnoreCase).ToList(),
                 StringComparer.OrdinalIgnoreCase)
         };
-        _store?.Save(StateKey, JsonConvert.SerializeObject(json));
+        _raw = JsonConvert.SerializeObject(json);
+        _store?.Save(StateKey, _raw);
     }
 
     private static State Parse(string? json)
@@ -109,7 +110,6 @@ public sealed class CompletedGames
         }
         catch (JsonException)
         {
-            // Damaged file: start empty; trackers still hold ticks and will refill.
         }
 
         return state;

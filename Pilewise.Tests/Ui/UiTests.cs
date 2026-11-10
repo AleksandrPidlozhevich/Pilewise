@@ -55,7 +55,10 @@ public class UiTests
         var window = UiSession.Show(Create("library"));
         try
         {
-            foreach (var (header, column) in new[] { ("PLATFORM", 1), ("PLAYTIME", 2), ("LAST PLAYED", 3), ("ID", 4) })
+            foreach (var (header, column) in new[]
+                     {
+                         ("PLATFORM", 1), ("PLAYTIME", 2), ("LAST PLAYED", 3), ("LINUX", 4), ("ID", 5)
+                     })
             {
                 var headerBlock = Descendants<TextBlock>(window).Single(t => t.Text == header);
                 var firstRow = Descendants<ListBoxItem>(window).First();

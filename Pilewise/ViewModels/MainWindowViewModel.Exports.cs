@@ -31,8 +31,6 @@ public partial class MainWindowViewModel
             _log.WriteException(ex, "Steam API authorization error");
             await _dialogs.ShowErrorAsync("Steam authorization error", ex);
         }
-        // Only the Cancel button counts as a cancel: an HTTP timeout is an OperationCanceledException
-        // too, and must be reported like any other error.
         catch (OperationCanceledException) when (Progress.Token.IsCancellationRequested)
         {
             _log.WriteInfo($"{operation} cancelled by user.");
@@ -136,7 +134,6 @@ public partial class MainWindowViewModel
         };
     }
 
-    // The CSV just written becomes the one CSV auto-sync (and `--sync csv` without --file) updates.
     private void RememberCsvFile(IStorageFile file)
     {
         if (file.TryGetLocalPath() is not { } path) return;
@@ -198,6 +195,9 @@ public partial class MainWindowViewModel
             var result = await FetchLibraryAsync();
             if (!await HandleFetchedLibraryAsync(result, "Game library")) return;
 
+            await _linux.StampAsync(
+                result.Rows.Concat(result.Ignored), Progress.CreateReporter(), Progress.Token);
+
             if (_backlog.Latest() is { } snapshot)
                 _completed.SeedOnce(snapshot.Target == SyncHistory.GoogleSheets
                     ? GoogleSheetsGameExporter.TargetOf(GoogleSheetsTableName)
@@ -207,8 +207,6 @@ public partial class MainWindowViewModel
                 addedOn: _firstSeen.AddedOn, completed: _completed));
         }, catchSteamAuth: true);
 
-    // Store pages, clipboard, and re-reading the ✓ marks from the tracker they came from (Notion or
-    // Google Sheets: the one the latest snapshot is from, else whichever is set up, Notion first).
     private LibraryActions LibraryActions()
     {
         var notion = CanFindNotionDuplicates;
@@ -241,7 +239,6 @@ public partial class MainWindowViewModel
     private Task ExportToNotion() =>
         RunOperationAsync(FetchingGames, "Notion export", "Export error in Notion", async () =>
         {
-            // Dry run first: nothing is written until the user confirms the preview.
             var plan = await _notionExporter.PlanAsync(
                 SteamApiKey, SteamId, NotionToken, DbId, Progress.CreateReporter(), Progress.SetIndeterminate,
                 Progress.Token);
@@ -249,7 +246,6 @@ public partial class MainWindowViewModel
 
             if (plan.IsEmpty)
             {
-                // Nothing to write, but this still records the backlog progress read by the plan.
                 await _notionExporter.ApplyAsync(NotionToken, DbId, plan, ct: Progress.Token);
                 ShowResult($"✓ Notion is already up to date ({plan.Unchanged} games)" +
                            GoneSuffix(plan.NoLongerOwned.Count),

@@ -149,11 +149,19 @@ public partial class MainWindowViewModel : ViewModelBase
         // The IDE previewer builds this view model too: no sessions, update checks or auto-sync there.
         if (Design.IsDesignMode) return;
 
-        _ = Epic.InitializeFromCacheAsync();
-        _ = Gog.InitializeFromCacheAsync();
-        _ = Xbox.InitializeFromCacheAsync();
-        _ = CheckForUpdateAsync();
         ShowWhatsNew();
+        _ = StartBackgroundWorkAsync();
+    }
+
+    private static readonly TimeSpan LoginStartDelay = TimeSpan.FromSeconds(45);
+
+    private async Task StartBackgroundWorkAsync()
+    {
+        if (Environment.GetCommandLineArgs().Contains(AutoStart.MinimizedArgument))
+            await Task.Delay(LoginStartDelay);
+
+        _ = CheckForUpdateAsync();
+        await Task.WhenAll(Epic.InitializeFromCacheAsync(), Gog.InitializeFromCacheAsync(), Xbox.InitializeFromCacheAsync());
         StartAutoSyncTimer();
     }
 

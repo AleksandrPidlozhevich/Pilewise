@@ -113,7 +113,7 @@ public static partial class CsvGameExportService
                          string.Equals(header[0], CsvFormat.PlatformColumn, StringComparison.OrdinalIgnoreCase) &&
                          !CsvFormat.IsLegacyWideHeader(header);
 
-        var fromFile = CsvFormat.Parse(existingContent ?? string.Empty).Select(r => r.Clone()).ToList();
+        var fromFile = CsvFormat.Parse(existingContent ?? string.Empty);
         var (rows, added, updated, matched) = MergeCore(fromFile, incomingRows);
         var existing = new HashSet<CsvGameExportRow>(fromFile, ReferenceEqualityComparer.Instance);
 
@@ -205,7 +205,7 @@ public static partial class CsvGameExportService
                 return match;
         }
 
-        var nameKey = NormalizeGameName(incoming.Name);
+        var nameKey = incoming.NameKey;
         if (!string.IsNullOrEmpty(nameKey) &&
             indexes.ByName.TryGetValue(nameKey, out var byName))
             return byName;
@@ -230,7 +230,7 @@ public static partial class CsvGameExportService
             if (key != null) indexes.SetById(d.Label, key, row);
         }
 
-        var nameKey = NormalizeGameName(row.Name);
+        var nameKey = row.NameKey;
         if (!string.IsNullOrEmpty(nameKey))
             indexes.ByName[nameKey] = row;
     }

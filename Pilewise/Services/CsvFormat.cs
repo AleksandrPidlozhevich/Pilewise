@@ -32,9 +32,9 @@ public static class CsvFormat
         if (string.IsNullOrWhiteSpace(content))
             return [];
 
-        var firstLine = content
-            .Split(["\r\n", "\r", "\n"], StringSplitOptions.RemoveEmptyEntries)
-            .FirstOrDefault();
+        var text = content.AsSpan().TrimStart("\r\n");
+        var end = text.IndexOfAny('\r', '\n');
+        var firstLine = (end < 0 ? text : text[..end]).ToString();
 
         return string.IsNullOrWhiteSpace(firstLine)
             ? []
@@ -260,6 +260,8 @@ public static class CsvFormat
 
     private static List<string> ParseCsvFields(string line)
     {
+        if (!line.Contains('"')) return [.. line.Split(',')];
+
         var fields = new List<string>();
         var current = new StringBuilder();
         var inQuotes = false;

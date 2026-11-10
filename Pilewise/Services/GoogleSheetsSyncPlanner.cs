@@ -5,7 +5,6 @@ using System.Linq;
 
 namespace Pilewise.Services;
 
-/// <summary>0-based column indexes after migration; optional columns are -1 when absent.</summary>
 public sealed record SheetColumns(
     int Platform, int Name, int Id, int Completed, int Playtime = -1, int LastPlayed = -1, int Owned = -1,
     int StoreLink = -1, int Cover = -1, int Linux = -1)
@@ -16,7 +15,6 @@ public sealed record SheetColumns(
 
 public sealed record SheetRow(int RowIndex, CsvGameExportRow Row, string StoredPlatform, string StoredId, bool? Completed);
 
-/// <param name="NeedsUpgrade">Old layout — migrate before writing by row index.</param>
 public sealed record SheetContents(SheetColumns Columns, bool NeedsUpgrade, IReadOnlyList<SheetRow> Rows);
 
 public sealed record SheetHeaderCell(int Column, string Text);
@@ -26,7 +24,6 @@ public sealed record SheetRowUpdate(
     bool? Owned = null, string? StoreLink = null, string? CoverUrl = null, string? Linux = null,
     bool? Completed = null);
 
-/// <summary>Write plan; structural inserts are applied first, indexes already account for them.</summary>
 public sealed record GoogleSheetsSyncPlan(
     bool InsertPlatformColumn,
     bool InsertHeaderRow,
@@ -45,10 +42,6 @@ public sealed record GoogleSheetsSyncPlan(
     public int TotalRows => FirstNewRowIndex + NewRows.Count;
 }
 
-/// <summary>
-/// Pure reconcile of library vs sheet cells (unit-tested without Google). Columns by header text;
-/// legacy <c>Name | Game ID | Completed</c> / headerless sheets are migrated in the plan.
-/// </summary>
 public static class GoogleSheetsSyncPlanner
 {
     public const string PlatformHeader = "Platform";

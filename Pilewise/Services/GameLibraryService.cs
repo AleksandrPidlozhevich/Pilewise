@@ -116,28 +116,24 @@ public sealed class GameLibraryService : IGameLibraryService
             steamGames = steamGamesResponse.Response.Games;
         }
 
-        List<EpicGame>? epicGames = null;
-        // Sessions are still checked for unticked stores (the connect rows show their status),
-        // but their libraries are skipped.
-        if (isEpicAuthenticated && _selection.Includes(Platforms.Epic))
+        var loading = new List<string>();
+        var combined = progress == null ? null : new CombinedProgress(progress);
+        async Task<List<T>?> Load<T>(bool include, string store, Func<IProgress<StoreFetchProgress>?, Task<List<T>>> fetch)
         {
-            onStatus?.Invoke("Loading Epic library…");
-            epicGames = await epicClient.GetOwnedGamesAsync(progress, ct);
+            if (!include || !_selection.Includes(store)) return null;
+            loading.Add(store); // runs before the first await, so the status below lists it
+            return await fetch(combined?.For(store));
         }
 
-        List<GogGame>? gogGames = null;
-        if (isGogAuthenticated && _selection.Includes(Platforms.Gog))
-        {
-            onStatus?.Invoke("Loading GOG library…");
-            gogGames = await gogClient.GetOwnedGamesAsync(progress, ct);
-        }
+        var epicTask = Load(isEpicAuthenticated, Platforms.Epic, p => epicClient.GetOwnedGamesAsync(p, ct));
+        var gogTask = Load(isGogAuthenticated, Platforms.Gog, p => gogClient.GetOwnedGamesAsync(p, ct));
+        var xboxTask = Load(isXboxAuthenticated, Platforms.Xbox, p => xboxClient.GetGamesAsync(p, ct));
+        if (loading.Count > 0) onStatus?.Invoke($"Loading {string.Join(" / ", loading)} library…");
+        await Task.WhenAll(epicTask, gogTask, xboxTask);
 
-        List<XboxGame>? xboxGames = null;
-        if (isXboxAuthenticated && _selection.Includes(Platforms.Xbox))
-        {
-            onStatus?.Invoke("Loading Xbox library…");
-            xboxGames = await xboxClient.GetGamesAsync(progress, ct);
-        }
+        var epicGames = await epicTask;
+        var gogGames = await gogTask;
+        var xboxGames = await xboxTask;
 
         if (!hasSteamCredentials && !isEpicAuthenticated && !isGogAuthenticated && !isXboxAuthenticated)
             throw new Exception("Please enter Steam credentials or connect Epic / GOG / Xbox first.");
@@ -160,5 +156,25 @@ public sealed class GameLibraryService : IGameLibraryService
             ignoredRows);
         _firstSeen?.Record(rows.Concat(ignoredRows), result.FetchedStores, DateOnly.FromDateTime(DateTime.Now));
         return result;
+    }
+
+    private sealed class CombinedProgress(IProgress<StoreFetchProgress> target)
+    {
+        private readonly Dictionary<string, StoreFetchProgress> _latest = [];
+
+        public IProgress<StoreFetchProgress> For(string store) => new Sink(value =>
+        {
+            lock (_latest)
+            {
+                _latest[store] = value;
+                target.Report(new StoreFetchProgress(
+                    _latest.Values.Sum(p => p.Completed), _latest.Values.Sum(p => p.Total), value.Stage));
+            }
+        });
+
+        private sealed class Sink(Action<StoreFetchProgress> report) : IProgress<StoreFetchProgress>
+        {
+            public void Report(StoreFetchProgress value) => report(value);
+        }
     }
 }
