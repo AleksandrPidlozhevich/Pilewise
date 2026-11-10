@@ -41,9 +41,13 @@ public static class NotionCompletion
         return null;
     }
 
-    private static bool IsCompletionName(string name) =>
-        PropertyNames.Contains(name.Trim(), StringComparer.OrdinalIgnoreCase);
+    private static bool IsCompletionName(string name)
+    {
+        return PropertyNames.Contains(name.Trim(), StringComparer.OrdinalIgnoreCase);
+    }
 
-    private static string? Type(JProperty property) =>
-        property.Value is JObject value ? value["type"]?.Value<string>() : null;
+    private static string? Type(JProperty property)
+    {
+        return property.Value is JObject value ? value["type"]?.Value<string>() : null;
+    }
 }

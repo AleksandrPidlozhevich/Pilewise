@@ -161,7 +161,8 @@ public partial class MainWindowViewModel : ViewModelBase
             await Task.Delay(LoginStartDelay);
 
         _ = CheckForUpdateAsync();
-        await Task.WhenAll(Epic.InitializeFromCacheAsync(), Gog.InitializeFromCacheAsync(), Xbox.InitializeFromCacheAsync());
+        await Task.WhenAll(Epic.InitializeFromCacheAsync(), Gog.InitializeFromCacheAsync(),
+            Xbox.InitializeFromCacheAsync());
         StartAutoSyncTimer();
     }
 
@@ -235,8 +236,10 @@ public partial class MainWindowViewModel : ViewModelBase
         ISteamLinuxLookup Linux,
         CompletedGames Completed);
 
-    private static TopLevel? DefaultTopLevel() =>
-        (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+    private static TopLevel? DefaultTopLevel()
+    {
+        return (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+    }
 
     private bool HasSteamCredentials => !string.IsNullOrWhiteSpace(SteamApiKey) && !string.IsNullOrWhiteSpace(SteamId);
 
@@ -273,15 +276,30 @@ public partial class MainWindowViewModel : ViewModelBase
         : CanExportSheets ? null
         : "Enter the Google Sheets table name.";
 
-    partial void OnSteamApiKeyChanged(string? value) => RefreshCanExport();
+    partial void OnSteamApiKeyChanged(string? value)
+    {
+        RefreshCanExport();
+    }
 
-    partial void OnSteamIdChanged(string? value) => RefreshCanExport();
+    partial void OnSteamIdChanged(string? value)
+    {
+        RefreshCanExport();
+    }
 
-    partial void OnNotionTokenChanged(string? value) => RefreshCanExport();
+    partial void OnNotionTokenChanged(string? value)
+    {
+        RefreshCanExport();
+    }
 
-    partial void OnDbIdChanged(string? value) => RefreshCanExport();
+    partial void OnDbIdChanged(string? value)
+    {
+        RefreshCanExport();
+    }
 
-    partial void OnGoogleSheetsTableNameChanged(string? value) => RefreshCanExport();
+    partial void OnGoogleSheetsTableNameChanged(string? value)
+    {
+        RefreshCanExport();
+    }
 
     private void RefreshCanExport()
     {
@@ -329,30 +347,52 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private static string ReadmeLink(string section) =>
-        $"https://github.com/AleksandrPidlozhevich/Pilewise#{section}";
+    private static string ReadmeLink(string section)
+    {
+        return $"https://github.com/AleksandrPidlozhevich/Pilewise#{section}";
+    }
 
     [RelayCommand]
-    private void OpenReadme() => _dialogs.OpenLink(ReadmeLink("readme"));
+    private void OpenReadme()
+    {
+        _dialogs.OpenLink(ReadmeLink("readme"));
+    }
 
     [RelayCommand]
-    private void OpenSteamApiKeyInfo() => _dialogs.OpenLink("https://steamcommunity.com/dev/apikey");
+    private void OpenSteamApiKeyInfo()
+    {
+        _dialogs.OpenLink("https://steamcommunity.com/dev/apikey");
+    }
 
     [RelayCommand]
-    private void OpenInfoLinkSteamId() => _dialogs.OpenLink(ReadmeLink("steam"));
+    private void OpenInfoLinkSteamId()
+    {
+        _dialogs.OpenLink(ReadmeLink("steam"));
+    }
 
     [RelayCommand]
-    private void OpenInfoLinkNotionToken() => _dialogs.OpenLink("https://www.notion.so/profile/integrations");
+    private void OpenInfoLinkNotionToken()
+    {
+        _dialogs.OpenLink("https://www.notion.so/profile/integrations");
+    }
 
     [RelayCommand]
-    private void OpenInfoLinkNotionDbId() =>
+    private void OpenInfoLinkNotionDbId()
+    {
         _dialogs.OpenLink("https://developers.notion.com/reference/retrieve-database");
+    }
 
     [RelayCommand]
-    private void OpenInfoGoogleSheets() => _dialogs.OpenLink(ReadmeLink("google-sheets-beta"));
+    private void OpenInfoGoogleSheets()
+    {
+        _dialogs.OpenLink(ReadmeLink("google-sheets-beta"));
+    }
 
     [RelayCommand]
-    private void OpenLinkKofi() => _dialogs.OpenLink("https://ko-fi.com/aliaksandrpidlazhevich");
+    private void OpenLinkKofi()
+    {
+        _dialogs.OpenLink("https://ko-fi.com/aliaksandrpidlazhevich");
+    }
 
     [RelayCommand]
     private void OpenLogsFolder()

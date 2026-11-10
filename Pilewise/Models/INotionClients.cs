@@ -59,7 +59,13 @@ public sealed class NotionGateway : INotionGateway
         _log = log;
     }
 
-    public INotionApiClient CreateClient(string? token, string? dbId) => new NotionApiClient(token, dbId);
+    public INotionApiClient CreateClient(string? token, string? dbId)
+    {
+        return new NotionApiClient(token, dbId);
+    }
 
-    public INotionDataFetcher CreateFetcher(INotionApiClient client) => new NotionDataFetcher(client, _log);
+    public INotionDataFetcher CreateFetcher(INotionApiClient client)
+    {
+        return new NotionDataFetcher(client, _log);
+    }
 }

@@ -5,7 +5,6 @@ using Pilewise.Models;
 using Pilewise.Services;
 using Pilewise.ViewModels;
 using Xunit;
-
 using Pilewise.Tests.Fakes;
 
 namespace Pilewise.Tests;
@@ -25,27 +24,32 @@ public class CoversAndHiddenGamesTests
     [InlineData("https://images.gog-statics.com/abc.png", "https://images.gog-statics.com/abc.png")]
     [InlineData("", null)]
     [InlineData(null, null)]
-    public void GogCover(string? image, string? expected) => Assert.Equal(expected, StoreLinks.GogCover(image));
+    public void GogCover(string? image, string? expected)
+    {
+        Assert.Equal(expected, StoreLinks.GogCover(image));
+    }
 
     [Theory]
     [InlineData("/en/game/the_witcher", null, "https://www.gog.com/en/game/the_witcher")]
     [InlineData(null, "the_witcher", "https://www.gog.com/game/the_witcher")]
     [InlineData(null, null, null)]
-    public void GogStore(string? path, string? slug, string? expected) =>
+    public void GogStore(string? path, string? slug, string? expected)
+    {
         Assert.Equal(expected, StoreLinks.GogStore(path, slug));
+    }
 
     [Fact]
     public void EpicCatalogItem_PrefersTheWideImage_AndUsesTheProductSlug()
     {
         var item = JObject.Parse("""
-            {
-              "keyImages": [
-                { "type": "DieselGameBoxTall", "url": "https://cdn1.epicgames.com/tall.jpg" },
-                { "type": "DieselGameBox", "url": "https://cdn1.epicgames.com/wide.jpg" }
-              ],
-              "customAttributes": { "com.epicgames.app.productSlug": { "type": "STRING", "value": "alan-wake/home" } }
-            }
-            """);
+                                 {
+                                   "keyImages": [
+                                     { "type": "DieselGameBoxTall", "url": "https://cdn1.epicgames.com/tall.jpg" },
+                                     { "type": "DieselGameBox", "url": "https://cdn1.epicgames.com/wide.jpg" }
+                                   ],
+                                   "customAttributes": { "com.epicgames.app.productSlug": { "type": "STRING", "value": "alan-wake/home" } }
+                                 }
+                                 """);
 
         Assert.Equal("https://cdn1.epicgames.com/wide.jpg", StoreLinks.EpicCover(item));
         Assert.Equal("https://store.epicgames.com/p/alan-wake", StoreLinks.EpicStore(item));
@@ -58,8 +62,10 @@ public class CoversAndHiddenGamesTests
         var rows = CsvGameExportService.BuildFromLibraries(
             [new SteamGame { Name = "Hades", GameID = 1145360 }],
             null,
-            [new GogGame { Title = "Hades", Id = 1, Image = "//images.gog-statics.com/h", Url = "/game/hades" },
-             new GogGame { Title = "Only GOG", Id = 2, Image = "//images.gog-statics.com/o", Url = "/game/only" }]);
+            [
+                new GogGame { Title = "Hades", Id = 1, Image = "//images.gog-statics.com/h", Url = "/game/hades" },
+                new GogGame { Title = "Only GOG", Id = 2, Image = "//images.gog-statics.com/o", Url = "/game/only" }
+            ]);
 
         var hades = rows.Single(r => r.Name == "Hades");
         Assert.Contains("steamstatic", hades.CoverUrl);
@@ -101,8 +107,10 @@ public class CoversAndHiddenGamesTests
         ];
 
         var plan = GoogleSheetsSyncPlanner.Plan(values, [], new HashSet<string> { "Steam" },
-            [CsvFormat.CreateRow("Steam", "Demo", "Steam:9"),
-             CsvFormat.CreateRow("Steam", "New Demo", "Steam:10")]);
+        [
+            CsvFormat.CreateRow("Steam", "Demo", "Steam:9"),
+            CsvFormat.CreateRow("Steam", "New Demo", "Steam:10")
+        ]);
 
         Assert.Empty(plan.NewRows);
         Assert.Empty(plan.NoLongerOwned);
@@ -113,8 +121,10 @@ public class CoversAndHiddenGamesTests
     {
         var ignored = new IgnoredGames(new MemoryStateStore());
         var vm = new LibraryViewModel(
-            [CsvFormat.CreateRow("Steam", "Portal", "Steam:400"),
-             CsvFormat.CreateRow("Steam", "Demo", "Steam:9")],
+            [
+                CsvFormat.CreateRow("Steam", "Portal", "Steam:400"),
+                CsvFormat.CreateRow("Steam", "Demo", "Steam:9")
+            ],
             [CsvFormat.CreateRow("Steam", "Old Tool", "Steam:7")],
             ignored);
 
@@ -133,5 +143,4 @@ public class CoversAndHiddenGamesTests
         Assert.Equal(["Demo"], vm.VisibleGames.Select(g => g.Name));
         Assert.False(ignored.IsIgnored(CsvFormat.CreateRow("Steam", "Old Tool", "Steam:7")));
     }
-
 }

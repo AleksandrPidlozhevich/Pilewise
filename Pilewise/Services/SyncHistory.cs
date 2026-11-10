@@ -15,12 +15,15 @@ public sealed class SyncHistory(IStateStore store)
 
     private readonly Dictionary<string, DateTimeOffset> _entries = Parse(store.Load(StateKey));
 
-    public static string KeyOf(SyncTarget target) => target switch
+    public static string KeyOf(SyncTarget target)
     {
-        SyncTarget.Csv => Csv,
-        SyncTarget.Notion => Notion,
-        _ => GoogleSheets
-    };
+        return target switch
+        {
+            SyncTarget.Csv => Csv,
+            SyncTarget.Notion => Notion,
+            _ => GoogleSheets
+        };
+    }
 
     // Re-read on every access: the in-app auto-sync records through its own instance (via HeadlessSync),
     // so a cached copy would go stale and a later Record would overwrite the newer time.

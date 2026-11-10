@@ -26,14 +26,25 @@ public sealed class XboxApiClient(ISecretStore secrets, ILogService log) : IXbox
 
     public Uri LoginRedirectUri => _session.LoginRedirectUri;
 
-    public void SignOut() => _session.SignOut();
+    public void SignOut()
+    {
+        _session.SignOut();
+    }
 
-    public void OpenLoginPageInBrowser() => _session.OpenLoginPageInBrowser();
+    public void OpenLoginPageInBrowser()
+    {
+        _session.OpenLoginPageInBrowser();
+    }
 
-    public Task<StoreAuthFromCacheStatus> TryAuthenticateFromCacheAsync() => _session.TryAuthenticateFromCacheAsync();
+    public Task<StoreAuthFromCacheStatus> TryAuthenticateFromCacheAsync()
+    {
+        return _session.TryAuthenticateFromCacheAsync();
+    }
 
-    public Task<bool> AuthenticateWithAuthorizationCodeAsync(string authorizationCode) =>
-        _session.AuthenticateWithAuthorizationCodeAsync(authorizationCode);
+    public Task<bool> AuthenticateWithAuthorizationCodeAsync(string authorizationCode)
+    {
+        return _session.AuthenticateWithAuthorizationCodeAsync(authorizationCode);
+    }
 
     /// <summary>
     /// Fetches the user's owned Xbox library — the purchased/owned titles from the inventory
@@ -80,18 +91,20 @@ public sealed class XboxApiClient(ISecretStore secrets, ILogService log) : IXbox
 
         progress?.Report(new StoreFetchProgress(1, 1, "Loading Xbox library"));
         log.WriteInfo($"Xbox: fetched {games.Count} owned titles" +
-                       (unnamed > 0 ? $" ({unnamed} without a resolved name)." : "."));
+                      (unnamed > 0 ? $" ({unnamed} without a resolved name)." : "."));
         return games;
     }
 
     private async Task<Dictionary<string, (string? Name, DateTimeOffset? LastPlayed, string? Image, string? ProductId)>>
         GetTitleNamesAsync(CancellationToken ct)
     {
-        var map = new Dictionary<string, (string?, DateTimeOffset?, string?, string?)>(StringComparer.OrdinalIgnoreCase);
+        var map =
+            new Dictionary<string, (string?, DateTimeOffset?, string?, string?)>(StringComparer.OrdinalIgnoreCase);
         try
         {
             var url = string.Format(TitleHistoryUrlTemplate, _session.Xuid);
-            using var response = await _session.SendAuthorizedAsync(() => XboxSession.BuildXboxApiRequest(HttpMethod.Get, url), ct);
+            using var response =
+                await _session.SendAuthorizedAsync(() => XboxSession.BuildXboxApiRequest(HttpMethod.Get, url), ct);
             if (!response.IsSuccessStatusCode)
             {
                 log.WriteWarning($"Xbox: title-name lookup failed: {response.StatusCode}.");

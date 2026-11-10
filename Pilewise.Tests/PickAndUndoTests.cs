@@ -10,14 +10,16 @@ namespace Pilewise.Tests;
 
 public class PickForMeTests
 {
-    private static LibraryGameItem Game(string name, int? minutes, bool completed = false, bool hidden = false) =>
-        new(name, ["Steam"], "", minutes, null, hidden, null, completed);
+    private static LibraryGameItem Game(string name, int? minutes, bool completed = false, bool hidden = false)
+    {
+        return new LibraryGameItem(name, ["Steam"], "", minutes, null, hidden, null, completed);
+    }
 
     [Fact]
     public void Pick_SkipsCompletedAndHidden()
     {
         var pick = LibraryViewModel.Pick(
-            [Game("Done", 0, completed: true), Game("Hidden", 0, hidden: true), Game("Open", 6000)], new Random(1));
+            [Game("Done", 0, true), Game("Hidden", 0, hidden: true), Game("Open", 6000)], new Random(1));
 
         Assert.Equal("Open", pick?.Name);
     }
@@ -38,13 +40,15 @@ public class PickForMeTests
         var b = Game("B", 0);
 
         for (var seed = 0; seed < 20; seed++)
-            Assert.Equal("B", LibraryViewModel.Pick([a, b], new Random(seed), previous: a)?.Name);
-        Assert.Equal("A", LibraryViewModel.Pick([a], new Random(0), previous: a)?.Name);
+            Assert.Equal("B", LibraryViewModel.Pick([a, b], new Random(seed), a)?.Name);
+        Assert.Equal("A", LibraryViewModel.Pick([a], new Random(0), a)?.Name);
     }
 
     [Fact]
-    public void Pick_NothingLeft_ReturnsNull() =>
-        Assert.Null(LibraryViewModel.Pick([Game("Done", 0, completed: true)], new Random(0)));
+    public void Pick_NothingLeft_ReturnsNull()
+    {
+        Assert.Null(LibraryViewModel.Pick([Game("Done", 0, true)], new Random(0)));
+    }
 
     [Fact]
     public void ViewModel_PickSelectsTheGame_AndRespectsTheSearch()
@@ -64,7 +68,8 @@ public class PickForMeTests
     public void ViewModel_OpenStorePage_UsesTheLinkOpener()
     {
         string? opened = null;
-        var vm = new LibraryViewModel([CsvFormat.CreateRow("Steam", "Portal", "Steam:400")], actions: new LibraryActions(OpenLink: url => opened = url));
+        var vm = new LibraryViewModel([CsvFormat.CreateRow("Steam", "Portal", "Steam:400")],
+            actions: new LibraryActions(url => opened = url));
 
         vm.OpenStorePageCommand.Execute(vm.VisibleGames[0]);
 

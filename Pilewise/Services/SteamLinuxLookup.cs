@@ -27,7 +27,8 @@ public sealed class SteamLinuxLookup : ISteamLinuxLookup
 
     public bool Enabled { get; set; }
 
-    public SteamLinuxLookup(IStateStore state, ILogService log, HttpMessageHandler? handler = null, TimeSpan? spacing = null)
+    public SteamLinuxLookup(IStateStore state, ILogService log, HttpMessageHandler? handler = null,
+        TimeSpan? spacing = null)
     {
         _state = state;
         _log = log;
@@ -36,7 +37,8 @@ public sealed class SteamLinuxLookup : ISteamLinuxLookup
     }
 
     public async Task StampAsync(
-        IEnumerable<CsvGameExportRow> rows, IProgress<StoreFetchProgress>? progress = null, CancellationToken ct = default)
+        IEnumerable<CsvGameExportRow> rows, IProgress<StoreFetchProgress>? progress = null,
+        CancellationToken ct = default)
     {
         if (!Enabled) return;
         var list = rows as IList<CsvGameExportRow> ?? rows.ToList();
@@ -77,7 +79,8 @@ public sealed class SteamLinuxLookup : ISteamLinuxLookup
                 {
                     var native = await FetchNativeAsync(id, ct);
                     var tier = native == true ? null : await FetchTierAsync(id, ct);
-                    cache[id.ToString()] = new Cached { Native = native, Tier = tier, At = today.ToString("yyyy-MM-dd") };
+                    cache[id.ToString()] = new Cached
+                        { Native = native, Tier = tier, At = today.ToString("yyyy-MM-dd") };
                     result[id] = LinuxRating.Label(native, tier);
                     if (++fetched % FlushEvery == 0) Save(cache);
                     failures = 0;
@@ -131,7 +134,7 @@ public sealed class SteamLinuxLookup : ISteamLinuxLookup
 
     private async Task<HttpResponseMessage> SendAsync(string url, CancellationToken ct)
     {
-        for (var attempt = 0; ; attempt++)
+        for (var attempt = 0;; attempt++)
         {
             var response = await _http.GetAsync(url, ct);
             if (response.StatusCode != HttpStatusCode.TooManyRequests || attempt == 3)
@@ -149,20 +152,24 @@ public sealed class SteamLinuxLookup : ISteamLinuxLookup
         {
             var json = _state.Load(StateKey);
             return string.IsNullOrWhiteSpace(json)
-                ? new()
-                : JsonConvert.DeserializeObject<Dictionary<string, Cached>>(json) ?? new();
+                ? new Dictionary<string, Cached>()
+                : JsonConvert.DeserializeObject<Dictionary<string, Cached>>(json) ?? new Dictionary<string, Cached>();
         }
         catch (JsonException)
         {
-            return new();
+            return new Dictionary<string, Cached>();
         }
     }
 
-    private void Save(Dictionary<string, Cached> cache) =>
+    private void Save(Dictionary<string, Cached> cache)
+    {
         _state.Save(StateKey, JsonConvert.SerializeObject(cache));
+    }
 
-    private static bool Fresh(Cached cached, DateOnly today) =>
-        DateOnly.TryParse(cached.At, out var day) && day <= today && today <= day.AddDays(7);
+    private static bool Fresh(Cached cached, DateOnly today)
+    {
+        return DateOnly.TryParse(cached.At, out var day) && day <= today && today <= day.AddDays(7);
+    }
 
     private static HttpClient CreateClient(HttpMessageHandler? handler = null)
     {

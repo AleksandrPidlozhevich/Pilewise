@@ -14,8 +14,10 @@ public static class UpdateNotice
         return $"✓ Updated to v{current}";
     }
 
-    public static string ReleaseUrl(string version) =>
-        $"https://github.com/AleksandrPidlozhevich/Pilewise/releases/tag/v{version}";
+    public static string ReleaseUrl(string version)
+    {
+        return $"https://github.com/AleksandrPidlozhevich/Pilewise/releases/tag/v{version}";
+    }
 
     // "1.2.0-beta.1" → 1.2.0 (pre-release suffixes don't change the order for this purpose).
     private static Version? Parse(string? value)

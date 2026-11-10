@@ -45,6 +45,8 @@ public static class AppServices
     }
 
     // Resolved lazily: the main window doesn't exist yet when the container is built.
-    private static TopLevel? MainWindow() =>
-        (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+    private static TopLevel? MainWindow()
+    {
+        return (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+    }
 }

@@ -42,7 +42,7 @@ public class NotionApiClient : INotionApiClient
     };
 
     public NotionApiClient(string? apiKey, string? databaseId)
-        : this(apiKey, databaseId, SharedHandler, DefaultDelayBetweenRequests, disposeHandler: false)
+        : this(apiKey, databaseId, SharedHandler, DefaultDelayBetweenRequests, false)
     {
     }
 
@@ -132,9 +132,12 @@ public class NotionApiClient : INotionApiClient
     public Task UpdatePagesParallel(
         IEnumerable<(string PageId, NotionPageBody Body)> updates,
         Action? onPageDone = null,
-        CancellationToken ct = default) =>
-        WriteAllAsync(updates, u => SendAsync(HttpMethod.Patch, $"{ApiBase}/pages/{u.PageId}", u.Body.ToJson(), ct),
+        CancellationToken ct = default)
+    {
+        return WriteAllAsync(updates,
+            u => SendAsync(HttpMethod.Patch, $"{ApiBase}/pages/{u.PageId}", u.Body.ToJson(), ct),
             onPageDone, ct);
+    }
 
     public Task TrashPagesParallel(
         IEnumerable<string> pageIds, Action? onPageDone = null, CancellationToken ct = default)
@@ -183,7 +186,7 @@ public class NotionApiClient : INotionApiClient
     private async Task<JObject> SendAsync(HttpMethod method, string url, object? body, CancellationToken ct)
     {
         var json = body == null ? null : JsonConvert.SerializeObject(body);
-        for (var attempt = 0; ; attempt++)
+        for (var attempt = 0;; attempt++)
         {
             await WaitForTurnAsync(ct);
 
@@ -218,11 +221,16 @@ public class NotionApiClient : INotionApiClient
         }
     }
 
-    private static bool IsTransient(HttpStatusCode status) =>
-        status is HttpStatusCode.TooManyRequests or HttpStatusCode.Conflict ||
-        (int)status >= 500;
+    private static bool IsTransient(HttpStatusCode status)
+    {
+        return status is HttpStatusCode.TooManyRequests or HttpStatusCode.Conflict ||
+               (int)status >= 500;
+    }
 
-    private static TimeSpan Backoff(int attempt) => TimeSpan.FromSeconds(Math.Pow(2, attempt));
+    private static TimeSpan Backoff(int attempt)
+    {
+        return TimeSpan.FromSeconds(Math.Pow(2, attempt));
+    }
 
     // Waits until this request's slot: each caller reserves the next one under the lock, so parallel
     // writers line up _delayBetweenRequests apart instead of bursting together.

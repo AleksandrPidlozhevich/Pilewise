@@ -46,11 +46,14 @@ internal static class UiSession
         return result.Task;
     }
 
-    public static Task RunAsync(Action work) => RunAsync(() =>
+    public static Task RunAsync(Action work)
     {
-        work();
-        return true;
-    });
+        return RunAsync(() =>
+        {
+            work();
+            return true;
+        });
+    }
 
     public static void Pump()
     {
@@ -62,7 +65,10 @@ internal static class UiSession
     }
 
     /// <summary>Switches the app theme (call before creating the window).</summary>
-    public static void UseTheme(ThemeVariant variant) => Application.Current!.RequestedThemeVariant = variant;
+    public static void UseTheme(ThemeVariant variant)
+    {
+        Application.Current!.RequestedThemeVariant = variant;
+    }
 
     public static T Show<T>(T window) where T : Window
     {
@@ -71,8 +77,10 @@ internal static class UiSession
         return window;
     }
 
-    public static bool Snapshot(Window window, string name) =>
-        SaveFrame(window, Path.Combine(SnapshotDirectory, name + ".png"));
+    public static bool Snapshot(Window window, string name)
+    {
+        return SaveFrame(window, Path.Combine(SnapshotDirectory, name + ".png"));
+    }
 
     public static bool SaveFrame(Window window, string path)
     {
@@ -86,7 +94,10 @@ internal static class UiSession
 
     public static IReadOnlyList<string> BindingErrors => Errors.Messages;
 
-    public static void ClearBindingErrors() => Errors.Clear();
+    public static void ClearBindingErrors()
+    {
+        Errors.Clear();
+    }
 
     private static Thread Start()
     {
@@ -128,16 +139,25 @@ internal static class UiSession
 
         public IReadOnlyList<string> Messages => _messages.ToList();
 
-        public void Clear() => _messages.Clear();
+        public void Clear()
+        {
+            _messages.Clear();
+        }
 
-        public bool IsEnabled(LogEventLevel level, string area) =>
-            level >= LogEventLevel.Warning && area == LogArea.Binding;
+        public bool IsEnabled(LogEventLevel level, string area)
+        {
+            return level >= LogEventLevel.Warning && area == LogArea.Binding;
+        }
 
-        public void Log(LogEventLevel level, string area, object? source, string messageTemplate) =>
+        public void Log(LogEventLevel level, string area, object? source, string messageTemplate)
+        {
             _messages.Enqueue($"{source?.GetType().Name}: {messageTemplate}");
+        }
 
         public void Log(LogEventLevel level, string area, object? source, string messageTemplate,
-            params object?[] propertyValues) =>
+            params object?[] propertyValues)
+        {
             _messages.Enqueue($"{source?.GetType().Name}: {messageTemplate} [{string.Join(", ", propertyValues)}]");
+        }
     }
 }

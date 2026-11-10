@@ -46,7 +46,7 @@ public sealed class MsalSecretStore : ISecretStore
         try
         {
             foreach (var file in Directory.GetFiles(legacy))
-                File.Copy(file, Path.Combine(_folder, Path.GetFileName(file)), overwrite: false);
+                File.Copy(file, Path.Combine(_folder, Path.GetFileName(file)), false);
             _log.WriteInfo($"SecretStore: migrated legacy store from '{legacy}'.");
         }
         catch (Exception ex)

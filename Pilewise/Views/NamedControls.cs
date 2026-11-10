@@ -9,7 +9,10 @@ namespace Pilewise.Views;
 /// </summary>
 internal static class NamedControls
 {
-    public static T Named<T>(this Control view, string name) where T : Control =>
-        view.FindControl<T>(name) ??
-        throw new InvalidOperationException($"{view.GetType().Name}: no {typeof(T).Name} named \"{name}\" in its XAML.");
+    public static T Named<T>(this Control view, string name) where T : Control
+    {
+        return view.FindControl<T>(name) ??
+               throw new InvalidOperationException(
+                   $"{view.GetType().Name}: no {typeof(T).Name} named \"{name}\" in its XAML.");
+    }
 }

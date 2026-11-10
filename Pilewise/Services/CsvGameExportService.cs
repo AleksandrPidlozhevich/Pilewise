@@ -10,7 +10,10 @@ namespace Pilewise.Services;
 
 public static partial class CsvGameExportService
 {
-    public static string TargetOf(string path) => $"CSV:{System.IO.Path.GetFullPath(path)}";
+    public static string TargetOf(string path)
+    {
+        return $"CSV:{System.IO.Path.GetFullPath(path)}";
+    }
 
     public static List<CsvGameExportRow> BuildFromLibraries(
         IEnumerable<SteamGame>? steamGames,
@@ -30,7 +33,9 @@ public static partial class CsvGameExportService
                     HasSteam = true,
                     SteamGameId = game.GameID,
                     PlaytimeMinutes = game.PlaytimeMinutes,
-                    LastPlayed = game.LastPlayedUnix > 0 ? DateTimeOffset.FromUnixTimeSeconds(game.LastPlayedUnix) : null
+                    LastPlayed = game.LastPlayedUnix > 0
+                        ? DateTimeOffset.FromUnixTimeSeconds(game.LastPlayedUnix)
+                        : null
                 };
 
                 AddOrMerge(rows, indexes, incoming);
@@ -128,12 +133,18 @@ public static partial class CsvGameExportService
 
         var sync = options.Completed?.Begin(options.Target ?? "CSV",
             fromFile.Where(r => !hidden.Contains(r)).Select(r => (r, CsvFormat.ReadCompleted(r))));
-        bool Completed(CsvGameExportRow row) =>
-            hidden.Contains(row) || sync == null ? CsvFormat.ReadCompleted(row) ?? false : sync.IsCompleted(row);
-        bool? Owned(CsvGameExportRow row) =>
-            !existing.Contains(row) ? true
-            : options.FetchedStores == null ? null
-            : Ownership(row, matched.Contains(row), options.FetchedStores);
+
+        bool Completed(CsvGameExportRow row)
+        {
+            return hidden.Contains(row) || sync == null ? CsvFormat.ReadCompleted(row) ?? false : sync.IsCompleted(row);
+        }
+
+        bool? Owned(CsvGameExportRow row)
+        {
+            return !existing.Contains(row) ? true
+                : options.FetchedStores == null ? null
+                : Ownership(row, matched.Contains(row), options.FetchedStores);
+        }
 
         var content = CsvFormat.Serialize(rows, options.IncludeLinux || CsvFormat.HasLinuxColumn(existingContent),
             keepHeader ? header : null, Completed, Owned);
@@ -255,9 +266,15 @@ public static partial class CsvGameExportService
     {
         private readonly CsvIndexes _indexes = CreateIndexes(rows);
 
-        public CsvGameExportRow? Match(CsvGameExportRow incoming) => FindMatch(_indexes, incoming);
+        public CsvGameExportRow? Match(CsvGameExportRow incoming)
+        {
+            return FindMatch(_indexes, incoming);
+        }
 
-        public void Register(CsvGameExportRow row) => RegisterRow(_indexes, row);
+        public void Register(CsvGameExportRow row)
+        {
+            RegisterRow(_indexes, row);
+        }
     }
 
     private sealed class CsvIndexes
@@ -266,10 +283,14 @@ public static partial class CsvGameExportService
 
         public Dictionary<string, CsvGameExportRow> ByName { get; } = new(StringComparer.Ordinal);
 
-        public bool TryGetById(string platform, string key, out CsvGameExportRow row) =>
-            _byId.TryGetValue((platform, key), out row!);
+        public bool TryGetById(string platform, string key, out CsvGameExportRow row)
+        {
+            return _byId.TryGetValue((platform, key), out row!);
+        }
 
-        public void SetById(string platform, string key, CsvGameExportRow row) =>
+        public void SetById(string platform, string key, CsvGameExportRow row)
+        {
             _byId[(platform, key)] = row;
+        }
     }
 }

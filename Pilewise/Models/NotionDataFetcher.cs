@@ -91,7 +91,9 @@ public class NotionDataFetcher : INotionDataFetcher
                     properties?[StoreLinkProperty]?["url"]?.Value<string>(),
                     page["created_time"]?.Type == JTokenType.Date
                         ? page["created_time"]!.Value<DateTime>()
-                        : DateTimeOffset.TryParse(page["created_time"]?.Value<string>(), out var created) ? created : null,
+                        : DateTimeOffset.TryParse(page["created_time"]?.Value<string>(), out var created)
+                            ? created
+                            : null,
                     NotionCompletion.Read(properties),
                     properties?[LinuxProperty]?["select"]?["name"]?.Value<string>())
                 : null;

@@ -16,10 +16,13 @@ public sealed record WindowPlacement(int X, int Y, double Width, double Height, 
 {
     public const string StateKey = "window";
 
-    public string Serialize() => string.Join(",",
-        X.ToString(CultureInfo.InvariantCulture), Y.ToString(CultureInfo.InvariantCulture),
-        Width.ToString("0", CultureInfo.InvariantCulture), Height.ToString("0", CultureInfo.InvariantCulture),
-        Maximized ? "max" : "normal");
+    public string Serialize()
+    {
+        return string.Join(",",
+            X.ToString(CultureInfo.InvariantCulture), Y.ToString(CultureInfo.InvariantCulture),
+            Width.ToString("0", CultureInfo.InvariantCulture), Height.ToString("0", CultureInfo.InvariantCulture),
+            Maximized ? "max" : "normal");
+    }
 
     public static WindowPlacement? Parse(string? value)
     {

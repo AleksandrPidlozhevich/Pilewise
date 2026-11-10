@@ -19,17 +19,21 @@ internal static class LibraryQuery
         }
 
         var multi = exported.Count(g => g.IsMultiStore);
-        if (multi > 0) options.Add(new LibraryFilterOption("Owned on 2+ stores", LibraryViewModel.MultiStoreKey, multi));
+        if (multi > 0)
+            options.Add(new LibraryFilterOption("Owned on 2+ stores", LibraryViewModel.MultiStoreKey, multi));
 
         if (hasCompletion)
         {
-            options.Add(new LibraryFilterOption("Completed", LibraryViewModel.CompletedKey, exported.Count(g => g.IsCompleted)));
-            options.Add(new LibraryFilterOption("Not completed", LibraryViewModel.NotCompletedKey, exported.Count(g => !g.IsCompleted)));
+            options.Add(new LibraryFilterOption("Completed", LibraryViewModel.CompletedKey,
+                exported.Count(g => g.IsCompleted)));
+            options.Add(new LibraryFilterOption("Not completed", LibraryViewModel.NotCompletedKey,
+                exported.Count(g => !g.IsCompleted)));
         }
 
         var recent = exported.Count(g => g.IsNew);
         if (recent > 0)
-            options.Add(new LibraryFilterOption($"Added in the last {FirstSeenGames.RecentDays} days", LibraryViewModel.RecentKey, recent));
+            options.Add(new LibraryFilterOption($"Added in the last {FirstSeenGames.RecentDays} days",
+                LibraryViewModel.RecentKey, recent));
 
         var never = exported.Count(g => g.IsNeverPlayed);
         if (never > 0) options.Add(new LibraryFilterOption("Never played", LibraryViewModel.NeverPlayedKey, never));
@@ -41,7 +45,8 @@ internal static class LibraryQuery
     }
 
     // all is already name-ordered and OrderBy is stable, so ties stay alphabetical.
-    public static List<LibraryGameItem> Apply(IReadOnlyList<LibraryGameItem> all, string key, string? query, LibrarySort sort)
+    public static List<LibraryGameItem> Apply(IReadOnlyList<LibraryGameItem> all, string key, string? query,
+        LibrarySort sort)
     {
         var filtered = all
             .Where(g => key == LibraryViewModel.HiddenKey ? g.IsHidden : !g.IsHidden)

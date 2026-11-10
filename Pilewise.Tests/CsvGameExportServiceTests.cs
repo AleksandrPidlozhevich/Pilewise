@@ -115,7 +115,7 @@ public class CsvGameExportServiceTests
         var rows = new[]
         {
             CsvFormat.CreateRow("Steam", "Zelda", "Steam:2"),
-            CsvFormat.CreateRow("Steam", "Amnesia", "Steam:1"),
+            CsvFormat.CreateRow("Steam", "Amnesia", "Steam:1")
         };
 
         var lines = CsvFormat.Serialize(rows)
@@ -172,7 +172,7 @@ public class CsvGameExportServiceTests
     [Fact]
     public void CreateRow_InfersPlatformFromIdEvenWithoutPlatformLabel()
     {
-        var row = CsvFormat.CreateRow(platform: "", name: "Doom", idField: "Steam:379720");
+        var row = CsvFormat.CreateRow("", "Doom", "Steam:379720");
 
         Assert.True(row.HasSteam);
         Assert.Equal(379720, row.SteamGameId);
@@ -278,7 +278,7 @@ public class CsvGameExportServiceTests
         var steam = new[] { new SteamGame { Name = "Cyberpunk 2077", GameID = 1091500 } };
         var gog = new[] { new GogGame { Title = "Cyberpunk 2077", Id = 1423049311, IsGame = true } };
 
-        var rows = CsvGameExportService.BuildFromLibraries(steam, epicGames: null, gogGames: gog);
+        var rows = CsvGameExportService.BuildFromLibraries(steam, null, gog);
 
         var row = Assert.Single(rows);
         Assert.True(row.HasSteam);
@@ -348,13 +348,14 @@ public class CsvGameExportServiceTests
         row.HasGog = true;
         row.IsGamePass = true;
         row.Name = "Portal 2";
-        Assert.Equal(("Steam/GOG/Game Pass", "Steam:400; GOG:7", "portal 2"), (row.PlatformText, row.IdText, row.NameKey));
+        Assert.Equal(("Steam/GOG/Game Pass", "Steam:400; GOG:7", "portal 2"),
+            (row.PlatformText, row.IdText, row.NameKey));
         Assert.Equal(["Steam:400", "GOG:7"], row.Keys);
 
         var clone = row.Clone();
         clone.SteamGameId = null;
         Assert.Equal(["GOG:7"], clone.Keys);
-        Assert.Equal(["Steam:400", "GOG:7"], row.Keys);   // the original keeps its own cache
+        Assert.Equal(["Steam:400", "GOG:7"], row.Keys); // the original keeps its own cache
 
         var unnamed = CsvFormat.CreateRow("Epic", "Alan Wake", null);
         Assert.Equal(["Name:alan wake"], unnamed.Keys);

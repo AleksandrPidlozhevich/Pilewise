@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Pilewise.Services;
 using Xunit;
-
 using Pilewise.Tests.Fakes;
 
 namespace Pilewise.Tests;
@@ -16,14 +15,14 @@ public class OwnershipAndSyncHistoryTests
     public void Ownership_Matched_IsOwned()
     {
         var row = CsvFormat.CreateRow("Steam", "Portal", "Steam:400");
-        Assert.True(CsvGameExportService.Ownership(row, matched: true, SteamAndGog));
+        Assert.True(CsvGameExportService.Ownership(row, true, SteamAndGog));
     }
 
     [Fact]
     public void Ownership_MissingFromFetchedStores_IsNotOwned()
     {
         var row = CsvFormat.CreateRow("Steam/GOG", "Witcher", "Steam:1; GOG:2");
-        Assert.False(CsvGameExportService.Ownership(row, matched: false, SteamAndGog));
+        Assert.False(CsvGameExportService.Ownership(row, false, SteamAndGog));
     }
 
     [Fact]
@@ -31,14 +30,14 @@ public class OwnershipAndSyncHistoryTests
     {
         // Epic session expired → Epic wasn't fetched, so a missing Epic game proves nothing.
         var row = CsvFormat.CreateRow("Steam/Epic", "Alan Wake", "Steam:1; Epic:ns/cat");
-        Assert.Null(CsvGameExportService.Ownership(row, matched: false, SteamAndGog));
+        Assert.Null(CsvGameExportService.Ownership(row, false, SteamAndGog));
     }
 
     [Fact]
     public void Ownership_RowWithoutStore_IsUnknown()
     {
         var row = new CsvGameExportRow { Name = "Hand-typed row" };
-        Assert.Null(CsvGameExportService.Ownership(row, matched: false, SteamAndGog));
+        Assert.Null(CsvGameExportService.Ownership(row, false, SteamAndGog));
     }
 
     [Fact]
@@ -47,8 +46,8 @@ public class OwnershipAndSyncHistoryTests
         IList<IList<object>> sheet =
         [
             new List<object> { "Platform", "Name", "ID", "Completed", "Owned" },
-            new List<object> { "Steam", "Portal", "Steam:400", false, false },   // owned again → tick
-            new List<object> { "Steam", "Refunded", "Steam:9", false, true },    // gone → untick
+            new List<object> { "Steam", "Portal", "Steam:400", false, false }, // owned again → tick
+            new List<object> { "Steam", "Refunded", "Steam:9", false, true }, // gone → untick
             new List<object> { "Epic", "Alan Wake", "Epic:ns/cat", false, true } // Epic not fetched → keep
         ];
 
@@ -83,8 +82,10 @@ public class OwnershipAndSyncHistoryTests
     {
         Assert.Null(SyncHistory.Describe(null, Now));
         Assert.Equal("Last sync: today 14:20", SyncHistory.Describe(Now.AddMinutes(-40), Now));
-        Assert.Equal("Last sync: yesterday 09:05", SyncHistory.Describe(new DateTimeOffset(2026, 10, 16, 9, 5, 0, Now.Offset), Now));
-        Assert.StartsWith("Last sync: 3 ", SyncHistory.Describe(new DateTimeOffset(2026, 10, 3, 18, 40, 0, Now.Offset), Now));
+        Assert.Equal("Last sync: yesterday 09:05",
+            SyncHistory.Describe(new DateTimeOffset(2026, 10, 16, 9, 5, 0, Now.Offset), Now));
+        Assert.StartsWith("Last sync: 3 ",
+            SyncHistory.Describe(new DateTimeOffset(2026, 10, 3, 18, 40, 0, Now.Offset), Now));
     }
 
     [Fact]
@@ -106,5 +107,4 @@ public class OwnershipAndSyncHistoryTests
         Assert.Equal(Now, reloaded.Get(SyncHistory.Notion));
         Assert.Null(reloaded.Get(SyncHistory.Csv));
     }
-
 }

@@ -54,19 +54,25 @@ public sealed class WindowDialogService : IDialogService
         return files.FirstOrDefault();
     }
 
-    public Task ShowErrorAsync(string title, Exception exception) =>
-        ShowDialogAsync(new ErrorWindow(title, BuildErrorMessage(exception)));
+    public Task ShowErrorAsync(string title, Exception exception)
+    {
+        return ShowDialogAsync(new ErrorWindow(title, BuildErrorMessage(exception)));
+    }
 
     public void ShowLibrary(LibraryViewModel library)
     {
         if (MainWindow is { } owner) new LibraryWindow { DataContext = library }.Show(owner);
     }
 
-    public Task<bool> ConfirmNotionExportAsync(NotionExportPreviewViewModel preview) =>
-        ShowDialogAsync(new NotionExportPreviewWindow { DataContext = preview });
+    public Task<bool> ConfirmNotionExportAsync(NotionExportPreviewViewModel preview)
+    {
+        return ShowDialogAsync(new NotionExportPreviewWindow { DataContext = preview });
+    }
 
-    public Task<bool> ConfirmDuplicatesAsync(DuplicatesViewModel duplicates) =>
-        ShowDialogAsync(new DuplicatesWindow { DataContext = duplicates });
+    public Task<bool> ConfirmDuplicatesAsync(DuplicatesViewModel duplicates)
+    {
+        return ShowDialogAsync(new DuplicatesWindow { DataContext = duplicates });
+    }
 
     private SyncLogWindow? _syncLogWindow;
 

@@ -104,7 +104,7 @@ public sealed class FileStateStore : IStateStore
             Directory.CreateDirectory(_folder);
             // Write aside, then swap in: a crash mid-write leaves the previous file intact.
             File.WriteAllText(temp, value, Encoding.UTF8);
-            File.Move(temp, path, overwrite: true);
+            File.Move(temp, path, true);
             return true;
         }
         catch (Exception ex)

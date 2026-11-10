@@ -90,7 +90,8 @@ public partial class MainWindow : Window
             if (saved == null) return;
 
             var screens = Screens.All
-                .Select(s => new ScreenArea(s.WorkingArea.X, s.WorkingArea.Y, s.WorkingArea.Width, s.WorkingArea.Height))
+                .Select(s =>
+                    new ScreenArea(s.WorkingArea.X, s.WorkingArea.Y, s.WorkingArea.Width, s.WorkingArea.Height))
                 .ToList();
             var scaling = Screens.Primary?.Scaling ?? 1;
             var (width, height, keepPosition) = saved.Fit(screens, scaling, MinWidth, MinHeight);
@@ -201,8 +202,7 @@ public partial class MainWindow : Window
         try
         {
             await Task.Delay(TimeSpan.FromSeconds(3));
-            await Dispatcher.UIThread.InvokeAsync(
-                () => { webView.Source = _clients!.CreateGog().LoginRequestUri; });
+            await Dispatcher.UIThread.InvokeAsync(() => { webView.Source = _clients!.CreateGog().LoginRequestUri; });
         }
         catch (Exception ex)
         {

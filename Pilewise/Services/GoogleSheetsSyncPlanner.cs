@@ -6,22 +6,42 @@ using System.Linq;
 namespace Pilewise.Services;
 
 public sealed record SheetColumns(
-    int Platform, int Name, int Id, int Completed, int Playtime = -1, int LastPlayed = -1, int Owned = -1,
-    int StoreLink = -1, int Cover = -1, int Linux = -1)
+    int Platform,
+    int Name,
+    int Id,
+    int Completed,
+    int Playtime = -1,
+    int LastPlayed = -1,
+    int Owned = -1,
+    int StoreLink = -1,
+    int Cover = -1,
+    int Linux = -1)
 {
     public int Width =>
         new[] { Platform, Name, Id, Completed, Playtime, LastPlayed, Owned, StoreLink, Cover, Linux }.Max() + 1;
 }
 
-public sealed record SheetRow(int RowIndex, CsvGameExportRow Row, string StoredPlatform, string StoredId, bool? Completed);
+public sealed record SheetRow(
+    int RowIndex,
+    CsvGameExportRow Row,
+    string StoredPlatform,
+    string StoredId,
+    bool? Completed);
 
 public sealed record SheetContents(SheetColumns Columns, bool NeedsUpgrade, IReadOnlyList<SheetRow> Rows);
 
 public sealed record SheetHeaderCell(int Column, string Text);
 
 public sealed record SheetRowUpdate(
-    int RowIndex, string Platform, string Id, double? PlaytimeHours = null, string? LastPlayed = null,
-    bool? Owned = null, string? StoreLink = null, string? CoverUrl = null, string? Linux = null,
+    int RowIndex,
+    string Platform,
+    string Id,
+    double? PlaytimeHours = null,
+    string? LastPlayed = null,
+    bool? Owned = null,
+    string? StoreLink = null,
+    string? CoverUrl = null,
+    string? Linux = null,
     bool? Completed = null);
 
 public sealed record GoogleSheetsSyncPlan(
@@ -37,7 +57,10 @@ public sealed record GoogleSheetsSyncPlan(
     IReadOnlyList<bool>? NewRowsCompleted = null,
     CompletionSync? Completion = null)
 {
-    public bool NewRowCompleted(int index) => NewRowsCompleted is { } ticks && index < ticks.Count && ticks[index];
+    public bool NewRowCompleted(int index)
+    {
+        return NewRowsCompleted is { } ticks && index < ticks.Count && ticks[index];
+    }
 
     public int TotalRows => FirstNewRowIndex + NewRows.Count;
 }
@@ -55,7 +78,10 @@ public static class GoogleSheetsSyncPlanner
     public const string CoverHeader = "Cover";
     public const string LinuxHeader = LinuxRating.Column;
 
-    public static string CoverFormula(string url) => $"=IMAGE(\"{url.Replace("\"", "\"\"")}\")";
+    public static string CoverFormula(string url)
+    {
+        return $"=IMAGE(\"{url.Replace("\"", "\"\"")}\")";
+    }
 
     private static readonly string[] IdHeaders = [IdHeader, "Game ID", "GameID"];
 
@@ -106,7 +132,8 @@ public static class GoogleSheetsSyncPlanner
                 linuxByAppId ?? new Dictionary<int, string>());
 
         var tracked = existing.Where(e => !hiddenRows.Contains(e.Row)).ToList();
-        var completion = completed?.Begin(target ?? SyncHistory.GoogleSheets, tracked.Select(e => (e.Row, e.StoredCompleted)));
+        var completion = completed?.Begin(target ?? SyncHistory.GoogleSheets,
+            tracked.Select(e => (e.Row, e.StoredCompleted)));
 
         var columns = layout.Columns;
         var updates = new List<SheetRowUpdate>();
@@ -246,8 +273,10 @@ public static class GoogleSheetsSyncPlanner
             owned, storeLink, cover, completed, linuxOrig);
     }
 
-    private static SheetColumns FreshColumns(bool includeLinux) =>
-        includeLinux ? new SheetColumns(0, 1, 2, 3, Linux: 4) : new SheetColumns(0, 1, 2, 3);
+    private static SheetColumns FreshColumns(bool includeLinux)
+    {
+        return includeLinux ? new SheetColumns(0, 1, 2, 3, Linux: 4) : new SheetColumns(0, 1, 2, 3);
+    }
 
     private static List<SheetHeaderCell> FullHeader(SheetColumns c)
     {
@@ -263,9 +292,17 @@ public static class GoogleSheetsSyncPlanner
     }
 
     private sealed record ExistingRow(
-        int RowIndex, CsvGameExportRow Row, string StoredPlatform, string StoredId,
-        double? StoredPlaytime, string StoredLastPlayed, bool? StoredOwned, string StoredLink, string StoredCover,
-        bool? StoredCompleted, string StoredLinux);
+        int RowIndex,
+        CsvGameExportRow Row,
+        string StoredPlatform,
+        string StoredId,
+        double? StoredPlaytime,
+        string StoredLastPlayed,
+        bool? StoredOwned,
+        string StoredLink,
+        string StoredCover,
+        bool? StoredCompleted,
+        string StoredLinux);
 
     private static List<ExistingRow> ReadExistingRows(IList<IList<object>> values, Layout layout, int rowShift)
     {
@@ -328,6 +365,8 @@ public static class GoogleSheetsSyncPlanner
         };
     }
 
-    private static string Cell(IList<object> row, int index) =>
-        index >= 0 && index < row.Count ? row[index]?.ToString()?.Trim() ?? string.Empty : string.Empty;
+    private static string Cell(IList<object> row, int index)
+    {
+        return index >= 0 && index < row.Count ? row[index]?.ToString()?.Trim() ?? string.Empty : string.Empty;
+    }
 }

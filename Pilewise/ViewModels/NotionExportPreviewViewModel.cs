@@ -21,8 +21,10 @@ public sealed class NotionExportPreviewViewModel : ViewModelBase
             new GameLibraryResult([], false, false, false, false, false, false),
             [new NotionPropertyToCreate("GameID", "rich_text")],
             [new NotionPageCreate("Alan Wake", "Epic", new object())],
-            [new NotionPageUpdate("p1", "The Witcher 3", "Steam · Steam:292030",
-                "Steam/GOG · Steam:292030; GOG:1207664643", new object())],
+            [
+                new NotionPageUpdate("p1", "The Witcher 3", "Steam · Steam:292030",
+                    "Steam/GOG · Steam:292030; GOG:1207664643", new object())
+            ],
             120,
             [new NotionGoneGame("Refunded Game", "Steam")],
             false))

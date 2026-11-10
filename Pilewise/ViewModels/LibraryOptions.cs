@@ -21,7 +21,10 @@ public sealed record LibraryActions(
 
 public sealed record LibrarySortOption(string Label, LibrarySort Sort)
 {
-    public override string ToString() => Label;
+    public override string ToString()
+    {
+        return Label;
+    }
 }
 
 public enum LibrarySort
@@ -34,5 +37,8 @@ public enum LibrarySort
 
 public sealed record LibraryFilterOption(string Label, string Key, int Count)
 {
-    public override string ToString() => $"{Label} ({Count})";
+    public override string ToString()
+    {
+        return $"{Label} ({Count})";
+    }
 }

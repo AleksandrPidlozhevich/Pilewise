@@ -6,7 +6,10 @@ namespace Pilewise.Services;
 
 public static class CsvBackup
 {
-    public static string PathFor(string csvPath) => csvPath + ".bak";
+    public static string PathFor(string csvPath)
+    {
+        return csvPath + ".bak";
+    }
 
     public static async Task<string?> WriteAsync(string? csvPath, string? previousContent)
     {

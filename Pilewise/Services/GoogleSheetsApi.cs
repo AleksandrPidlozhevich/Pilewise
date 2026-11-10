@@ -61,18 +61,26 @@ internal static class GoogleSheetsApi
                 .BatchUpdate(new BatchUpdateSpreadsheetRequest { Requests = requests }, spreadsheetId)
                 .ExecuteAsync(ct);
 
-        static Request Insert(int sheetId, string dimension) => new()
+        static Request Insert(int sheetId, string dimension)
         {
-            InsertDimension = new InsertDimensionRequest
+            return new Request
             {
-                Range = new DimensionRange { SheetId = sheetId, Dimension = dimension, StartIndex = 0, EndIndex = 1 }
-            }
-        };
+                InsertDimension = new InsertDimensionRequest
+                {
+                    Range = new DimensionRange
+                        { SheetId = sheetId, Dimension = dimension, StartIndex = 0, EndIndex = 1 }
+                }
+            };
+        }
 
-        static Request Append(int sheetId, string dimension, int length) => new()
+        static Request Append(int sheetId, string dimension, int length)
         {
-            AppendDimension = new AppendDimensionRequest { SheetId = sheetId, Dimension = dimension, Length = length }
-        };
+            return new Request
+            {
+                AppendDimension = new AppendDimensionRequest
+                    { SheetId = sheetId, Dimension = dimension, Length = length }
+            };
+        }
     }
 
     // Header cells, changed Platform/ID cells and the new rows, all in one RAW write (RAW so ids
@@ -105,13 +113,11 @@ internal static class GoogleSheetsApi
         }
 
         if (plan.NewRows.Count > 0)
-        {
             data.Add(new ValueRange
             {
                 Range = $"{sheetRef}!A{plan.FirstNewRowIndex + 1}",
                 Values = plan.NewRows.Select((row, i) => BuildRow(plan.Columns, row, plan.NewRowCompleted(i))).ToList()
             });
-        }
 
         if (data.Count == 0) return;
 
@@ -145,11 +151,13 @@ internal static class GoogleSheetsApi
 
         var data = plan.Updates
             .Where(u => u.CoverUrl != null)
-            .Select(u => CellValue(sheetRef, plan.Columns.Cover, u.RowIndex, GoogleSheetsSyncPlanner.CoverFormula(u.CoverUrl!)))
+            .Select(u => CellValue(sheetRef, plan.Columns.Cover, u.RowIndex,
+                GoogleSheetsSyncPlanner.CoverFormula(u.CoverUrl!)))
             .Concat(plan.NewRows
                 .Select((row, i) => (row.CoverUrl, Index: plan.FirstNewRowIndex + i))
                 .Where(c => c.CoverUrl != null)
-                .Select(c => CellValue(sheetRef, plan.Columns.Cover, c.Index, GoogleSheetsSyncPlanner.CoverFormula(c.CoverUrl!))))
+                .Select(c => CellValue(sheetRef, plan.Columns.Cover, c.Index,
+                    GoogleSheetsSyncPlanner.CoverFormula(c.CoverUrl!))))
             .ToList();
         if (data.Count == 0) return;
 
@@ -192,11 +200,14 @@ internal static class GoogleSheetsApi
             .ExecuteAsync(ct);
     }
 
-    internal static ValueRange CellValue(string sheetRef, int column, int row, object value) => new()
+    internal static ValueRange CellValue(string sheetRef, int column, int row, object value)
     {
-        Range = $"{sheetRef}!{ColumnLetter(column)}{row + 1}",
-        Values = [new List<object> { value }]
-    };
+        return new ValueRange
+        {
+            Range = $"{sheetRef}!{ColumnLetter(column)}{row + 1}",
+            Values = [new List<object> { value }]
+        };
+    }
 
     internal static string ColumnLetter(int index)
     {
@@ -206,5 +217,8 @@ internal static class GoogleSheetsApi
         return letters;
     }
 
-    internal static string QuoteSheetTitle(string title) => $"'{title.Replace("'", "''")}'";
+    internal static string QuoteSheetTitle(string title)
+    {
+        return $"'{title.Replace("'", "''")}'";
+    }
 }

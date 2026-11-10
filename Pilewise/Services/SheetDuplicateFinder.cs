@@ -20,10 +20,12 @@ public sealed record SheetDuplicateGroup(SheetRow Keep, IReadOnlyList<SheetRow> 
 
 public static class SheetDuplicateFinder
 {
-    public static IReadOnlyList<SheetDuplicateGroup> Find(IReadOnlyList<SheetRow> rows) =>
-        DuplicateFinder.Find(rows.OrderBy(r => r.RowIndex), r => r.Row)
+    public static IReadOnlyList<SheetDuplicateGroup> Find(IReadOnlyList<SheetRow> rows)
+    {
+        return DuplicateFinder.Find(rows.OrderBy(r => r.RowIndex), r => r.Row)
             .Select(m => new SheetDuplicateGroup(m.Keep, m.Remove, m.Merged))
             .ToList();
+    }
 
     /// <summary>
     /// True when every row the groups refer to is still at the same position with the same name and

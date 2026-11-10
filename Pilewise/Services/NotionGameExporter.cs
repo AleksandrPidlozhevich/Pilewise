@@ -10,8 +10,12 @@ using System.Threading.Tasks;
 namespace Pilewise.Services;
 
 public sealed class NotionGameExporter(
-    IGameLibraryService libraryService, INotionGateway notion, ILogService log, BacklogProgress? backlog = null,
-    ISteamLinuxLookup? linux = null, CompletedGames? completed = null)
+    IGameLibraryService libraryService,
+    INotionGateway notion,
+    ILogService log,
+    BacklogProgress? backlog = null,
+    ISteamLinuxLookup? linux = null,
+    CompletedGames? completed = null)
 {
     public async Task ExportAsync(
         string? steamApiKey, string? steamId, string? notionToken, string? dbId,
@@ -102,7 +106,7 @@ public sealed class NotionGameExporter(
             .Select(row => (Row: row, Completed: writesCompleted ? completion!.IsCompleted(row) : (bool?)null))
             .ToList();
         var toCreate = created.Select(c => new NotionPageCreate(c.Row.Name, c.Row.PlatformText,
-                BuildProperties(c.Row, true, optional, true, setLink: true, completed: c.Completed), c.Row.CoverUrl))
+                BuildProperties(c.Row, true, optional, true, true, c.Completed), c.Row.CoverUrl))
             .ToList();
 
         var fetched = library.FetchedStores;
@@ -124,7 +128,7 @@ public sealed class NotionGameExporter(
 
         var toUpdate = pages
             .Where(p => Desired(p.Page.Row, p.Columns, p.Owned, p.Completed) !=
-                        Stored(p.Page, p.Columns, p.Owned, p.Completed != null) || p.Cover || p.Link)
+                Stored(p.Page, p.Columns, p.Owned, p.Completed != null) || p.Cover || p.Link)
             .Select(p =>
             {
                 var (e, owned) = (p.Page, p.Owned);
@@ -142,14 +146,15 @@ public sealed class NotionGameExporter(
                         Wanted(optional.LastPlayed, e.Row.LastPlayedDate, e.Row.LastPlayedDate),
                         Wanted(optional.Owned, owned, owned),
                         p.Cover, p.Link,
-                        linux: optional.Linux ? e.Row.Linux : null,
-                        completed: p.Completed),
+                        optional.Linux ? e.Row.Linux : null,
+                        p.Completed),
                     BuildProperties(e.Row, false, p.Columns, owned, p.Link, p.Completed),
                     p.Cover ? e.Row.CoverUrl : null);
             })
             .ToList();
 
-        var trackedTicks = pages.Where(p => !p.Hidden).Select(p => (p.Page.Row, Completed: p.Completed ?? p.Page.Completed))
+        var trackedTicks = pages.Where(p => !p.Hidden)
+            .Select(p => (p.Page.Row, Completed: p.Completed ?? p.Page.Completed))
             .ToList();
         var completionAfter = trackedTicks
             .Where(t => t.Completed != null)
@@ -170,7 +175,10 @@ public sealed class NotionGameExporter(
             completionAfter);
     }
 
-    public static string TargetOf(string? dbId) => $"Notion:{dbId?.Trim()}";
+    public static string TargetOf(string? dbId)
+    {
+        return $"Notion:{dbId?.Trim()}";
+    }
 
     public async Task ApplyAsync(
         string? notionToken, string? dbId, NotionExportPlan plan,
@@ -230,7 +238,8 @@ public sealed class NotionGameExporter(
     }
 
     public async Task<BacklogSnapshot?> ReadBacklogAsync(
-        string? notionToken, string? dbId, Func<CsvGameExportRow, bool>? isHidden = null, CancellationToken ct = default)
+        string? notionToken, string? dbId, Func<CsvGameExportRow, bool>? isHidden = null,
+        CancellationToken ct = default)
     {
         using var notionApiClient = notion.CreateClient(notionToken, dbId);
         var pages = await notion.CreateFetcher(notionApiClient).FetchRowsAsync(ct);
@@ -262,8 +271,10 @@ public sealed class NotionGameExporter(
         var total = groups.Count + removed.Count;
         var done = 0;
 
-        void ReportPage() =>
+        void ReportPage()
+        {
             progress?.Report(new StoreFetchProgress(Interlocked.Increment(ref done), total, "Merging duplicates"));
+        }
 
         // Tags + ids only: no opt-in columns, and the Store link is left as the user has it.
         var none = new NotionOptionalColumns(false, false);

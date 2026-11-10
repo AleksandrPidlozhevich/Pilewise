@@ -46,8 +46,7 @@ public sealed partial class LibraryViewModel : ViewModelBase
 
     [ObservableProperty] private string? notice;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(RefreshLabel))]
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(RefreshLabel))]
     private bool isRefreshing;
 
     public bool HasPicked => Picked != null;
@@ -126,11 +125,20 @@ public sealed partial class LibraryViewModel : ViewModelBase
         }
     }
 
-    partial void OnSearchTextChanged(string? value) => ApplyFilter();
+    partial void OnSearchTextChanged(string? value)
+    {
+        ApplyFilter();
+    }
 
-    partial void OnSelectedFilterChanged(LibraryFilterOption value) => ApplyFilter();
+    partial void OnSelectedFilterChanged(LibraryFilterOption value)
+    {
+        ApplyFilter();
+    }
 
-    partial void OnSelectedSortChanged(LibrarySortOption value) => ApplyFilter();
+    partial void OnSelectedSortChanged(LibrarySortOption value)
+    {
+        ApplyFilter();
+    }
 
     public bool CanOpenStorePage => _actions.OpenLink != null;
 
@@ -154,8 +162,10 @@ public sealed partial class LibraryViewModel : ViewModelBase
         ? "Tick a game when you finish it · exports keep the ticks the same in your CSV, Notion and Sheets" +
           (CanRefreshBacklog ? $" · Refresh reads new ticks from {_actions.BacklogSource}" : "")
         : _backlog is { } b
-        ? $"✓ marks from {b.Target}, as of {b.When.ToLocalTime().ToString("d MMM HH:mm", System.Globalization.CultureInfo.CurrentCulture)}"
-        : CanRefreshBacklog ? $"No ✓ marks yet: read them from {_actions.BacklogSource}" : null;
+            ? $"✓ marks from {b.Target}, as of {b.When.ToLocalTime().ToString("d MMM HH:mm", System.Globalization.CultureInfo.CurrentCulture)}"
+            : CanRefreshBacklog
+                ? $"No ✓ marks yet: read them from {_actions.BacklogSource}"
+                : null;
 
     public bool HasBacklogText => BacklogText != null;
 
@@ -170,7 +180,8 @@ public sealed partial class LibraryViewModel : ViewModelBase
             var snapshot = await refresh(CancellationToken.None);
             if (snapshot == null)
             {
-                Notice = $"No completion column found in {_actions.BacklogSource} (a Completed / Done checkbox or a Status).";
+                Notice =
+                    $"No completion column found in {_actions.BacklogSource} (a Completed / Done checkbox or a Status).";
                 return;
             }
 
@@ -223,9 +234,11 @@ public sealed partial class LibraryViewModel : ViewModelBase
         }
     }
 
-    public static string ListText(IEnumerable<LibraryGameItem> games) =>
-        string.Join(Environment.NewLine, games.Select(g =>
+    public static string ListText(IEnumerable<LibraryGameItem> games)
+    {
+        return string.Join(Environment.NewLine, games.Select(g =>
             string.Join('\t', g.Name, string.Join("/", g.Platforms), g.PlaytimeText, g.LastPlayedText, g.LinuxText)));
+    }
 
     [RelayCommand]
     private void PickForMe()
@@ -243,7 +256,8 @@ public sealed partial class LibraryViewModel : ViewModelBase
         Notice = null;
     }
 
-    public static LibraryGameItem? Pick(IEnumerable<LibraryGameItem> shown, Random random, LibraryGameItem? previous = null)
+    public static LibraryGameItem? Pick(IEnumerable<LibraryGameItem> shown, Random random,
+        LibraryGameItem? previous = null)
     {
         var pool = shown.Where(g => !g.IsHidden && !g.IsCompleted).ToList();
         if (pool.Count == 0) return null;
@@ -281,19 +295,26 @@ public sealed partial class LibraryViewModel : ViewModelBase
         Rebuild();
     }
 
-    private int IndexOf(LibraryGameItem item) => _all.FindIndex(g => ReferenceEquals(g.Row, item.Row));
+    private int IndexOf(LibraryGameItem item)
+    {
+        return _all.FindIndex(g => ReferenceEquals(g.Row, item.Row));
+    }
 
     private void Rebuild()
     {
         var key = SelectedFilter?.Key ?? AllKey;
         Filters = BuildFilters();
         SelectedFilter = Filters.FirstOrDefault(f => f.Key == key) ?? Filters[0];
-        Stats = LibraryStats.Compute(_all.Where(g => !g.IsHidden), _backlog, _completed != null ? PilewiseSource : null);
+        Stats = LibraryStats.Compute(_all.Where(g => !g.IsHidden), _backlog,
+            _completed != null ? PilewiseSource : null);
         ApplyFilter();
     }
 
 
-    private List<LibraryFilterOption> BuildFilters() => LibraryQuery.BuildFilters(_all, _backlog != null || _completed != null);
+    private List<LibraryFilterOption> BuildFilters()
+    {
+        return LibraryQuery.BuildFilters(_all, _backlog != null || _completed != null);
+    }
 
     private void ApplyFilter()
     {

@@ -83,7 +83,10 @@ public sealed partial class StoreConnectionViewModel : ObservableObject
             webAuth);
     }
 
-    public Task InitializeFromCacheAsync() => _connector.InitializeFromCacheAsync();
+    public Task InitializeFromCacheAsync()
+    {
+        return _connector.InitializeFromCacheAsync();
+    }
 
     [RelayCommand]
     private async Task StartConnect()
@@ -103,10 +106,16 @@ public sealed partial class StoreConnectionViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void Disconnect() => _connector.SignOut();
+    private void Disconnect()
+    {
+        _connector.SignOut();
+    }
 
     [RelayCommand]
-    private void OpenInfo() => _openInfo?.Invoke();
+    private void OpenInfo()
+    {
+        _openInfo?.Invoke();
+    }
 
     partial void OnAuthorizationCodeChanged(string? value)
     {

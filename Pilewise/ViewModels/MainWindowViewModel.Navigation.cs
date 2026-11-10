@@ -28,13 +28,22 @@ public partial class MainWindowViewModel
     public string SidebarToggleTip => IsSidebarCollapsed ? "Expand the menu" : "Collapse the menu to icons";
 
     [RelayCommand]
-    private void ToggleSidebar() => IsSidebarCollapsed = !IsSidebarCollapsed;
+    private void ToggleSidebar()
+    {
+        IsSidebarCollapsed = !IsSidebarCollapsed;
+    }
 
     [RelayCommand]
-    private void GoToSources() => SelectedTab = (int)MainTab.Sources;
+    private void GoToSources()
+    {
+        SelectedTab = (int)MainTab.Sources;
+    }
 
     [RelayCommand]
-    private void GoToExport() => SelectedTab = (int)MainTab.Export;
+    private void GoToExport()
+    {
+        SelectedTab = (int)MainTab.Export;
+    }
 
     public static string ShortcutsText
     {
@@ -46,8 +55,10 @@ public partial class MainWindowViewModel
         }
     }
 
-    private void ChooseStartTab(bool firstRun) =>
+    private void ChooseStartTab(bool firstRun)
+    {
         SelectedTab = (int)(firstRun ? MainTab.Sources : MainTab.Export);
+    }
 
     private const string NeedsSource = "Needs a source";
 
@@ -67,7 +78,8 @@ public partial class MainWindowViewModel
 
     /// <summary>0 = follow the system, 1 = light, 2 = dark (saved as <c>Theme: Light / Dark</c>).</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsSystemTheme), nameof(IsLightTheme), nameof(IsDarkTheme), nameof(ThemeThumbMargin),
+    [NotifyPropertyChangedFor(nameof(IsSystemTheme), nameof(IsLightTheme), nameof(IsDarkTheme),
+        nameof(ThemeThumbMargin),
         nameof(ThemeTip))]
     private int themeIndex;
 
@@ -87,16 +99,28 @@ public partial class MainWindowViewModel
     public Thickness ThemeThumbMargin => new(ThemeIndex * ThemeOptionWidth, 0, 0, 0);
 
     [RelayCommand]
-    private void UseSystemTheme() => ThemeIndex = 0;
+    private void UseSystemTheme()
+    {
+        ThemeIndex = 0;
+    }
 
     [RelayCommand]
-    private void UseLightTheme() => ThemeIndex = 1;
+    private void UseLightTheme()
+    {
+        ThemeIndex = 1;
+    }
 
     [RelayCommand]
-    private void UseDarkTheme() => ThemeIndex = 2;
+    private void UseDarkTheme()
+    {
+        ThemeIndex = 2;
+    }
 
     [RelayCommand]
-    private void CycleTheme() => ThemeIndex = (ThemeIndex + 1) % 3;
+    private void CycleTheme()
+    {
+        ThemeIndex = (ThemeIndex + 1) % 3;
+    }
 
     public string ThemeTip => ThemeIndex switch
     {
@@ -105,12 +129,15 @@ public partial class MainWindowViewModel
         _ => "Theme: system (click for light)"
     };
 
-    private static ThemeVariant ThemeVariantFor(int index) => index switch
+    private static ThemeVariant ThemeVariantFor(int index)
     {
-        1 => ThemeVariant.Light,
-        2 => ThemeVariant.Dark,
-        _ => ThemeVariant.Default
-    };
+        return index switch
+        {
+            1 => ThemeVariant.Light,
+            2 => ThemeVariant.Dark,
+            _ => ThemeVariant.Default
+        };
+    }
 
     private string? ThemeSetting => ThemeIndex switch
     {
@@ -119,10 +146,13 @@ public partial class MainWindowViewModel
         _ => null
     };
 
-    private static int ThemeIndexFor(string? setting) => setting?.Trim().ToLowerInvariant() switch
+    private static int ThemeIndexFor(string? setting)
     {
-        "light" => 1,
-        "dark" => 2,
-        _ => 0
-    };
+        return setting?.Trim().ToLowerInvariant() switch
+        {
+            "light" => 1,
+            "dark" => 2,
+            _ => 0
+        };
+    }
 }

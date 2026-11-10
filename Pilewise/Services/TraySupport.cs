@@ -86,7 +86,8 @@ public static class TraySupport
 
             return process.ExitCode == 0 ? output.GetAwaiter().GetResult() : null;
         }
-        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException or InvalidOperationException)
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException
+                                       or InvalidOperationException)
         {
             return null;
         }

@@ -15,8 +15,10 @@ public class LinuxRatingTests
     [InlineData(null, "platinum", "Platinum")]
     [InlineData(null, "Gold?", "Gold?")]
     [InlineData(false, "Silver?", "Silver?")]
-    public void Label_NativeWins_ElseMedal_IncludingInconclusiveSteam(bool? native, string? tier, string expected) =>
+    public void Label_NativeWins_ElseMedal_IncludingInconclusiveSteam(bool? native, string? tier, string expected)
+    {
         Assert.Equal(expected, LinuxRating.Label(native, tier));
+    }
 
     [Fact]
     public void For_NoSteamId_IsUnknown_EvenWhenTheLookupKnowsOtherGames()
@@ -35,13 +37,14 @@ public class LinuxRatingTests
         var empty = CsvFormat.CreateRow("Steam", "Hades", "Steam:1145360");
 
         Assert.False(LinuxRating.TryGet(kept, new Dictionary<int, string> { [400] = LinuxRating.Unavailable }, out _));
-        Assert.True(LinuxRating.TryGet(empty, new Dictionary<int, string> { [1145360] = LinuxRating.Unavailable }, out var rating));
+        Assert.True(LinuxRating.TryGet(empty, new Dictionary<int, string> { [1145360] = LinuxRating.Unavailable },
+            out var rating));
         Assert.Equal(LinuxRating.Unavailable, rating);
 
         LinuxRating.Apply([kept, empty], new Dictionary<int, string>
         {
             [400] = LinuxRating.Unavailable,
-            [1145360] = LinuxRating.Unavailable,
+            [1145360] = LinuxRating.Unavailable
         });
         Assert.Equal("Gold", kept.Linux);
         Assert.Equal(LinuxRating.Unavailable, empty.Linux);
@@ -50,7 +53,8 @@ public class LinuxRatingTests
     [Fact]
     public void ReadNative_AndReadTier_ParseTheStoreResponses()
     {
-        const string steam = """{"730":{"success":true,"data":{"platforms":{"windows":true,"mac":true,"linux":true}}}}""";
+        const string steam =
+            """{"730":{"success":true,"data":{"platforms":{"windows":true,"mac":true,"linux":true}}}}""";
         const string proton = """{"tier":"gold","confidence":"strong","total":10}""";
 
         Assert.True(LinuxRating.ReadNative(steam, 730));
@@ -67,8 +71,10 @@ public class LinuxRatingTests
     [InlineData("""{"tier":"borked","confidence":"low","total":2}""", null)]
     [InlineData("""{"tier":"borked","confidence":"strong","total":40}""", "Borked")]
     [InlineData("""{"tier":"pending","provisionalTier":"borked","confidence":"inadequate"}""", null)]
-    public void ReadTier_UsesConfidence_AndPendingFallsBackToProvisional(string json, string? expected) =>
+    public void ReadTier_UsesConfidence_AndPendingFallsBackToProvisional(string json, string? expected)
+    {
         Assert.Equal(expected, LinuxRating.ReadTier(json));
+    }
 
     [Fact]
     public void Serialize_IncludeLinux_AddsTheColumn_AndParseStillReadsTheGame()
@@ -77,7 +83,7 @@ public class LinuxRatingTests
         row.Linux = "Native";
         var xbox = CsvFormat.CreateRow("Xbox", "Halo", "Xbox:1");
 
-        var csv = CsvFormat.Serialize([row, xbox], includeLinux: true);
+        var csv = CsvFormat.Serialize([row, xbox], true);
 
         Assert.StartsWith("Platform,Name,ID,Completed,Linux", csv);
         Assert.Contains("Steam,Portal,Steam:400,,Native", csv);
@@ -95,11 +101,12 @@ public class LinuxRatingTests
         const string csv = "Platform,Name,ID,Linux\nSteam,Portal,Steam:400,Native\n";
 
         var existing = CsvFormat.Parse(csv);
-        var (merged, _, _) = CsvGameExportService.Merge(existing, [CsvFormat.CreateRow("Steam", "Portal", "Steam:400")]);
+        var (merged, _, _) =
+            CsvGameExportService.Merge(existing, [CsvFormat.CreateRow("Steam", "Portal", "Steam:400")]);
 
         Assert.True(CsvFormat.HasLinuxColumn(csv));
         Assert.Equal("Native", Assert.Single(merged).Linux);
-        Assert.Contains("Steam,Portal,Steam:400,,Native", CsvFormat.Serialize(merged, includeLinux: true));
+        Assert.Contains("Steam,Portal,Steam:400,,Native", CsvFormat.Serialize(merged, true));
     }
 
     [Fact]

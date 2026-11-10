@@ -10,7 +10,8 @@ public sealed class DuplicatesViewModel : ViewModelBase
     private readonly string _entries;
     private readonly string _whatHappens;
 
-    public DuplicatesViewModel(string target, string entries, IReadOnlyList<IDuplicateGroupView> groups, string whatHappens)
+    public DuplicatesViewModel(string target, string entries, IReadOnlyList<IDuplicateGroupView> groups,
+        string whatHappens)
     {
         _target = target;
         _entries = entries;
@@ -21,7 +22,7 @@ public sealed class DuplicatesViewModel : ViewModelBase
     public static DuplicatesViewModel ForNotion(IReadOnlyList<NotionDuplicateGroup> groups)
     {
         var extra = groups.Sum(g => g.Remove.Count);
-        return new("Notion", "pages", groups,
+        return new DuplicatesViewModel("Notion", "pages", groups,
             $"For each, the oldest page is kept and gets all store tags and ids; {Count(extra, "other page")} " +
             $"{(extra == 1 ? "is" : "are")} moved to Notion's trash, where pages can be restored for 30 days. Notes, " +
             "status and other columns of the kept page are not changed — copy anything you need from the other pages first.");
@@ -30,13 +31,16 @@ public sealed class DuplicatesViewModel : ViewModelBase
     public static DuplicatesViewModel ForSheets(IReadOnlyList<SheetDuplicateGroup> groups)
     {
         var extra = groups.Sum(g => g.Remove.Count);
-        return new("Google Sheets", "rows", groups,
+        return new DuplicatesViewModel("Google Sheets", "rows", groups,
             "For each, the top row is kept and gets all store tags and ids (and the Completed tick, if any copy had it); " +
             $"{Count(extra, "other row")} {(extra == 1 ? "is" : "are")} deleted. Other cells of the kept row are not " +
             "changed. File → Version history in Google Sheets brings deleted rows back if needed.");
     }
 
-    public static string Count(int count, string noun) => $"{count} {noun}{(count == 1 ? "" : "s")}";
+    public static string Count(int count, string noun)
+    {
+        return $"{count} {noun}{(count == 1 ? "" : "s")}";
+    }
 
     public DuplicatesViewModel() : this("Notion", "pages", [], "")
     {

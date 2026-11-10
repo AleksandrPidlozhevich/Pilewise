@@ -3,15 +3,16 @@ using System.Collections.Generic;
 using System.Linq;
 using Pilewise.Services;
 using Xunit;
-
 using Pilewise.Tests.Fakes;
 
 namespace Pilewise.Tests;
 
 public class SyncLogTests
 {
-    private static SyncLogEntry Entry(int minutesAgo, string target = "Notion", bool ok = true, string summary = "Done") =>
-        new(DateTimeOffset.Now.AddMinutes(-minutesAgo), target, ok, summary, "Auto-sync");
+    private static SyncLogEntry Entry(int minutesAgo, string target = "Notion", bool ok = true, string summary = "Done")
+    {
+        return new SyncLogEntry(DateTimeOffset.Now.AddMinutes(-minutesAgo), target, ok, summary, "Auto-sync");
+    }
 
     [Fact]
     public void Entries_AreNewestFirst_AndSurviveAReload()
@@ -19,7 +20,7 @@ public class SyncLogTests
         var state = new MemoryStateStore();
         var log = new SyncLog(state);
         log.Add(Entry(10, "Notion"));
-        log.Add(Entry(5, "Google Sheets", ok: false, summary: "Google authorization failed."));
+        log.Add(Entry(5, "Google Sheets", false, "Google authorization failed."));
 
         var reloaded = new SyncLog(state).Entries;
 
@@ -64,7 +65,10 @@ public class SyncLogTests
     }
 
     [Fact]
-    public void BrokenJson_IsIgnored() => Assert.Empty(SyncLog.Parse("[{oops"));
+    public void BrokenJson_IsIgnored()
+    {
+        Assert.Empty(SyncLog.Parse("[{oops"));
+    }
 
     [Fact]
     public void AutoSync_CsvTarget_RoundTrips()
@@ -74,5 +78,4 @@ public class SyncLogTests
         Assert.Equal("24h Notion, CSV", settings.Serialize());
         Assert.Equal([SyncTarget.Notion, SyncTarget.Csv], AutoSyncSettings.Parse("24h Notion, CSV").Targets);
     }
-
 }

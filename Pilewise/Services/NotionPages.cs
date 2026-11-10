@@ -12,8 +12,9 @@ internal static class NotionPages
     // "Steam/GOG · Steam:1; GOG:2 · 12.5 h · last played 2024-05-01" — preview before/after text.
     internal static string Describe(
         string platforms, string gameId, double? hours = null, string? lastPlayed = null, bool? owned = null,
-        bool addsCover = false, bool addsLink = false, string? linux = null, bool? completed = null) =>
-        string.Join(" · ", new[]
+        bool addsCover = false, bool addsLink = false, string? linux = null, bool? completed = null)
+    {
+        return string.Join(" · ", new[]
         {
             platforms, gameId,
             hours is { } h ? $"{h.ToString(CultureInfo.InvariantCulture)} h" : null,
@@ -24,19 +25,31 @@ internal static class NotionPages
             linux,
             completed == true ? "✓ completed" : null
         }.Where(part => !string.IsNullOrEmpty(part)));
+    }
 
     // A page gets a cover only when it has none (a cover the user picked is never replaced) …
-    internal static bool NeedsCover(NotionGameRow page) => !page.HasCover && page.Row.CoverUrl != null;
+    internal static bool NeedsCover(NotionGameRow page)
+    {
+        return !page.HasCover && page.Row.CoverUrl != null;
+    }
 
     // … and a Store link only while the cell is empty.
-    internal static bool NeedsLink(NotionGameRow page) =>
-        string.IsNullOrWhiteSpace(page.StoreLink) && page.Row.StoreUrl != null;
+    internal static bool NeedsLink(NotionGameRow page)
+    {
+        return string.IsNullOrWhiteSpace(page.StoreLink) && page.Row.StoreUrl != null;
+    }
 
     // An opt-in column's value, only when the column exists and fresh data was fetched for the row
     // (games no longer owned / stores without playtime keep whatever the page already holds).
-    internal static T? Wanted<T>(bool enabled, T? fresh, T? value) => enabled && fresh != null ? value : default;
+    internal static T? Wanted<T>(bool enabled, T? fresh, T? value)
+    {
+        return enabled && fresh != null ? value : default;
+    }
 
-    internal static string PlatformsText(NotionGameRow page) => string.Join("/", page.Platforms.OrderBy(PlatformOrder));
+    internal static string PlatformsText(NotionGameRow page)
+    {
+        return string.Join("/", page.Platforms.OrderBy(PlatformOrder));
+    }
 
     private static int PlatformOrder(string label)
     {
@@ -45,38 +58,53 @@ internal static class NotionPages
     }
 
     internal readonly record struct PageState(
-        int Tags, string? GameId, double? Hours, string? LastPlayed, bool? Owned, string? Linux, bool? Completed);
+        int Tags,
+        string? GameId,
+        double? Hours,
+        string? LastPlayed,
+        bool? Owned,
+        string? Linux,
+        bool? Completed);
 
     internal static PageState Desired(
-        CsvGameExportRow row, NotionOptionalColumns optional, bool? owned, bool? completed) => new(
-        Tags(d => d.Has(row), row.IsGamePass),
-        Text(row.IdText),
-        Wanted(optional.Playtime, row.PlaytimeHours, row.PlaytimeHours),
-        Text(Wanted(optional.LastPlayed, row.LastPlayedDate, row.LastPlayedDate)),
-        Wanted(optional.Owned, owned, owned),
-        Text(optional.Linux ? row.Linux : null),
-        completed);
+        CsvGameExportRow row, NotionOptionalColumns optional, bool? owned, bool? completed)
+    {
+        return new PageState(
+            Tags(d => d.Has(row), row.IsGamePass),
+            Text(row.IdText),
+            Wanted(optional.Playtime, row.PlaytimeHours, row.PlaytimeHours),
+            Text(Wanted(optional.LastPlayed, row.LastPlayedDate, row.LastPlayedDate)),
+            Wanted(optional.Owned, owned, owned),
+            Text(optional.Linux ? row.Linux : null),
+            completed);
+    }
 
     internal static PageState Stored(
-        NotionGameRow info, NotionOptionalColumns optional, bool? owned, bool writesCompleted) => new(
-        Tags(d => info.Platforms.Contains(d.Label), info.Platforms.Contains(Platforms.GamePass)),
-        Text(info.GameId),
-        Wanted(optional.Playtime, info.Row.PlaytimeHours, info.PlaytimeHours),
-        Text(Wanted(optional.LastPlayed, info.Row.LastPlayedDate, info.LastPlayed)),
-        Wanted(optional.Owned, owned, info.Owned ?? false),
-        Text(optional.Linux ? info.Linux : null),
-
-        writesCompleted ? info.Completed ?? false : null);
+        NotionGameRow info, NotionOptionalColumns optional, bool? owned, bool writesCompleted)
+    {
+        return new PageState(
+            Tags(d => info.Platforms.Contains(d.Label), info.Platforms.Contains(Platforms.GamePass)),
+            Text(info.GameId),
+            Wanted(optional.Playtime, info.Row.PlaytimeHours, info.PlaytimeHours),
+            Text(Wanted(optional.LastPlayed, info.Row.LastPlayedDate, info.LastPlayed)),
+            Wanted(optional.Owned, owned, info.Owned ?? false),
+            Text(optional.Linux ? info.Linux : null),
+            writesCompleted ? info.Completed ?? false : null);
+    }
 
     private static int Tags(Func<PlatformDescriptor, bool> has, bool gamePass)
     {
         var bits = gamePass ? 1 : 0;
         for (var i = 0; i < PlatformCatalog.All.Length; i++)
-            if (has(PlatformCatalog.All[i])) bits |= 2 << i;
+            if (has(PlatformCatalog.All[i]))
+                bits |= 2 << i;
         return bits;
     }
 
-    private static string? Text(string? value) => string.IsNullOrEmpty(value) ? null : value;
+    private static string? Text(string? value)
+    {
+        return string.IsNullOrEmpty(value) ? null : value;
+    }
 
     internal static object BuildProperties(
         CsvGameExportRow row, bool includeName, NotionOptionalColumns optional, bool? owned, bool setLink,

@@ -47,12 +47,16 @@ public partial class MainWindowViewModel
         }
     }
 
-    private Task<GameLibraryResult> FetchLibraryAsync() =>
-        _library.FetchAsync(SteamApiKey, SteamId, Progress.CreateReporter(), Progress.SetIndeterminate, Progress.Token);
+    private Task<GameLibraryResult> FetchLibraryAsync()
+    {
+        return _library.FetchAsync(SteamApiKey, SteamId, Progress.CreateReporter(), Progress.SetIndeterminate,
+            Progress.Token);
+    }
 
     [RelayCommand(CanExecute = nameof(CanFetchLibrary))]
-    private Task ExportToCsv() =>
-        RunOperationAsync(FetchingGames, "CSV export", "CSV export error", async () =>
+    private Task ExportToCsv()
+    {
+        return RunOperationAsync(FetchingGames, "CSV export", "CSV export error", async () =>
         {
             var result = await FetchLibraryAsync();
             if (!await HandleFetchedLibraryAsync(result, "Export to CSV")) return;
@@ -65,7 +69,8 @@ public partial class MainWindowViewModel
             ShowResult($"✓ Saved {result.Rows.Count} games to {file.Name}", "Open file", OpenFileAction(file));
             RememberCsvFile(file);
             RecordSync(SyncHistory.Csv);
-        }, SyncHistory.Csv, catchSteamAuth: true);
+        }, SyncHistory.Csv, true);
+    }
 
     [RelayCommand(CanExecute = nameof(CanFetchLibrary))]
     private async Task UpdateCsv()
@@ -75,8 +80,9 @@ public partial class MainWindowViewModel
         if (file != null) await UpdateCsvFileAsync(file);
     }
 
-    private Task UpdateCsvFileAsync(IStorageFile file) =>
-        RunOperationAsync(FetchingGames, "CSV update", "CSV update error", async () =>
+    private Task UpdateCsvFileAsync(IStorageFile file)
+    {
+        return RunOperationAsync(FetchingGames, "CSV update", "CSV update error", async () =>
         {
             var existingContent = await _csv.ReadAsync(file);
             var missingColumns = CsvFormat.GetMissingColumns(existingContent);
@@ -105,7 +111,8 @@ public partial class MainWindowViewModel
                 "Undo", merged.Changed ? UndoCsvUpdateAction(file, backup) : null);
             RememberCsvFile(file);
             RecordSync(SyncHistory.Csv);
-        }, SyncHistory.Csv, catchSteamAuth: true);
+        }, SyncHistory.Csv, true);
+    }
 
     private Func<Task>? UndoCsvUpdateAction(IStorageFile file, string? backup)
     {
@@ -189,8 +196,9 @@ public partial class MainWindowViewModel
     }
 
     [RelayCommand(CanExecute = nameof(CanFetchLibrary))]
-    private Task ViewLibrary() =>
-        RunOperationAsync(FetchingGames, "Library fetch", "Library error", async () =>
+    private Task ViewLibrary()
+    {
+        return RunOperationAsync(FetchingGames, "Library fetch", "Library error", async () =>
         {
             var result = await FetchLibraryAsync();
             if (!await HandleFetchedLibraryAsync(result, "Game library")) return;
@@ -206,6 +214,7 @@ public partial class MainWindowViewModel
                 result.Rows, result.Ignored, _ignored, _backlog.Latest(), LibraryActions(),
                 addedOn: _firstSeen.AddedOn, completed: _completed));
         }, catchSteamAuth: true);
+    }
 
     private LibraryActions LibraryActions()
     {
@@ -236,8 +245,9 @@ public partial class MainWindowViewModel
     }
 
     [RelayCommand(CanExecute = nameof(CanExportNotion))]
-    private Task ExportToNotion() =>
-        RunOperationAsync(FetchingGames, "Notion export", "Export error in Notion", async () =>
+    private Task ExportToNotion()
+    {
+        return RunOperationAsync(FetchingGames, "Notion export", "Export error in Notion", async () =>
         {
             var plan = await _notionExporter.PlanAsync(
                 SteamApiKey, SteamId, NotionToken, DbId, Progress.CreateReporter(), Progress.SetIndeterminate,
@@ -271,10 +281,12 @@ public partial class MainWindowViewModel
                 "Open database", NotionDatabaseAction());
             RecordSync(SyncHistory.Notion);
         }, SyncHistory.Notion);
+    }
 
     [RelayCommand(CanExecute = nameof(CanFindNotionDuplicates))]
-    private Task FindNotionDuplicates() =>
-        RunOperationAsync("Reading the Notion database…", "Notion duplicate search", "Notion duplicates error",
+    private Task FindNotionDuplicates()
+    {
+        return RunOperationAsync("Reading the Notion database…", "Notion duplicate search", "Notion duplicates error",
             async () =>
             {
                 var groups = await _notionExporter.FindDuplicatesAsync(NotionToken, DbId, Progress.Token);
@@ -297,10 +309,13 @@ public partial class MainWindowViewModel
                 ShowResult($"✓ Merged {groups.Count} duplicate games · {trashed} pages moved to Notion's trash",
                     "Open database", NotionDatabaseAction());
             });
+    }
 
     [RelayCommand(CanExecute = nameof(CanFindSheetsDuplicates))]
-    private Task FindSheetsDuplicates() =>
-        RunOperationAsync("Reading the Google Sheet…", "Google Sheets duplicate search", "Google Sheets duplicates error",
+    private Task FindSheetsDuplicates()
+    {
+        return RunOperationAsync("Reading the Google Sheet…", "Google Sheets duplicate search",
+            "Google Sheets duplicates error",
             async () =>
             {
                 var groups = await _sheetsExporter.FindDuplicatesAsync(GoogleSheetsTableName, Progress.Token);
@@ -321,6 +336,7 @@ public partial class MainWindowViewModel
                 await _sheetsExporter.MergeDuplicatesAsync(GoogleSheetsTableName, groups, Progress.Token);
                 ShowResult($"✓ Merged {groups.Count} duplicate games · {groups.Sum(g => g.Remove.Count)} rows deleted");
             });
+    }
 
     private Action? NotionDatabaseAction()
     {
@@ -329,8 +345,9 @@ public partial class MainWindowViewModel
     }
 
     [RelayCommand(CanExecute = nameof(CanExportSheets))]
-    private Task ExportToGoogleSheets() =>
-        RunOperationAsync(FetchingGames, "Google Sheets export", "Google Sheets export error", async () =>
+    private Task ExportToGoogleSheets()
+    {
+        return RunOperationAsync(FetchingGames, "Google Sheets export", "Google Sheets export error", async () =>
         {
             var result = await _sheetsExporter.ExportAsync(
                 GoogleSheetsTableName, SteamApiKey, SteamId, Progress.CreateReporter(), Progress.SetIndeterminate,
@@ -346,8 +363,12 @@ public partial class MainWindowViewModel
                 url != null ? "Open sheet" : null, url != null ? () => _dialogs.OpenLink(url) : null);
             RecordSync(SyncHistory.GoogleSheets);
         }, SyncHistory.GoogleSheets);
+    }
 
-    private static string GoneSuffix(int count) => count > 0 ? $" · {count} no longer owned" : string.Empty;
+    private static string GoneSuffix(int count)
+    {
+        return count > 0 ? $" · {count} no longer owned" : string.Empty;
+    }
 
     private Action? OpenFileAction(IStorageFile file)
     {

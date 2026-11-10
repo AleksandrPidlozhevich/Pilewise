@@ -175,9 +175,13 @@ public class GoogleSheetsSyncPlannerTests
         Assert.Throws<InvalidOperationException>(() => GoogleSheetsSyncPlanner.Plan(sheet, [Steam("Portal", "400")]));
     }
 
-    private static CsvGameExportRow Steam(string name, string id) =>
-        CsvFormat.CreateRow("Steam", name, $"Steam:{id}");
+    private static CsvGameExportRow Steam(string name, string id)
+    {
+        return CsvFormat.CreateRow("Steam", name, $"Steam:{id}");
+    }
 
-    private static IList<IList<object>> Sheet(params object[][] rows) =>
-        rows.Select(r => (IList<object>)r.ToList()).ToList();
+    private static IList<IList<object>> Sheet(params object[][] rows)
+    {
+        return rows.Select(r => (IList<object>)r.ToList()).ToList();
+    }
 }

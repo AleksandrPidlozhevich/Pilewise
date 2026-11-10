@@ -12,8 +12,7 @@ public partial class MainWindowViewModel
 {
     public IReadOnlyList<string> AutoSyncIntervalLabels => AutoSyncSettings.IntervalLabels;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsAutoSyncOn))]
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(IsAutoSyncOn))]
     private int autoSyncIntervalIndex;
 
     [ObservableProperty] private bool autoSyncNotion;
@@ -24,8 +23,7 @@ public partial class MainWindowViewModel
 
     public bool IsAutoSyncOn => AutoSyncIntervalIndex > 0;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AutoSyncCsvHint))]
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(AutoSyncCsvHint))]
     private string? csvFilePath;
 
     public string AutoSyncCsvHint => CsvFilePath is { } path
@@ -34,8 +32,7 @@ public partial class MainWindowViewModel
 
     [ObservableProperty] private bool closeToTray;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CloseToTrayHint), nameof(StartAtLoginHint))]
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(CloseToTrayHint), nameof(StartAtLoginHint))]
     private bool isTrayAvailable = true;
 
     public bool KeepsRunningOnClose => CloseToTray && IsTrayAvailable;
@@ -61,7 +58,10 @@ public partial class MainWindowViewModel
     private readonly DispatcherTimer _autoSyncTimer = new() { Interval = TimeSpan.FromMinutes(1) };
     private readonly Dictionary<SyncTarget, DateTimeOffset> _autoSyncFailures = [];
 
-    private void LoadStartAtLogin() => SetStartAtLoginSilently(_autoStart.IsSupported && _autoStart.IsEnabled);
+    private void LoadStartAtLogin()
+    {
+        SetStartAtLoginSilently(_autoStart.IsSupported && _autoStart.IsEnabled);
+    }
 
     private void SetStartAtLoginSilently(bool value)
     {
@@ -119,13 +119,25 @@ public partial class MainWindowViewModel
         if (_autoSyncTimer.IsEnabled) ScheduleAutoSyncCheck(AutoSyncPlanner.MinCheck);
     }
 
-    partial void OnAutoSyncIntervalIndexChanged(int value) => AutoSyncSettingChanged();
+    partial void OnAutoSyncIntervalIndexChanged(int value)
+    {
+        AutoSyncSettingChanged();
+    }
 
-    partial void OnAutoSyncNotionChanged(bool value) => AutoSyncSettingChanged();
+    partial void OnAutoSyncNotionChanged(bool value)
+    {
+        AutoSyncSettingChanged();
+    }
 
-    partial void OnAutoSyncSheetsChanged(bool value) => AutoSyncSettingChanged();
+    partial void OnAutoSyncSheetsChanged(bool value)
+    {
+        AutoSyncSettingChanged();
+    }
 
-    partial void OnAutoSyncCsvChanged(bool value) => AutoSyncSettingChanged();
+    partial void OnAutoSyncCsvChanged(bool value)
+    {
+        AutoSyncSettingChanged();
+    }
 
     private AutoSyncSettings CurrentAutoSync()
     {
@@ -147,12 +159,15 @@ public partial class MainWindowViewModel
         AutoSyncCsv = settings.Targets.Contains(SyncTarget.Csv);
     }
 
-    private bool CanAutoSync(SyncTarget target) => target switch
+    private bool CanAutoSync(SyncTarget target)
     {
-        SyncTarget.Notion => CanExportNotion,
-        SyncTarget.Sheets => CanExportSheets,
-        _ => CanFetchLibrary && CsvFilePath != null
-    };
+        return target switch
+        {
+            SyncTarget.Notion => CanExportNotion,
+            SyncTarget.Sheets => CanExportSheets,
+            _ => CanFetchLibrary && CsvFilePath != null
+        };
+    }
 
     private async Task RunDueAutoSyncAsync()
     {
@@ -176,7 +191,8 @@ public partial class MainWindowViewModel
         var targets = CurrentAutoSync().Targets.Where(CanAutoSync).ToList();
         if (targets.Count == 0)
         {
-            ShowResult("Pick an Auto-sync interval and tick Notion / Sheets / CSV (with their fields filled in) to use Sync now.");
+            ShowResult(
+                "Pick an Auto-sync interval and tick Notion / Sheets / CSV (with their fields filled in) to use Sync now.");
             ShowWindowRequested?.Invoke();
             return;
         }

@@ -7,7 +7,11 @@ using System.Linq;
 namespace Pilewise.Services;
 
 public sealed record BacklogSnapshot(
-    string Target, DateTimeOffset When, int Completed, int Total, IReadOnlyList<string> CompletedKeys)
+    string Target,
+    DateTimeOffset When,
+    int Completed,
+    int Total,
+    IReadOnlyList<string> CompletedKeys)
 {
     public double Percent => Total == 0 ? 0 : Math.Round(Completed * 100.0 / Total);
 
@@ -64,8 +68,10 @@ public sealed class BacklogProgress
         _store?.Save(StateKey, Serialize(_cache.Values));
     }
 
-    public static string Serialize(IEnumerable<BacklogSnapshot> snapshots) =>
-        JsonConvert.SerializeObject(snapshots.ToList());
+    public static string Serialize(IEnumerable<BacklogSnapshot> snapshots)
+    {
+        return JsonConvert.SerializeObject(snapshots.ToList());
+    }
 
     public static List<BacklogSnapshot> Parse(string? json)
     {

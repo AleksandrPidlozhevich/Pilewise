@@ -1,16 +1,16 @@
 using Pilewise.Services;
-
 using Pilewise.Tests.Fakes;
 
 namespace Pilewise.Tests;
 
 public class FileStateStoreTests : IDisposable
 {
-    private readonly string _folder = Path.Combine(Path.GetTempPath(), "pilewise-state-" + Guid.NewGuid().ToString("N"));
+    private readonly string _folder =
+        Path.Combine(Path.GetTempPath(), "pilewise-state-" + Guid.NewGuid().ToString("N"));
 
     public void Dispose()
     {
-        if (Directory.Exists(_folder)) Directory.Delete(_folder, recursive: true);
+        if (Directory.Exists(_folder)) Directory.Delete(_folder, true);
     }
 
     [Fact]
@@ -23,8 +23,10 @@ public class FileStateStoreTests : IDisposable
     }
 
     [Fact]
-    public void Load_UnknownKey_IsNull() =>
+    public void Load_UnknownKey_IsNull()
+    {
         Assert.Null(new FileStateStore(new SilentLog(), folder: _folder).Load("sync-log"));
+    }
 
     [Fact]
     public void Delete_RemovesTheFile()
@@ -101,9 +103,14 @@ public class FileStateStoreTests : IDisposable
             return _values.GetValueOrDefault(key);
         }
 
-        public void Save(string key, string value) => _values[key] = value;
+        public void Save(string key, string value)
+        {
+            _values[key] = value;
+        }
 
-        public void Delete(string key) => _values.Remove(key);
+        public void Delete(string key)
+        {
+            _values.Remove(key);
+        }
     }
-
 }

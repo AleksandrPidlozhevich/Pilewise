@@ -17,9 +17,10 @@ public class PlaytimeTests
     {
         var rows = CsvGameExportService.BuildFromLibraries(
         [
-            new SteamGame { Name = "Portal", GameID = 400, PlaytimeMinutes = 750, LastPlayedUnix = May1.ToUnixTimeSeconds() },
+            new SteamGame
+                { Name = "Portal", GameID = 400, PlaytimeMinutes = 750, LastPlayedUnix = May1.ToUnixTimeSeconds() },
             new SteamGame { Name = "Unplayed", GameID = 1, PlaytimeMinutes = 0, LastPlayedUnix = 0 }
-        ], epicGames: null);
+        ], null);
 
         var portal = rows.Single(r => r.Name == "Portal");
         Assert.Equal(12.5, portal.PlaytimeHours);
@@ -39,12 +40,19 @@ public class PlaytimeTests
         Assert.Equal(May1.AddDays(3), steam.LastPlayed);
     }
 
-    private static LibraryViewModel Library() => new([
-        new CsvGameExportRow { Name = "Alpha", HasSteam = true, SteamGameId = 1, PlaytimeMinutes = 0 },
-        new CsvGameExportRow { Name = "Beta", HasSteam = true, SteamGameId = 2, PlaytimeMinutes = 600, LastPlayed = May1 },
-        new CsvGameExportRow { Name = "Gamma", HasSteam = true, SteamGameId = 3, PlaytimeMinutes = 30, LastPlayed = May1.AddDays(9) },
-        new CsvGameExportRow { Name = "Delta", HasGog = true, GogId = 4 } // GOG reports no playtime
-    ]);
+    private static LibraryViewModel Library()
+    {
+        return new LibraryViewModel([
+            new CsvGameExportRow { Name = "Alpha", HasSteam = true, SteamGameId = 1, PlaytimeMinutes = 0 },
+            new CsvGameExportRow
+                { Name = "Beta", HasSteam = true, SteamGameId = 2, PlaytimeMinutes = 600, LastPlayed = May1 },
+            new CsvGameExportRow
+            {
+                Name = "Gamma", HasSteam = true, SteamGameId = 3, PlaytimeMinutes = 30, LastPlayed = May1.AddDays(9)
+            },
+            new CsvGameExportRow { Name = "Delta", HasGog = true, GogId = 4 } // GOG reports no playtime
+        ]);
+    }
 
     [Fact]
     public void Library_NeverPlayedFilter_OnlyKnownZeroPlaytime()
@@ -110,7 +118,8 @@ public class PlaytimeTests
         var portal = new CsvGameExportRow
             { Name = "Portal", HasSteam = true, SteamGameId = 400, PlaytimeMinutes = 750, LastPlayed = May1 };
         var gwent = CsvFormat.CreateRow("GOG", "Gwent", "GOG:9"); // no playtime from GOG
-        var halfLife = new CsvGameExportRow { Name = "Half-Life", HasSteam = true, SteamGameId = 70, PlaytimeMinutes = 60 };
+        var halfLife = new CsvGameExportRow
+            { Name = "Half-Life", HasSteam = true, SteamGameId = 70, PlaytimeMinutes = 60 };
 
         var plan = GoogleSheetsSyncPlanner.Plan(sheet, [portal, gwent, halfLife]);
 
@@ -129,7 +138,8 @@ public class PlaytimeTests
             new List<object> { "Platform", "Name", "ID", "Completed" },
             new List<object> { "Steam", "Portal", "Steam:400", false }
         ];
-        var portal = new CsvGameExportRow { Name = "Portal", HasSteam = true, SteamGameId = 400, PlaytimeMinutes = 750 };
+        var portal = new CsvGameExportRow
+            { Name = "Portal", HasSteam = true, SteamGameId = 400, PlaytimeMinutes = 750 };
 
         var plan = GoogleSheetsSyncPlanner.Plan(sheet, [portal]);
 

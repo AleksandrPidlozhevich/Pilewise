@@ -35,7 +35,10 @@ public sealed class SingleInstance : IDisposable
 
     public static string CurrentUserName => NameFor(Environment.UserName);
 
-    public static string PipeName(string name) => name + "-pipe";
+    public static string PipeName(string name)
+    {
+        return name + "-pipe";
+    }
 
     /// <summary>
     /// Becomes the running instance, or returns null when another one already is. Must be disposed
@@ -64,7 +67,8 @@ public sealed class SingleInstance : IDisposable
     {
         try
         {
-            using var client = new NamedPipeClientStream(".", PipeName(name), PipeDirection.Out, PipeOptions.CurrentUserOnly);
+            using var client =
+                new NamedPipeClientStream(".", PipeName(name), PipeDirection.Out, PipeOptions.CurrentUserOnly);
             client.Connect((int)timeout.TotalMilliseconds);
             using var writer = new StreamWriter(client);
             writer.WriteLine(ShowMessage);
@@ -81,7 +85,6 @@ public sealed class SingleInstance : IDisposable
     {
         var token = _stop.Token;
         while (!token.IsCancellationRequested)
-        {
             try
             {
                 await using var server = new NamedPipeServerStream(_pipeName, PipeDirection.In, 1,
@@ -107,7 +110,6 @@ public sealed class SingleInstance : IDisposable
                     return;
                 }
             }
-        }
     }
 
     public void Dispose()

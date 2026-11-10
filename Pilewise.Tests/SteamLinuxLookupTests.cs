@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Pilewise.Services;
 using Xunit;
-
 using Pilewise.Tests.Fakes;
 
 namespace Pilewise.Tests;
@@ -21,7 +20,10 @@ public class SteamLinuxLookupTests
         var state = new MemoryStateStore();
         state.Save(SteamLinuxLookup.StateKey, JsonConvert.SerializeObject(new Dictionary<string, object>
         {
-            ["400"] = new { Native = true, Tier = (string?)null, At = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd") },
+            ["400"] = new
+            {
+                Native = true, Tier = (string?)null, At = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd")
+            }
         }));
         var handler = new FakeLinuxHttp();
         var lookup = new SteamLinuxLookup(state, new SilentLog(), handler, TimeSpan.Zero);
@@ -38,10 +40,10 @@ public class SteamLinuxLookupTests
         var state = new MemoryStateStore();
         state.Save(SteamLinuxLookup.StateKey, JsonConvert.SerializeObject(new Dictionary<string, object>
         {
-            ["400"] = new { Native = true, Tier = (string?)null, At = "2020-01-01" },
+            ["400"] = new { Native = true, Tier = (string?)null, At = "2020-01-01" }
         }));
         var handler = new FakeLinuxHttp();
-        handler.Steam(400, native: true);
+        handler.Steam(400, true);
         var lookup = new SteamLinuxLookup(state, new SilentLog(), handler, TimeSpan.Zero);
 
         var result = await lookup.LookupAsync([400]);
@@ -69,7 +71,7 @@ public class SteamLinuxLookupTests
     public async Task Lookup_NativeTrue_SkipsProtonDb()
     {
         var handler = new FakeLinuxHttp();
-        handler.Steam(730, native: true);
+        handler.Steam(730, true);
         var lookup = new SteamLinuxLookup(new MemoryStateStore(), new SilentLog(), handler, TimeSpan.Zero);
 
         var result = await lookup.LookupAsync([730]);
@@ -82,9 +84,9 @@ public class SteamLinuxLookupTests
     public async Task Lookup_LowConfidence_WritesSoftMedal_AndDoesNotClaimThinBorked()
     {
         var handler = new FakeLinuxHttp();
-        handler.Steam(1, native: false);
+        handler.Steam(1, false);
         handler.Proton(1, """{"tier":"gold","confidence":"low","total":2}""");
-        handler.Steam(2, native: false);
+        handler.Steam(2, false);
         handler.Proton(2, """{"tier":"borked","confidence":"inadequate","total":1}""");
         var lookup = new SteamLinuxLookup(new MemoryStateStore(), new SilentLog(), handler, TimeSpan.Zero);
 
@@ -127,7 +129,7 @@ public class SteamLinuxLookupTests
     public async Task Lookup_RateLimited_RetriesAndSucceeds()
     {
         var handler = new FakeLinuxHttp();
-        handler.Steam(400, native: true, rateLimitOnce: true);
+        handler.Steam(400, true, rateLimitOnce: true);
         var lookup = new SteamLinuxLookup(new MemoryStateStore(), new SilentLog(), handler, TimeSpan.Zero);
 
         var result = await lookup.LookupAsync([400]);
@@ -141,8 +143,8 @@ public class SteamLinuxLookupTests
     {
         var state = new MemoryStateStore();
         var handler = new FakeLinuxHttp();
-        handler.Steam(400, native: true);
-        handler.Steam(500, native: true);
+        handler.Steam(400, true);
+        handler.Steam(500, true);
         using var cts = new CancellationTokenSource();
         var lookup = new SteamLinuxLookup(state, new SilentLog(), handler, TimeSpan.Zero);
         var calls = 0;
@@ -166,7 +168,8 @@ public class SteamLinuxLookupTests
         var row = CsvFormat.CreateRow("Steam", "Portal", "Steam:400");
         row.Linux = "Platinum";
         var handler = new FakeLinuxHttp { FailSteam = true };
-        var lookup = new SteamLinuxLookup(new MemoryStateStore(), new SilentLog(), handler, TimeSpan.Zero) { Enabled = true };
+        var lookup = new SteamLinuxLookup(new MemoryStateStore(), new SilentLog(), handler, TimeSpan.Zero)
+            { Enabled = true };
 
         await lookup.StampAsync([row]);
 
@@ -220,7 +223,8 @@ public class SteamLinuxLookupTests
                 if (FailSteam)
                     return Task.FromResult(Json(HttpStatusCode.BadGateway, "nope"));
                 var id = int.Parse(url.Split("appids=")[1]);
-                return Task.FromResult(Dequeue(_steam, id, Json(HttpStatusCode.OK, $"{{\"{id}\":{{\"success\":false}}}}")));
+                return Task.FromResult(Dequeue(_steam, id,
+                    Json(HttpStatusCode.OK, $"{{\"{id}\":{{\"success\":false}}}}")));
             }
 
             if (url.Contains("protondb.com", StringComparison.Ordinal))
@@ -233,13 +237,17 @@ public class SteamLinuxLookupTests
         }
 
         private static HttpResponseMessage Dequeue(
-            Dictionary<int, Queue<HttpResponseMessage>> map, int id, HttpResponseMessage fallback) =>
-            map.TryGetValue(id, out var queue) && queue.Count > 0 ? queue.Dequeue() : fallback;
+            Dictionary<int, Queue<HttpResponseMessage>> map, int id, HttpResponseMessage fallback)
+        {
+            return map.TryGetValue(id, out var queue) && queue.Count > 0 ? queue.Dequeue() : fallback;
+        }
 
-        private static HttpResponseMessage Json(HttpStatusCode status, string body) =>
-            new(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
+        private static HttpResponseMessage Json(HttpStatusCode status, string body)
+        {
+            return new HttpResponseMessage(status)
+                { Content = new StringContent(body, Encoding.UTF8, "application/json") };
+        }
     }
-
 
 
     private sealed class Cached

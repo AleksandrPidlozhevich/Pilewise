@@ -24,8 +24,10 @@ public static class CsvFormat
         return missing;
     }
 
-    public static bool HasLinuxColumn(string? content) =>
-        HasColumn(ReadHeaderFields(content), LinuxRating.Column);
+    public static bool HasLinuxColumn(string? content)
+    {
+        return HasColumn(ReadHeaderFields(content), LinuxRating.Column);
+    }
 
     internal static List<string> ReadHeaderFields(string? content)
     {
@@ -41,8 +43,10 @@ public static class CsvFormat
             : ParseCsvFields(firstLine).Select(field => field.Trim()).ToList();
     }
 
-    private static bool HasColumn(List<string> headerFields, string name) =>
-        headerFields.Any(header => string.Equals(header, name, StringComparison.OrdinalIgnoreCase));
+    private static bool HasColumn(List<string> headerFields, string name)
+    {
+        return headerFields.Any(header => string.Equals(header, name, StringComparison.OrdinalIgnoreCase));
+    }
 
     public static CsvGameExportRow CreateRow(string? platform, string name, string? idField)
     {
@@ -105,7 +109,8 @@ public static class CsvFormat
             {
                 var cells = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 for (var i = 3; i < keys.Count; i++)
-                    if (i != linuxColumn) cells[keys[i]] = i < fields.Count ? fields[i] : string.Empty;
+                    if (i != linuxColumn)
+                        cells[keys[i]] = i < fields.Count ? fields[i] : string.Empty;
                 row.Cells = cells;
             }
 
@@ -151,7 +156,7 @@ public static class CsvFormat
             "linux" => row.Linux ?? LinuxRating.Unknown,
             "playtime" => row.PlaytimeHours?.ToString(CultureInfo.InvariantCulture) ?? cell,
             "last played" => row.LastPlayedDate ?? cell,
-            "owned" => owned?.Invoke(row) is { } isOwned ? (isOwned ? Yes : "no") : cell,
+            "owned" => owned?.Invoke(row) is { } isOwned ? isOwned ? Yes : "no" : cell,
             "store link" => cell.Length > 0 ? cell : row.StoreUrl ?? string.Empty,
             "cover" => cell.Length > 0 ? cell : row.CoverUrl ?? string.Empty,
             _ => cell
@@ -179,10 +184,12 @@ public static class CsvFormat
         return headers.Select((h, i) => seen.Add(h.Trim()) ? h.Trim() : $"{h.Trim()}#{i}").ToList();
     }
 
-    internal static bool IsLegacyWideHeader(List<string> header) =>
-        header.Count >= 5 &&
-        string.Equals(header[2].Trim(), "Game ID", StringComparison.OrdinalIgnoreCase) &&
-        string.Equals(header[3].Trim(), "Catalog Item Id", StringComparison.OrdinalIgnoreCase);
+    internal static bool IsLegacyWideHeader(List<string> header)
+    {
+        return header.Count >= 5 &&
+               string.Equals(header[2].Trim(), "Game ID", StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(header[3].Trim(), "Catalog Item Id", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static int IndexOfHeader(List<string> header, string name)
     {
@@ -252,8 +259,9 @@ public static class CsvFormat
             if (prefix <= 0) continue;
 
             var label = part[..prefix];
-            var descriptor = PlatformCatalog.All.FirstOrDefault(
-                d => string.Equals(d.Label, label, StringComparison.OrdinalIgnoreCase));
+            var descriptor =
+                PlatformCatalog.All.FirstOrDefault(d =>
+                    string.Equals(d.Label, label, StringComparison.OrdinalIgnoreCase));
             descriptor?.ApplyId(row, part[(prefix + 1)..]);
         }
     }
@@ -299,12 +307,19 @@ public static class CsvFormat
         return fields;
     }
 
-    private static int? ParseInt(string value) => int.TryParse(value.Trim(), out var parsed) ? parsed : null;
+    private static int? ParseInt(string value)
+    {
+        return int.TryParse(value.Trim(), out var parsed) ? parsed : null;
+    }
 
-    private static string? NullIfEmpty(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private static string? NullIfEmpty(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
 
-    private static bool PlatformIncludes(string platform, string token) =>
-        platform.Split(['/', ','], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+    private static bool PlatformIncludes(string platform, string token)
+    {
+        return platform.Split(['/', ','], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
             .Any(part => string.Equals(part, token, StringComparison.OrdinalIgnoreCase));
-
+    }
 }

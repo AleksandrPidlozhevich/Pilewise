@@ -8,7 +8,10 @@ namespace Pilewise.Tests;
 
 public class SheetDuplicatesTests
 {
-    private static IList<IList<object>> Sheet(params object[][] rows) => rows.Select(r => (IList<object>)r.ToList()).ToList();
+    private static IList<IList<object>> Sheet(params object[][] rows)
+    {
+        return rows.Select(r => (IList<object>)r.ToList()).ToList();
+    }
 
     private static readonly object[] Header = ["Platform", "Name", "ID", "Completed"];
 
@@ -26,8 +29,11 @@ public class SheetDuplicatesTests
     }
 
     [Fact]
-    public void Read_OldLayout_NeedsAnUpgradeFirst() =>
-        Assert.True(GoogleSheetsSyncPlanner.Read(Sheet(["Name", "Game ID", "Completed"], ["Portal", "400", false])).NeedsUpgrade);
+    public void Read_OldLayout_NeedsAnUpgradeFirst()
+    {
+        Assert.True(GoogleSheetsSyncPlanner.Read(Sheet(["Name", "Game ID", "Completed"], ["Portal", "400", false]))
+            .NeedsUpgrade);
+    }
 
     [Fact]
     public void Find_KeepsTheTopRow_MergesIds_AndCarriesTheCompletedTick()

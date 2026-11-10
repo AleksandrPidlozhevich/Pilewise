@@ -16,8 +16,10 @@ public sealed record AutoSyncSettings(int IntervalHours, IReadOnlyList<SyncTarge
 
     public bool IsOn => IntervalHours > 0 && Targets.Count > 0;
 
-    public string? Serialize() =>
-        IsOn ? $"{IntervalHours}h {string.Join(", ", Targets.Select(Name))}" : null;
+    public string? Serialize()
+    {
+        return IsOn ? $"{IntervalHours}h {string.Join(", ", Targets.Select(Name))}" : null;
+    }
 
     public static AutoSyncSettings Parse(string? value)
     {
@@ -30,7 +32,8 @@ public sealed record AutoSyncSettings(int IntervalHours, IReadOnlyList<SyncTarge
             return Off;
 
         var targets = new List<SyncTarget>();
-        foreach (var name in parts[1].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (var name in parts[1].Split(',',
+                     StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             SyncTarget? target = name.ToLowerInvariant() switch
             {
@@ -45,12 +48,15 @@ public sealed record AutoSyncSettings(int IntervalHours, IReadOnlyList<SyncTarge
         return targets.Count == 0 ? Off : new AutoSyncSettings(hours, targets);
     }
 
-    private static string Name(SyncTarget target) => target switch
+    private static string Name(SyncTarget target)
     {
-        SyncTarget.Notion => "Notion",
-        SyncTarget.Sheets => "Sheets",
-        _ => "CSV"
-    };
+        return target switch
+        {
+            SyncTarget.Notion => "Notion",
+            SyncTarget.Sheets => "Sheets",
+            _ => "CSV"
+        };
+    }
 }
 
 public static class AutoSyncPlanner

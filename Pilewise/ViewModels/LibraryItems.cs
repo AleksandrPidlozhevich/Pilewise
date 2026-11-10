@@ -60,8 +60,16 @@ public sealed record LibraryGameItem(
 }
 
 public sealed record LibraryStats(
-    int Games, int Tracked, int Played, int NeverPlayed, int MultiStore, int TotalMinutes, LibraryGameItem? MostPlayed,
-    int Completed = 0, string? CompletedSource = null, int RecentlyAdded = 0)
+    int Games,
+    int Tracked,
+    int Played,
+    int NeverPlayed,
+    int MultiStore,
+    int TotalMinutes,
+    LibraryGameItem? MostPlayed,
+    int Completed = 0,
+    string? CompletedSource = null,
+    int RecentlyAdded = 0)
 {
     public static LibraryStats Compute(
         IEnumerable<LibraryGameItem> games, BacklogSnapshot? backlog = null, string? source = null)
@@ -119,7 +127,8 @@ public sealed record LibraryStats(
 
     public string MultiStoreText => $"{MultiStore} on 2+ stores";
 
-    public string MostPlayedText => MostPlayed == null ? "" : $"Most played: {MostPlayed.Name} ({MostPlayed.PlaytimeText})";
+    public string MostPlayedText =>
+        MostPlayed == null ? "" : $"Most played: {MostPlayed.Name} ({MostPlayed.PlaytimeText})";
 
     public string PlayedTip =>
         $"Only Steam and Xbox report playtime: {Tracked} of {Games} games have it, and the share is out of those.";

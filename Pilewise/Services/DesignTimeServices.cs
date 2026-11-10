@@ -14,22 +14,40 @@ internal sealed class DesignTimeSecretStore : ISecretStore
 {
     private readonly Dictionary<string, string> _values = [];
 
-    public string? Load(string key) => _values.GetValueOrDefault(key);
+    public string? Load(string key)
+    {
+        return _values.GetValueOrDefault(key);
+    }
 
-    public void Save(string key, string value) => _values[key] = value;
+    public void Save(string key, string value)
+    {
+        _values[key] = value;
+    }
 
-    public void Delete(string key) => _values.Remove(key);
+    public void Delete(string key)
+    {
+        _values.Remove(key);
+    }
 }
 
 internal sealed class DesignTimeStateStore : IStateStore
 {
     private readonly Dictionary<string, string> _values = [];
 
-    public string? Load(string key) => _values.GetValueOrDefault(key);
+    public string? Load(string key)
+    {
+        return _values.GetValueOrDefault(key);
+    }
 
-    public void Save(string key, string value) => _values[key] = value;
+    public void Save(string key, string value)
+    {
+        _values[key] = value;
+    }
 
-    public void Delete(string key) => _values.Remove(key);
+    public void Delete(string key)
+    {
+        _values.Remove(key);
+    }
 }
 
 /// <summary>
@@ -40,16 +58,22 @@ internal sealed class DesignTimeUpdateService : IUpdateService
 {
     public string CurrentVersion =>
         typeof(DesignTimeUpdateService).Assembly
-            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion?.Split('+')[0] ?? "0.0.0";
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion?.Split('+')[0] ??
+        "0.0.0";
 
     public bool IsInstalled => false;
 
     public string? LastCheckError => null;
 
-    public Task<string?> CheckForUpdateAsync() => Task.FromResult<string?>(null);
+    public Task<string?> CheckForUpdateAsync()
+    {
+        return Task.FromResult<string?>(null);
+    }
 
-    public Task DownloadAndRestartAsync(IProgress<int>? progress = null, CancellationToken ct = default) =>
-        Task.CompletedTask;
+    public Task DownloadAndRestartAsync(IProgress<int>? progress = null, CancellationToken ct = default)
+    {
+        return Task.CompletedTask;
+    }
 }
 
 internal sealed class DesignTimeLog : ILogService

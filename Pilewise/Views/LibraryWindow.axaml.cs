@@ -37,7 +37,7 @@ public partial class LibraryWindow : Window
     // Double-clicking a game opens its store page (not when the double-click hit the Hide button).
     private void OnGameDoubleTapped(object? sender, TappedEventArgs e)
     {
-        if (e.Source is Avalonia.Visual source && source.FindAncestorOfType<Button>(includeSelf: true) != null) return;
+        if (e.Source is Avalonia.Visual source && source.FindAncestorOfType<Button>(true) != null) return;
         if (DataContext is LibraryViewModel library && sender is ListBox { SelectedItem: LibraryGameItem game })
             library.OpenStorePageCommand.Execute(game);
     }

@@ -68,11 +68,13 @@
             <DockPanel Margin="10,14,10,12">
                 <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,18">
                     <Button Classes="icon-button" Width="44" Height="40"
-                            ToolTip.Tip="{Binding SidebarToggleTip}" AutomationProperties.Name="{Binding SidebarToggleTip}"
+                            ToolTip.Tip="{Binding SidebarToggleTip}"
+                            AutomationProperties.Name="{Binding SidebarToggleTip}"
                             Command="{Binding ToggleSidebarCommand}">
                         <PathIcon Width="18" Height="18" Data="{DynamicResource MenuIcon}" />
                     </Button>
-                    <Svg Path="/Assets/Pilewise.svg" Width="36" Height="36" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}" />
+                    <Svg Path="/Assets/Pilewise.svg" Width="36" Height="36" VerticalAlignment="Center"
+                         IsVisible="{Binding IsSidebarExpanded}" />
                     <TextBlock Text="Pilewise" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"
                                IsVisible="{Binding IsSidebarExpanded}" />
                 </StackPanel>
@@ -107,9 +109,12 @@
                             ToolTip.Tip="{Binding ThemeTip}" AutomationProperties.Name="{Binding ThemeTip}"
                             Command="{Binding CycleThemeCommand}">
                         <Panel>
-                            <PathIcon Width="16" Height="16" Data="{DynamicResource ThemeSystemIcon}" IsVisible="{Binding IsSystemTheme}" />
-                            <PathIcon Width="16" Height="16" Data="{DynamicResource ThemeLightIcon}" IsVisible="{Binding IsLightTheme}" />
-                            <PathIcon Width="16" Height="16" Data="{DynamicResource ThemeDarkIcon}" IsVisible="{Binding IsDarkTheme}" />
+                            <PathIcon Width="16" Height="16" Data="{DynamicResource ThemeSystemIcon}"
+                                      IsVisible="{Binding IsSystemTheme}" />
+                            <PathIcon Width="16" Height="16" Data="{DynamicResource ThemeLightIcon}"
+                                      IsVisible="{Binding IsLightTheme}" />
+                            <PathIcon Width="16" Height="16" Data="{DynamicResource ThemeDarkIcon}"
+                                      IsVisible="{Binding IsDarkTheme}" />
                         </Panel>
                     </Button>
                 </StackPanel>
@@ -118,7 +123,8 @@
                     <ListBoxItem ToolTip.Tip="Sources" ToolTip.ServiceEnabled="{Binding IsSidebarCollapsed}">
                         <StackPanel Orientation="Horizontal" Spacing="12">
                             <PathIcon Data="{DynamicResource NavSourcesIcon}" />
-                            <TextBlock Text="Sources" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}" />
+                            <TextBlock Text="Sources" VerticalAlignment="Center"
+                                       IsVisible="{Binding IsSidebarExpanded}" />
                         </StackPanel>
                     </ListBoxItem>
                     <ListBoxItem ToolTip.Tip="Export" ToolTip.ServiceEnabled="{Binding IsSidebarCollapsed}">
@@ -130,13 +136,15 @@
                     <ListBoxItem ToolTip.Tip="Automation" ToolTip.ServiceEnabled="{Binding IsSidebarCollapsed}">
                         <StackPanel Orientation="Horizontal" Spacing="12">
                             <PathIcon Data="{DynamicResource NavAutomationIcon}" />
-                            <TextBlock Text="Automation" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}" />
+                            <TextBlock Text="Automation" VerticalAlignment="Center"
+                                       IsVisible="{Binding IsSidebarExpanded}" />
                         </StackPanel>
                     </ListBoxItem>
                     <ListBoxItem ToolTip.Tip="Settings" ToolTip.ServiceEnabled="{Binding IsSidebarCollapsed}">
                         <StackPanel Orientation="Horizontal" Spacing="12">
                             <PathIcon Data="{DynamicResource NavSettingsIcon}" />
-                            <TextBlock Text="Settings" VerticalAlignment="Center" IsVisible="{Binding IsSidebarExpanded}" />
+                            <TextBlock Text="Settings" VerticalAlignment="Center"
+                                       IsVisible="{Binding IsSidebarExpanded}" />
                         </StackPanel>
                     </ListBoxItem>
                 </ListBox>
@@ -227,7 +235,8 @@
                                     <Svg Classes="icon" Path="/Assets/steam.svg" />
                                     <StackPanel Grid.Column="1">
                                         <TextBlock Classes="panel-title" Text="Steam" />
-                                        <TextBlock Classes="hint" Text="Your Web API key and Steam ID (or profile link)." />
+                                        <TextBlock Classes="hint"
+                                                   Text="Your Web API key and Steam ID (or profile link)." />
                                     </StackPanel>
                                     <CheckBox Grid.Column="2" Classes="include" Content="Include"
                                               IsChecked="{Binding IncludeSteam}" />
@@ -262,7 +271,8 @@
                                     <Image Classes="icon" Source="{DynamicResource EpicIcon}" />
                                     <StackPanel Grid.Column="1">
                                         <TextBlock Classes="panel-title" Text="Epic Games" />
-                                        <TextBlock Classes="hint" Text="Log in in your browser, then paste the code it shows." />
+                                        <TextBlock Classes="hint"
+                                                   Text="Log in in your browser, then paste the code it shows." />
                                     </StackPanel>
                                     <CheckBox Grid.Column="2" Classes="include" Content="Include"
                                               IsChecked="{Binding IncludeEpic}" />
@@ -292,7 +302,8 @@
                                     <Image Classes="icon" Source="{DynamicResource XboxIcon}" />
                                     <StackPanel Grid.Column="1">
                                         <TextBlock Classes="panel-title" Text="Xbox" />
-                                        <TextBlock Classes="hint" Text="Games you've played on Xbox / PC Game Pass, with Microsoft account login." />
+                                        <TextBlock Classes="hint"
+                                                   Text="Games you've played on Xbox / PC Game Pass, with Microsoft account login." />
                                     </StackPanel>
                                     <CheckBox Grid.Column="2" Classes="include" Content="Include"
                                               IsChecked="{Binding IncludeXbox}" />
@@ -335,14 +346,16 @@
                                     <Image Classes="icon" Source="{DynamicResource CsvIcon}" />
                                     <StackPanel Grid.Column="1">
                                         <TextBlock Classes="panel-title" Text="CSV file" />
-                                        <TextBlock Classes="hint" Text="A spreadsheet file on this computer (opens in Excel)." />
+                                        <TextBlock Classes="hint"
+                                                   Text="A spreadsheet file on this computer (opens in Excel)." />
                                     </StackPanel>
                                     <Border Grid.Column="2" Classes="pill" Classes.ready="{Binding CanFetchLibrary}">
                                         <TextBlock Text="{Binding CsvStatus}" />
                                     </Border>
                                 </Grid>
                                 <WrapPanel Classes="actions">
-                                    <Button Classes="accent" Content="Export to .csv" Command="{Binding ExportToCsvCommand}"
+                                    <Button Classes="accent" Content="Export to .csv"
+                                            Command="{Binding ExportToCsvCommand}"
                                             ToolTip.Tip="{Binding LibraryHint}" ToolTip.ShowOnDisabled="True" />
                                     <Button Content="Update .csv…" Command="{Binding UpdateCsvCommand}"
                                             ToolTip.Tip="Add new games to a CSV you exported before (a .bak copy is kept)"
@@ -358,7 +371,8 @@
                                     <Image Classes="icon" Source="{DynamicResource NotionIcon}" />
                                     <StackPanel Grid.Column="1">
                                         <TextBlock Classes="panel-title" Text="Notion" />
-                                        <TextBlock Classes="hint" Text="Adds and updates pages in your Notion database. You see a preview before anything is written." />
+                                        <TextBlock Classes="hint"
+                                                   Text="Adds and updates pages in your Notion database. You see a preview before anything is written." />
                                     </StackPanel>
                                     <Border Grid.Column="2" Classes="pill" Classes.ready="{Binding CanExportNotion}">
                                         <TextBlock Text="{Binding NotionStatus}" />
@@ -385,7 +399,8 @@
                                     </StackPanel>
                                 </WrapPanel>
                                 <WrapPanel Classes="actions" Margin="0,4,0,0">
-                                    <Button Classes="accent" Content="Export to Notion" Command="{Binding ExportToNotionCommand}"
+                                    <Button Classes="accent" Content="Export to Notion"
+                                            Command="{Binding ExportToNotionCommand}"
                                             ToolTip.Tip="{Binding NotionHint}" ToolTip.ShowOnDisabled="True" />
                                     <Button Content="Find duplicates…" Command="{Binding FindNotionDuplicatesCommand}"
                                             ToolTip.Tip="Find pages of the same game in the database and merge them (you confirm first)"
@@ -414,7 +429,8 @@
                                                     AutomationProperties.Name="About the Google Sheets export"
                                                     Command="{Binding OpenInfoGoogleSheetsCommand}" />
                                         </StackPanel>
-                                        <TextBlock Classes="hint" Text="Keeps the first tab of a spreadsheet in your Google Drive up to date (created if it doesn't exist)." />
+                                        <TextBlock Classes="hint"
+                                                   Text="Keeps the first tab of a spreadsheet in your Google Drive up to date (created if it doesn't exist)." />
                                     </StackPanel>
                                     <Border Grid.Column="2" Classes="pill" Classes.ready="{Binding CanExportSheets}">
                                         <TextBlock Text="{Binding SheetsStatus}" />
@@ -465,7 +481,8 @@
                                     </StackPanel>
                                     <CheckBox Classes="include" Content="Notion" IsChecked="{Binding AutoSyncNotion}"
                                               IsEnabled="{Binding IsAutoSyncOn}" />
-                                    <CheckBox Classes="include" Content="Google Sheets" IsChecked="{Binding AutoSyncSheets}"
+                                    <CheckBox Classes="include" Content="Google Sheets"
+                                              IsChecked="{Binding AutoSyncSheets}"
                                               IsEnabled="{Binding IsAutoSyncOn}" />
                                     <CheckBox Classes="include" Content="CSV file" IsChecked="{Binding AutoSyncCsv}"
                                               IsEnabled="{Binding IsAutoSyncOn}" />
@@ -478,12 +495,14 @@
                             <StackPanel Spacing="10">
                                 <TextBlock Classes="panel-title" Text="Run in the background" />
                                 <StackPanel Spacing="2">
-                                    <CheckBox Classes="include" Content="Close to tray" IsChecked="{Binding CloseToTray}"
+                                    <CheckBox Classes="include" Content="Close to tray"
+                                              IsChecked="{Binding CloseToTray}"
                                               IsEnabled="{Binding IsTrayAvailable}" />
                                     <TextBlock Classes="hint" Margin="28,0,0,0" Text="{Binding CloseToTrayHint}" />
                                 </StackPanel>
                                 <StackPanel Spacing="2" IsVisible="{Binding CanStartAtLogin}">
-                                    <CheckBox Classes="include" Content="Start at login" IsChecked="{Binding StartAtLogin}" />
+                                    <CheckBox Classes="include" Content="Start at login"
+                                              IsChecked="{Binding StartAtLogin}" />
                                     <TextBlock Classes="hint" Margin="28,0,0,0" Text="{Binding StartAtLoginHint}" />
                                 </StackPanel>
                             </StackPanel>
@@ -512,7 +531,8 @@
                             <Grid ColumnDefinitions="*,Auto">
                                 <StackPanel Spacing="4">
                                     <TextBlock Classes="panel-title" Text="Theme" />
-                                    <TextBlock Classes="hint" Text="System, light or dark. System follows your OS setting." />
+                                    <TextBlock Classes="hint"
+                                               Text="System, light or dark. System follows your OS setting." />
                                 </StackPanel>
                                 <views:ThemeSwitch Grid.Column="1" VerticalAlignment="Center" />
                             </Grid>
@@ -536,7 +556,8 @@
                                     <TextBlock Classes="panel-title" Text="Updates" />
                                     <TextBlock Classes="hint" Text="{Binding UpdateStatus}" />
                                 </StackPanel>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                                            VerticalAlignment="Center"
                                             Margin="16,0,0,0">
                                     <Button Classes="refresh" Classes.spinning="{Binding IsCheckingForUpdate}"
                                             IsEnabled="{Binding CanCheckForUpdates}"
@@ -549,7 +570,8 @@
                                             </PathIcon.RenderTransform>
                                         </PathIcon>
                                     </Button>
-                                    <Button Classes="accent" Content="Download &amp; restart" IsVisible="{Binding IsUpdateAvailable}"
+                                    <Button Classes="accent" Content="Download &amp; restart"
+                                            IsVisible="{Binding IsUpdateAvailable}"
                                             Command="{Binding InstallUpdateCommand}" />
                                 </StackPanel>
                             </Grid>

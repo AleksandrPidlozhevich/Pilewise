@@ -7,27 +7,115 @@ namespace Pilewise.Services;
 
 public sealed class CsvGameExportRow
 {
-    public string Name { get; set { field = value; Changed(); } } = string.Empty;
+    public string Name
+    {
+        get;
+        set
+        {
+            field = value;
+            Changed();
+        }
+    } = string.Empty;
 
-    public bool HasSteam { get; set { field = value; Changed(); } }
+    public bool HasSteam
+    {
+        get;
+        set
+        {
+            field = value;
+            Changed();
+        }
+    }
 
-    public bool HasEpic { get; set { field = value; Changed(); } }
+    public bool HasEpic
+    {
+        get;
+        set
+        {
+            field = value;
+            Changed();
+        }
+    }
 
-    public bool HasGog { get; set { field = value; Changed(); } }
+    public bool HasGog
+    {
+        get;
+        set
+        {
+            field = value;
+            Changed();
+        }
+    }
 
-    public int? SteamGameId { get; set { field = value; Changed(); } }
+    public int? SteamGameId
+    {
+        get;
+        set
+        {
+            field = value;
+            Changed();
+        }
+    }
 
-    public string? CatalogItemId { get; set { field = value; Changed(); } }
+    public string? CatalogItemId
+    {
+        get;
+        set
+        {
+            field = value;
+            Changed();
+        }
+    }
 
-    public string? Namespace { get; set { field = value; Changed(); } }
+    public string? Namespace
+    {
+        get;
+        set
+        {
+            field = value;
+            Changed();
+        }
+    }
 
-    public long? GogId { get; set { field = value; Changed(); } }
+    public long? GogId
+    {
+        get;
+        set
+        {
+            field = value;
+            Changed();
+        }
+    }
 
-    public bool HasXbox { get; set { field = value; Changed(); } }
+    public bool HasXbox
+    {
+        get;
+        set
+        {
+            field = value;
+            Changed();
+        }
+    }
 
-    public string? XboxTitleId { get; set { field = value; Changed(); } }
+    public string? XboxTitleId
+    {
+        get;
+        set
+        {
+            field = value;
+            Changed();
+        }
+    }
 
-    public bool IsGamePass { get; set { field = value; Changed(); } }
+    public bool IsGamePass
+    {
+        get;
+        set
+        {
+            field = value;
+            Changed();
+        }
+    }
 
     public int? PlaytimeMinutes { get; set; }
 
@@ -41,7 +129,10 @@ public sealed class CsvGameExportRow
 
     public IReadOnlyDictionary<string, string>? Cells { get; set; }
 
-    public CsvGameExportRow Clone() => (CsvGameExportRow)MemberwiseClone();
+    public CsvGameExportRow Clone()
+    {
+        return (CsvGameExportRow)MemberwiseClone();
+    }
 
     public string? CoverUrl => SteamGameId is { } id ? StoreLinks.SteamCover(id) : FetchedCoverUrl;
 
@@ -81,8 +172,10 @@ public sealed class CsvGameExportRow
         return keys.Length > 0 || NameKey.Length == 0 ? keys : [$"Name:{NameKey}"];
     }
 
-    public string ToCsvLine() =>
-        string.Join(",", EscapeCsvField(PlatformText), EscapeCsvField(Name), EscapeCsvField(IdText));
+    public string ToCsvLine()
+    {
+        return string.Join(",", EscapeCsvField(PlatformText), EscapeCsvField(Name), EscapeCsvField(IdText));
+    }
 
     private string BuildPlatformField()
     {
@@ -147,8 +240,16 @@ public sealed record CsvMergeOptions(
     string? Target = null);
 
 public sealed record CsvMergeResult(
-    string Content, int Added, int Updated, int Total, bool Changed,
-    CompletionSync? Sync, IReadOnlyList<(CsvGameExportRow Row, bool Completed)> Written)
+    string Content,
+    int Added,
+    int Updated,
+    int Total,
+    bool Changed,
+    CompletionSync? Sync,
+    IReadOnlyList<(CsvGameExportRow Row, bool Completed)> Written)
 {
-    public void Commit() => Sync?.Commit(Written);
+    public void Commit()
+    {
+        Sync?.Commit(Written);
+    }
 }

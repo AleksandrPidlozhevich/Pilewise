@@ -12,7 +12,7 @@ namespace Pilewise.Services;
 public static class BackgroundMode
 {
     private const int ProcessPowerThrottling = 4; // PROCESS_INFORMATION_CLASS
-    private const uint ExecutionSpeed = 1;         // PROCESS_POWER_THROTTLING_EXECUTION_SPEED
+    private const uint ExecutionSpeed = 1; // PROCESS_POWER_THROTTLING_EXECUTION_SPEED
 
     public static void Set(bool background)
     {
@@ -28,7 +28,8 @@ public static class BackgroundMode
                 ControlMask = background ? ExecutionSpeed : 0,
                 StateMask = background ? ExecutionSpeed : 0
             };
-            SetProcessInformation(process.Handle, ProcessPowerThrottling, ref state, Marshal.SizeOf<PowerThrottlingState>());
+            SetProcessInformation(process.Handle, ProcessPowerThrottling, ref state,
+                Marshal.SizeOf<PowerThrottlingState>());
         }
         catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception
                                        or EntryPointNotFoundException)

@@ -7,7 +7,12 @@ public sealed record NotionPageCreate(string Name, string Platforms, object Prop
 public sealed record NotionGoneGame(string Name, string Platforms);
 
 public sealed record NotionPageUpdate(
-    string PageId, string Name, string Before, string After, object Properties, string? CoverUrl = null);
+    string PageId,
+    string Name,
+    string Before,
+    string After,
+    object Properties,
+    string? CoverUrl = null);
 
 public sealed record NotionExportPlan(
     GameLibraryResult Library,

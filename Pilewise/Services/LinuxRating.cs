@@ -31,7 +31,8 @@ public static class LinuxRating
 
         value = string.Empty;
         return byAppId != null && byAppId.TryGetValue(id, out value!)
-            && !(value == Unavailable && !string.IsNullOrEmpty(row.Linux) && row.Linux != Unavailable);
+                               && !(value == Unavailable && !string.IsNullOrEmpty(row.Linux) &&
+                                    row.Linux != Unavailable);
     }
 
     public static void Apply(IEnumerable<CsvGameExportRow> rows, IReadOnlyDictionary<int, string> byAppId)
@@ -41,15 +42,18 @@ public static class LinuxRating
                 row.Linux = value;
     }
 
-    public static string? Medal(string? tier) => tier?.Trim().ToLowerInvariant() switch
+    public static string? Medal(string? tier)
     {
-        "platinum" => "Platinum",
-        "gold" => "Gold",
-        "silver" => "Silver",
-        "bronze" => "Bronze",
-        "borked" => "Borked",
-        _ => null
-    };
+        return tier?.Trim().ToLowerInvariant() switch
+        {
+            "platinum" => "Platinum",
+            "gold" => "Gold",
+            "silver" => "Silver",
+            "bronze" => "Bronze",
+            "borked" => "Borked",
+            _ => null
+        };
+    }
 
     public static bool? ReadNative(string json, int appId)
     {

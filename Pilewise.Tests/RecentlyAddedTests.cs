@@ -4,7 +4,6 @@ using System.Linq;
 using Pilewise.Services;
 using Pilewise.ViewModels;
 using Xunit;
-
 using Pilewise.Tests.Fakes;
 
 namespace Pilewise.Tests;
@@ -14,9 +13,15 @@ public class RecentlyAddedTests
     private static readonly DateOnly Day1 = new(2026, 9, 1);
     private static readonly DateOnly Day2 = new(2026, 10, 10);
 
-    private static CsvGameExportRow Steam(string name, string id) => CsvFormat.CreateRow("Steam", name, "Steam:" + id);
+    private static CsvGameExportRow Steam(string name, string id)
+    {
+        return CsvFormat.CreateRow("Steam", name, "Steam:" + id);
+    }
 
-    private static HashSet<string> Stores(params string[] stores) => new(stores, StringComparer.OrdinalIgnoreCase);
+    private static HashSet<string> Stores(params string[] stores)
+    {
+        return new HashSet<string>(stores, StringComparer.OrdinalIgnoreCase);
+    }
 
     [Fact]
     public void FirstFetch_IsTheBaseline_SoNothingIsNew()
@@ -78,8 +83,10 @@ public class RecentlyAddedTests
     [InlineData(0, true)]
     [InlineData(30, true)]
     [InlineData(31, false)]
-    public void IsRecent_MeansWithin30Days(int daysAgo, bool expected) =>
+    public void IsRecent_MeansWithin30Days(int daysAgo, bool expected)
+    {
         Assert.Equal(expected, FirstSeenGames.IsRecent(Day2.AddDays(-daysAgo), Day2));
+    }
 
     [Fact]
     public void Library_ShowsNewGames_FilterSortAndCount()
@@ -106,11 +113,15 @@ public class RecentlyAddedTests
     [InlineData("1.3.0", "1.2.0", null)] // downgrade
     [InlineData(null, "1.2.0", null)] // first install
     [InlineData("garbage", "1.2.0", null)]
-    public void UpdateNotice_OnlyAfterAnUpgrade(string? lastRun, string current, string? expected) =>
+    public void UpdateNotice_OnlyAfterAnUpgrade(string? lastRun, string current, string? expected)
+    {
         Assert.Equal(expected, UpdateNotice.Message(lastRun, current));
+    }
 
     [Fact]
-    public void UpdateNotice_LinksTheReleaseNotes() =>
-        Assert.Equal("https://github.com/AleksandrPidlozhevich/Pilewise/releases/tag/v1.2.0", UpdateNotice.ReleaseUrl("1.2.0"));
-
+    public void UpdateNotice_LinksTheReleaseNotes()
+    {
+        Assert.Equal("https://github.com/AleksandrPidlozhevich/Pilewise/releases/tag/v1.2.0",
+            UpdateNotice.ReleaseUrl("1.2.0"));
+    }
 }

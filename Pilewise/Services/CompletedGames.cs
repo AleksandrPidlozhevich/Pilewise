@@ -19,7 +19,10 @@ public sealed class CompletedGames
         Reload();
     }
 
-    public bool IsCompleted(CsvGameExportRow row) => IgnoredGames.KeysOf(row).Any(_state.Done.Contains);
+    public bool IsCompleted(CsvGameExportRow row)
+    {
+        return IgnoredGames.KeysOf(row).Any(_state.Done.Contains);
+    }
 
     public int Count => _state.Done.Count;
 
@@ -147,8 +150,13 @@ public sealed class CompletionSync
         _changes = changes;
     }
 
-    public bool IsCompleted(CsvGameExportRow row) => IgnoredGames.KeysOf(row).Any(_done.Contains);
+    public bool IsCompleted(CsvGameExportRow row)
+    {
+        return IgnoredGames.KeysOf(row).Any(_done.Contains);
+    }
 
-    public void Commit(IEnumerable<(CsvGameExportRow Row, bool Completed)> targetNow) =>
+    public void Commit(IEnumerable<(CsvGameExportRow Row, bool Completed)> targetNow)
+    {
         _owner.Commit(_target, _changes, targetNow);
+    }
 }

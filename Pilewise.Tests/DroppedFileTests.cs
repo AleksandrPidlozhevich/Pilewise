@@ -20,8 +20,10 @@ public class DroppedFileTests
     }
 
     [Fact]
-    public void Classify_SettingsWithOnlyTableName_IsSettings() =>
+    public void Classify_SettingsWithOnlyTableName_IsSettings()
+    {
         Assert.Equal(DroppedFileKind.Settings, DroppedFile.Classify("Google Sheets Table: My games"));
+    }
 
     [Theory]
     [InlineData(null)]
@@ -29,8 +31,10 @@ public class DroppedFileTests
     [InlineData("   \n ")]
     [InlineData("Title,Year\nHalf-Life,1998")]
     [InlineData("just some text")]
-    public void Classify_Other_IsUnknown(string? content) =>
+    public void Classify_Other_IsUnknown(string? content)
+    {
         Assert.Equal(DroppedFileKind.Unknown, DroppedFile.Classify(content));
+    }
 
     [Theory]
     [InlineData("games.csv", true)]
@@ -38,6 +42,8 @@ public class DroppedFileTests
     [InlineData("settings.txt", true)]
     [InlineData("library.xlsx", false)]
     [InlineData("noextension", false)]
-    public void HasSupportedExtension(string name, bool expected) =>
+    public void HasSupportedExtension(string name, bool expected)
+    {
         Assert.Equal(expected, DroppedFile.HasSupportedExtension(name));
+    }
 }

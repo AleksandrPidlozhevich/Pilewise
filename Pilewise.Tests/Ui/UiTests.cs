@@ -50,28 +50,31 @@ public class UiTests
     }
 
     [Fact]
-    public Task Library_ColumnHeaders_LineUpWithTheRows() => UiSession.RunAsync(() =>
+    public Task Library_ColumnHeaders_LineUpWithTheRows()
     {
-        var window = UiSession.Show(Create("library"));
-        try
+        return UiSession.RunAsync(() =>
         {
-            foreach (var (header, column) in new[]
-                     {
-                         ("PLATFORM", 1), ("PLAYTIME", 2), ("LAST PLAYED", 3), ("LINUX", 4), ("ID", 5)
-                     })
+            var window = UiSession.Show(Create("library"));
+            try
             {
-                var headerBlock = Descendants<TextBlock>(window).Single(t => t.Text == header);
-                var firstRow = Descendants<ListBoxItem>(window).First();
-                var cell = Descendants<Grid>(firstRow).First().Children.Single(c => Grid.GetColumn(c) == column);
+                foreach (var (header, column) in new[]
+                         {
+                             ("PLATFORM", 1), ("PLAYTIME", 2), ("LAST PLAYED", 3), ("LINUX", 4), ("ID", 5)
+                         })
+                {
+                    var headerBlock = Descendants<TextBlock>(window).Single(t => t.Text == header);
+                    var firstRow = Descendants<ListBoxItem>(window).First();
+                    var cell = Descendants<Grid>(firstRow).First().Children.Single(c => Grid.GetColumn(c) == column);
 
-                Assert.InRange(X(cell, window) - X(headerBlock, window), -2, 2);
+                    Assert.InRange(X(cell, window) - X(headerBlock, window), -2, 2);
+                }
             }
-        }
-        finally
-        {
-            window.Close();
-        }
-    });
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
 
     /// <summary>
     /// At the smallest window size, nothing on any page may stick out of its panel (a row that
@@ -106,110 +109,125 @@ public class UiTests
     }
 
     [Fact]
-    public Task Export_NotionFields_SitOnOneRow() => UiSession.RunAsync(() =>
+    public Task Export_NotionFields_SitOnOneRow()
     {
-        var window = UiSession.Show(Create("main-export"));
-        try
+        return UiSession.RunAsync(() =>
         {
-            var token = Descendants<TextBox>(window).Single(t => t.PlaceholderText == "Notion integration token");
-            var database = Descendants<TextBox>(window).Single(t => t.PlaceholderText == "Database ID");
+            var window = UiSession.Show(Create("main-export"));
+            try
+            {
+                var token = Descendants<TextBox>(window).Single(t => t.PlaceholderText == "Notion integration token");
+                var database = Descendants<TextBox>(window).Single(t => t.PlaceholderText == "Database ID");
 
-            Assert.Equal(Y(token, window), Y(database, window), 1);
-        }
-        finally
-        {
-            window.Close();
-        }
-    });
+                Assert.Equal(Y(token, window), Y(database, window), 1);
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
 
     [Fact]
-    public Task Shortcuts_CommandNumber_SwitchesPage() => UiSession.RunAsync(() =>
+    public Task Shortcuts_CommandNumber_SwitchesPage()
     {
-        var window = UiSession.Show(Create("main-sources"));
-        try
+        return UiSession.RunAsync(() =>
         {
-            var viewModel = (MainWindowViewModel)window.DataContext!;
+            var window = UiSession.Show(Create("main-sources"));
+            try
+            {
+                var viewModel = (MainWindowViewModel)window.DataContext!;
 
-            window.KeyPress(Key.D3, CommandModifier, PhysicalKey.Digit3, "3");
-            UiSession.Pump();
-            Assert.Equal((int)MainTab.Automation, viewModel.SelectedTab);
+                window.KeyPress(Key.D3, CommandModifier, PhysicalKey.Digit3, "3");
+                UiSession.Pump();
+                Assert.Equal((int)MainTab.Automation, viewModel.SelectedTab);
 
-            window.KeyPress(Key.D1, CommandModifier, PhysicalKey.Digit1, "1");
-            UiSession.Pump();
-            Assert.Equal((int)MainTab.Sources, viewModel.SelectedTab);
-        }
-        finally
-        {
-            window.Close();
-        }
-    });
+                window.KeyPress(Key.D1, CommandModifier, PhysicalKey.Digit1, "1");
+                UiSession.Pump();
+                Assert.Equal((int)MainTab.Sources, viewModel.SelectedTab);
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
 
     [Fact]
-    public Task Library_Escape_ClearsTheSearch_ThenCloses() => UiSession.RunAsync(() =>
+    public Task Library_Escape_ClearsTheSearch_ThenCloses()
     {
-        var window = UiSession.Show(Create("library"));
-        var library = (LibraryViewModel)window.DataContext!;
-        library.SearchText = "hades";
-        UiSession.Pump();
+        return UiSession.RunAsync(() =>
+        {
+            var window = UiSession.Show(Create("library"));
+            var library = (LibraryViewModel)window.DataContext!;
+            library.SearchText = "hades";
+            UiSession.Pump();
 
-        window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
-        UiSession.Pump();
-        Assert.True(string.IsNullOrEmpty(library.SearchText));
-        Assert.True(window.IsVisible);
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            UiSession.Pump();
+            Assert.True(string.IsNullOrEmpty(library.SearchText));
+            Assert.True(window.IsVisible);
 
-        window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
-        UiSession.Pump();
-        Assert.False(window.IsVisible);
-    });
+            window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+            UiSession.Pump();
+            Assert.False(window.IsVisible);
+        });
+    }
 
     [Fact]
-    public Task Dialog_Escape_ClosesWithFalse_AndConfirmClosesWithTrue() => UiSession.RunAsync(() =>
+    public Task Dialog_Escape_ClosesWithFalse_AndConfirmClosesWithTrue()
     {
-        var owner = UiSession.Show(new Window());
-        try
+        return UiSession.RunAsync(() =>
         {
-            var escaped = new DuplicatesWindow { DataContext = Duplicates("duplicates-notion") };
-            var escapedResult = escaped.ShowDialog<bool>(owner);
-            UiSession.Pump();
-            escaped.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
-            UiSession.Pump();
-            Assert.True(escapedResult.IsCompleted);
-            Assert.False(escapedResult.Result);
+            var owner = UiSession.Show(new Window());
+            try
+            {
+                var escaped = new DuplicatesWindow { DataContext = Duplicates("duplicates-notion") };
+                var escapedResult = escaped.ShowDialog<bool>(owner);
+                UiSession.Pump();
+                escaped.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
+                UiSession.Pump();
+                Assert.True(escapedResult.IsCompleted);
+                Assert.False(escapedResult.Result);
 
-            var confirmed = new DuplicatesWindow { DataContext = Duplicates("duplicates-notion") };
-            var confirmedResult = confirmed.ShowDialog<bool>(owner);
-            UiSession.Pump();
-            Descendants<Button>(confirmed).Single(b => b.Classes.Contains(DialogWindow.ConfirmClass))
-                .RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
-            UiSession.Pump();
-            Assert.True(confirmedResult.IsCompleted);
-            Assert.True(confirmedResult.Result);
-        }
-        finally
-        {
-            owner.Close();
-        }
-    });
+                var confirmed = new DuplicatesWindow { DataContext = Duplicates("duplicates-notion") };
+                var confirmedResult = confirmed.ShowDialog<bool>(owner);
+                UiSession.Pump();
+                Descendants<Button>(confirmed).Single(b => b.Classes.Contains(DialogWindow.ConfirmClass))
+                    .RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+                UiSession.Pump();
+                Assert.True(confirmedResult.IsCompleted);
+                Assert.True(confirmedResult.Result);
+            }
+            finally
+            {
+                owner.Close();
+            }
+        });
+    }
 
     [Fact]
-    public Task Sidebar_Collapsed_ShowsIconsOnly() => UiSession.RunAsync(() =>
+    public Task Sidebar_Collapsed_ShowsIconsOnly()
     {
-        var window = UiSession.Show(Create("main-collapsed"));
-        try
+        return UiSession.RunAsync(() =>
         {
-            var navTexts = Descendants<TextBlock>(window)
-                .Where(t => t.Text is "Sources" or "Export" or "Automation" or "Settings" &&
-                            t.FindAncestorOfType<ListBoxItem>() != null)
-                .ToList();
+            var window = UiSession.Show(Create("main-collapsed"));
+            try
+            {
+                var navTexts = Descendants<TextBlock>(window)
+                    .Where(t => t.Text is "Sources" or "Export" or "Automation" or "Settings" &&
+                                t.FindAncestorOfType<ListBoxItem>() != null)
+                    .ToList();
 
-            Assert.Equal(4, navTexts.Count);
-            Assert.All(navTexts, t => Assert.False(t.IsVisible));
-        }
-        finally
-        {
-            window.Close();
-        }
-    });
+                Assert.Equal(4, navTexts.Count);
+                Assert.All(navTexts, t => Assert.False(t.IsVisible));
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+    }
 
     /// <summary>
     /// Regenerates the README's screenshots (made-up data, no real keys or ids) when
@@ -238,7 +256,7 @@ public class UiTests
             {
                 UiSession.UseTheme(variant);
                 var window = UiSession.Show(create());
-                Assert.True(UiSession.SaveFrame(window, System.IO.Path.Combine(folder, $"{name}{suffix}.png")));
+                Assert.True(UiSession.SaveFrame(window, Path.Combine(folder, $"{name}{suffix}.png")));
                 window.Close();
             }
         });
@@ -310,25 +328,29 @@ public class UiTests
         var backlog = new BacklogSnapshot("Notion", DateTimeOffset.Now, 4, 12,
             ["Steam:620", "Steam:413150", "Steam:504230", "GOG:1771589310"]);
         return new LibraryViewModel(rows, [Row("Steam", "Test Server", "Steam:1")], new IgnoredGames(), backlog,
-            new LibraryActions(_ => { }, _ => Task.CompletedTask, _ => Task.FromResult<BacklogSnapshot?>(backlog), "Notion"),
+            new LibraryActions(_ => { }, _ => Task.CompletedTask, _ => Task.FromResult<BacklogSnapshot?>(backlog),
+                "Notion"),
             addedOn: r => r.Name is "Hades" or "Cyberpunk 2077" ? today : null);
     }
 
-    private static Window Create(string name) => name switch
+    private static Window Create(string name)
     {
-        "library" => new LibraryWindow { DataContext = Library() },
-        "history" => new SyncLogWindow { DataContext = new SyncLogViewModel() },
-        "notion-preview" => new NotionExportPreviewWindow { DataContext = new NotionExportPreviewViewModel() },
-        "duplicates-notion" or "duplicates-sheets" => new DuplicatesWindow { DataContext = Duplicates(name) },
-        "error" => new ErrorWindow("Export error in Notion",
-            "Could not find database with ID: 1234abcd.\nMake sure the database is shared with your integration."),
-        "main-sources" => MainWindowOn(MainTab.Sources),
-        "main-export" => MainWindowOn(MainTab.Export),
-        "main-automation" => MainWindowOn(MainTab.Automation),
-        "main-settings" => MainWindowOn(MainTab.Settings),
-        "main-collapsed" => MainWindowOn(MainTab.Export, collapsed: true),
-        _ => throw new ArgumentOutOfRangeException(nameof(name), name, null)
-    };
+        return name switch
+        {
+            "library" => new LibraryWindow { DataContext = Library() },
+            "history" => new SyncLogWindow { DataContext = new SyncLogViewModel() },
+            "notion-preview" => new NotionExportPreviewWindow { DataContext = new NotionExportPreviewViewModel() },
+            "duplicates-notion" or "duplicates-sheets" => new DuplicatesWindow { DataContext = Duplicates(name) },
+            "error" => new ErrorWindow("Export error in Notion",
+                "Could not find database with ID: 1234abcd.\nMake sure the database is shared with your integration."),
+            "main-sources" => MainWindowOn(MainTab.Sources),
+            "main-export" => MainWindowOn(MainTab.Export),
+            "main-automation" => MainWindowOn(MainTab.Automation),
+            "main-settings" => MainWindowOn(MainTab.Settings),
+            "main-collapsed" => MainWindowOn(MainTab.Export, true),
+            _ => throw new ArgumentOutOfRangeException(nameof(name), name, null)
+        };
+    }
 
     private static MainWindow MainWindowOn(MainTab tab, bool collapsed = false)
     {
@@ -349,7 +371,8 @@ public class UiTests
         };
         var backlog = new BacklogSnapshot("Notion", DateTimeOffset.Now, 1, 6, ["Steam:620"]);
         return new LibraryViewModel(rows, [Row("Steam", "Test Server", "Steam:1")], new IgnoredGames(), backlog,
-            new LibraryActions(_ => { }, _ => Task.CompletedTask, _ => Task.FromResult<BacklogSnapshot?>(backlog), "Notion"),
+            new LibraryActions(_ => { }, _ => Task.CompletedTask, _ => Task.FromResult<BacklogSnapshot?>(backlog),
+                "Notion"),
             addedOn: r => r.Name == "Hades" ? DateOnly.FromDateTime(DateTime.Today) : null);
     }
 
@@ -373,9 +396,11 @@ public class UiTests
         return DuplicatesViewModel.ForNotion(NotionDuplicateFinder.Find(pages));
     }
 
-    private static NotionGameRow Page(string id, string platform, string name, string gameId, int days) =>
-        new(Row(platform, name, gameId), id, new HashSet<string>([platform]), gameId,
+    private static NotionGameRow Page(string id, string platform, string name, string gameId, int days)
+    {
+        return new NotionGameRow(Row(platform, name, gameId), id, new HashSet<string>([platform]), gameId,
             CreatedTime: DateTimeOffset.Now.AddDays(days));
+    }
 
     private static CsvGameExportRow Row(string platform, string name, string id, int? minutes = null)
     {
@@ -387,7 +412,8 @@ public class UiTests
     private static List<string> OverflowsOutOfPanels(Window window)
     {
         var problems = new List<string>();
-        foreach (var panel in Descendants<Border>(window).Where(b => b.Classes.Contains("panel") && b.IsEffectivelyVisible))
+        foreach (var panel in Descendants<Border>(window)
+                     .Where(b => b.Classes.Contains("panel") && b.IsEffectivelyVisible))
         {
             var panelRight = Right(panel, window);
             foreach (var control in panel.GetLogicalDescendants().OfType<Control>()
@@ -395,31 +421,46 @@ public class UiTests
             {
                 var right = Right(control, window);
                 if (right > panelRight + 1)
-                    problems.Add($"{control.GetType().Name} \"{Label(control)}\" ends at x={right:0}, its panel at x={panelRight:0}");
+                    problems.Add(
+                        $"{control.GetType().Name} \"{Label(control)}\" ends at x={right:0}, its panel at x={panelRight:0}");
             }
         }
 
         return problems;
     }
 
-    private static string Label(Control control) => control switch
+    private static string Label(Control control)
     {
-        ContentControl { Content: string text } => text,
-        TextBlock { Text: { } text } => text,
-        TextBox { PlaceholderText: { } placeholder } => placeholder,
-        _ => control.Name ?? ""
-    };
+        return control switch
+        {
+            ContentControl { Content: string text } => text,
+            TextBlock { Text: { } text } => text,
+            TextBox { PlaceholderText: { } placeholder } => placeholder,
+            _ => control.Name ?? ""
+        };
+    }
 
-    private static double Right(Visual visual, Visual relativeTo) =>
-        visual.TranslatePoint(new Point(visual.Bounds.Width, 0), relativeTo)!.Value.X;
+    private static double Right(Visual visual, Visual relativeTo)
+    {
+        return visual.TranslatePoint(new Point(visual.Bounds.Width, 0), relativeTo)!.Value.X;
+    }
 
     // The headless platform's command key (Ctrl; tests run on Windows / Linux CI).
     private static RawInputModifiers CommandModifier =>
         OperatingSystem.IsMacOS() ? RawInputModifiers.Meta : RawInputModifiers.Control;
 
-    private static IEnumerable<T> Descendants<T>(Visual root) => root.GetVisualDescendants().OfType<T>();
+    private static IEnumerable<T> Descendants<T>(Visual root)
+    {
+        return root.GetVisualDescendants().OfType<T>();
+    }
 
-    private static double X(Visual visual, Visual relativeTo) => visual.TranslatePoint(default, relativeTo)!.Value.X;
+    private static double X(Visual visual, Visual relativeTo)
+    {
+        return visual.TranslatePoint(default, relativeTo)!.Value.X;
+    }
 
-    private static double Y(Visual visual, Visual relativeTo) => visual.TranslatePoint(default, relativeTo)!.Value.Y;
+    private static double Y(Visual visual, Visual relativeTo)
+    {
+        return visual.TranslatePoint(default, relativeTo)!.Value.Y;
+    }
 }

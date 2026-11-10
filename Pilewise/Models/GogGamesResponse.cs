@@ -14,7 +14,8 @@ public class GogGame
     [JsonProperty("isMovie")] public bool IsMovie { get; set; }
 
     /// <summary>Cover hash URL without extension, e.g. <c>//images-4.gog-statics.com/abc</c>.</summary>
-    [JsonProperty("image")] public string? Image { get; set; }
+    [JsonProperty("image")]
+    public string? Image { get; set; }
 
     [JsonProperty("url")] public string? Url { get; set; }
 

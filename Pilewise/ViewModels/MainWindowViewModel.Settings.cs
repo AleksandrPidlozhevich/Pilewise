@@ -61,15 +61,20 @@ public partial class MainWindowViewModel
         }
     }
 
-    public void SaveOnExit() => PersistSettings();
+    public void SaveOnExit()
+    {
+        PersistSettings();
+    }
 
-    private void PersistSettings() =>
+    private void PersistSettings()
+    {
         _secrets.Save(AppSettingsService.SecretKey, AppSettingsService.Serialize(CurrentSettings()));
+    }
 
     private void LoadPersistedSettings()
     {
         var content = _secrets.Load(AppSettingsService.SecretKey);
-        ChooseStartTab(firstRun: string.IsNullOrEmpty(content));
+        ChooseStartTab(string.IsNullOrEmpty(content));
         if (string.IsNullOrEmpty(content)) return;
 
         var settings = AppSettingsService.Parse(content);
@@ -105,10 +110,12 @@ public partial class MainWindowViewModel
         GoogleSheetsTableName = settings.GoogleSheetsTableName ?? GoogleSheetsTableName;
     }
 
-    private AppSettings CurrentSettings() =>
-        new(SteamApiKey, SteamId, NotionToken, DbId, GoogleSheetsTableName, _selection.Serialize(),
+    private AppSettings CurrentSettings()
+    {
+        return new AppSettings(SteamApiKey, SteamId, NotionToken, DbId, GoogleSheetsTableName, _selection.Serialize(),
             CurrentAutoSync().Serialize(), CloseToTray, CsvFilePath, ThemeSetting, IsSidebarCollapsed,
             IncludeLinuxColumn);
+    }
 
     private void ApplyExcludedStores(string? excluded)
     {
@@ -119,15 +126,30 @@ public partial class MainWindowViewModel
         IncludeXbox = _selection.Includes(Platforms.Xbox);
     }
 
-    partial void OnIncludeSteamChanged(bool value) => OnIncludeChanged(Platforms.Steam, value);
+    partial void OnIncludeSteamChanged(bool value)
+    {
+        OnIncludeChanged(Platforms.Steam, value);
+    }
 
-    partial void OnIncludeEpicChanged(bool value) => OnIncludeChanged(Platforms.Epic, value);
+    partial void OnIncludeEpicChanged(bool value)
+    {
+        OnIncludeChanged(Platforms.Epic, value);
+    }
 
-    partial void OnIncludeGogChanged(bool value) => OnIncludeChanged(Platforms.Gog, value);
+    partial void OnIncludeGogChanged(bool value)
+    {
+        OnIncludeChanged(Platforms.Gog, value);
+    }
 
-    partial void OnIncludeXboxChanged(bool value) => OnIncludeChanged(Platforms.Xbox, value);
+    partial void OnIncludeXboxChanged(bool value)
+    {
+        OnIncludeChanged(Platforms.Xbox, value);
+    }
 
-    partial void OnIncludeLinuxColumnChanged(bool value) => _linux.Enabled = value;
+    partial void OnIncludeLinuxColumnChanged(bool value)
+    {
+        _linux.Enabled = value;
+    }
 
     private void OnIncludeChanged(string store, bool included)
     {

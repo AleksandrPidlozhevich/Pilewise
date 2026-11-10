@@ -98,9 +98,9 @@ public class GameLibraryServiceTests
 
         Assert.False(result.EpicAuthenticated);
         Assert.True(result.EpicSessionExpired);
-        Assert.False(epic.GamesFetched);                      // expired session is not queried
+        Assert.False(epic.GamesFetched); // expired session is not queried
         Assert.DoesNotContain(result.Rows, r => r.Name == "Should Not Appear");
-        Assert.Single(result.Rows);                           // only the Steam game
+        Assert.Single(result.Rows); // only the Steam game
     }
 
     [Fact]
@@ -140,8 +140,8 @@ public class GameLibraryServiceTests
         var result = await service.FetchAsync(Key, Id);
 
         Assert.Equal(["Steam Game"], result.Rows.Select(r => r.Name));
-        Assert.True(result.GogAuthenticated);                          // still shown as connected
-        Assert.DoesNotContain(Platforms.Gog, result.FetchedStores);     // but its games weren't loaded
+        Assert.True(result.GogAuthenticated); // still shown as connected
+        Assert.DoesNotContain(Platforms.Gog, result.FetchedStores); // but its games weren't loaded
         Assert.Contains(Platforms.Steam, result.FetchedStores);
     }
 
@@ -175,7 +175,7 @@ public class GameLibraryServiceTests
         var service = new GameLibraryService(new FakeFactory { Epic = epic, Gog = gog });
 
         var fetch = service.FetchAsync(null, null, new SyncProgress(reports.Add));
-        Assert.True(gog.GamesFetched);   // GOG didn't wait for Epic
+        Assert.True(gog.GamesFetched); // GOG didn't wait for Epic
         Assert.False(fetch.IsCompleted);
         epicGate.SetResult();
         var result = await fetch;
@@ -224,17 +224,42 @@ file sealed class FakeFactory : IStoreClientFactory
     public IXboxClient Xbox { get; init; } = new FakeXboxClient(StoreAuthFromCacheStatus.NoCachedSession);
     public ISteamClient Steam { get; init; } = new FakeSteamClient(new SteamGamesResponse());
 
-    public IEpicClient CreateEpic() => Epic;
-    public IGogClient CreateGog() => Gog;
-    public IXboxClient CreateXbox() => Xbox;
-    public ISteamClient CreateSteam() => Steam;
+    public IEpicClient CreateEpic()
+    {
+        return Epic;
+    }
+
+    public IGogClient CreateGog()
+    {
+        return Gog;
+    }
+
+    public IXboxClient CreateXbox()
+    {
+        return Xbox;
+    }
+
+    public ISteamClient CreateSteam()
+    {
+        return Steam;
+    }
 }
 
 file abstract class FakeStoreClient
 {
-    public void SignOut() { }
-    public void OpenLoginPageInBrowser() { }
-    public Task<bool> AuthenticateWithAuthorizationCodeAsync(string authorizationCode) => Task.FromResult(true);
+    public void SignOut()
+    {
+    }
+
+    public void OpenLoginPageInBrowser()
+    {
+    }
+
+    public Task<bool> AuthenticateWithAuthorizationCodeAsync(string authorizationCode)
+    {
+        return Task.FromResult(true);
+    }
+
     public Uri LoginRequestUri => new("https://example.test");
     public Uri LoginRedirectUri => new("https://example.test");
 }
@@ -246,7 +271,10 @@ file sealed class FakeEpicClient(StoreAuthFromCacheStatus status) : FakeStoreCli
     public Task Gate { get; init; } = Task.CompletedTask;
     public List<StoreFetchProgress> Reports { get; } = [];
 
-    public Task<StoreAuthFromCacheStatus> TryAuthenticateFromCacheAsync() => Task.FromResult(status);
+    public Task<StoreAuthFromCacheStatus> TryAuthenticateFromCacheAsync()
+    {
+        return Task.FromResult(status);
+    }
 
     public async Task<List<EpicGame>> GetOwnedGamesAsync(
         IProgress<StoreFetchProgress>? progress = null, CancellationToken ct = default)
@@ -264,7 +292,10 @@ file sealed class FakeGogClient(StoreAuthFromCacheStatus status) : FakeStoreClie
     public bool GamesFetched { get; private set; }
     public List<StoreFetchProgress> Reports { get; } = [];
 
-    public Task<StoreAuthFromCacheStatus> TryAuthenticateFromCacheAsync() => Task.FromResult(status);
+    public Task<StoreAuthFromCacheStatus> TryAuthenticateFromCacheAsync()
+    {
+        return Task.FromResult(status);
+    }
 
     public Task<List<GogGame>> GetOwnedGamesAsync(
         IProgress<StoreFetchProgress>? progress = null, CancellationToken ct = default)
@@ -280,7 +311,10 @@ file sealed class FakeXboxClient(StoreAuthFromCacheStatus status) : FakeStoreCli
     public List<XboxGame> Games { get; init; } = [];
     public bool GamesFetched { get; private set; }
 
-    public Task<StoreAuthFromCacheStatus> TryAuthenticateFromCacheAsync() => Task.FromResult(status);
+    public Task<StoreAuthFromCacheStatus> TryAuthenticateFromCacheAsync()
+    {
+        return Task.FromResult(status);
+    }
 
     public Task<List<XboxGame>> GetGamesAsync(
         IProgress<StoreFetchProgress>? progress = null, CancellationToken ct = default)
@@ -292,12 +326,17 @@ file sealed class FakeXboxClient(StoreAuthFromCacheStatus status) : FakeStoreCli
 
 file sealed class FakeSteamClient(SteamGamesResponse response) : ISteamClient
 {
-    public Task<SteamGamesResponse> GetOwnedGames(string? steamId, string? apiKey, CancellationToken ct = default) =>
-        Task.FromResult(response);
+    public Task<SteamGamesResponse> GetOwnedGames(string? steamId, string? apiKey, CancellationToken ct = default)
+    {
+        return Task.FromResult(response);
+    }
 }
 
 // Reports synchronously (Progress<T> would post to a sync context).
 file sealed class SyncProgress(Action<StoreFetchProgress> report) : IProgress<StoreFetchProgress>
 {
-    public void Report(StoreFetchProgress value) => report(value);
+    public void Report(StoreFetchProgress value)
+    {
+        report(value);
+    }
 }

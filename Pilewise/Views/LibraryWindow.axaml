@@ -170,7 +170,9 @@
                                             <TextBlock.IsVisible>
                                                 <MultiBinding Converter="{x:Static BoolConverters.And}">
                                                     <Binding Path="IsCompleted" />
-                                                    <Binding Path="$parent[ListBox].((vm:LibraryViewModel)DataContext).CanMarkCompleted" Converter="{x:Static BoolConverters.Not}" />
+                                                    <Binding
+                                                        Path="$parent[ListBox].((vm:LibraryViewModel)DataContext).CanMarkCompleted"
+                                                        Converter="{x:Static BoolConverters.Not}" />
                                                 </MultiBinding>
                                             </TextBlock.IsVisible>
                                         </TextBlock>

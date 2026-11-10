@@ -20,7 +20,10 @@ public class SingleInstanceTests
         return result;
     }
 
-    private static string UniqueName() => SingleInstance.NameFor("test" + Guid.NewGuid().ToString("N")[..12]);
+    private static string UniqueName()
+    {
+        return SingleInstance.NameFor("test" + Guid.NewGuid().ToString("N")[..12]);
+    }
 
     [Fact]
     public void NameFor_KeepsOnlySafeCharacters()
@@ -64,8 +67,10 @@ public class SingleInstanceTests
     }
 
     [Fact]
-    public void SignalExisting_NothingRunning_ReturnsFalse() =>
+    public void SignalExisting_NothingRunning_ReturnsFalse()
+    {
         Assert.False(SingleInstance.SignalExisting(UniqueName(), TimeSpan.FromMilliseconds(200)));
+    }
 
     [Theory]
     [InlineData("(true,)\n", true)]
@@ -75,14 +80,19 @@ public class SingleInstanceTests
     [InlineData("", null)]
     [InlineData(null, null)]
     [InlineData("Error: no session bus", null)]
-    public void TraySupport_ReadsNameHasOwnerReply(string? output, bool? expected) =>
+    public void TraySupport_ReadsNameHasOwnerReply(string? output, bool? expected)
+    {
         Assert.Equal(expected, TraySupport.ParseNameHasOwner(output));
+    }
 }
 
 public class LibraryStatsTests
 {
-    private static LibraryGameItem Game(string name, int? minutes, bool lastPlayed = false, string platform = "Steam") =>
-        new(name, platform.Split('/'), "", minutes, lastPlayed ? DateTimeOffset.UnixEpoch : null);
+    private static LibraryGameItem Game(string name, int? minutes, bool lastPlayed = false, string platform = "Steam")
+    {
+        return new LibraryGameItem(name, platform.Split('/'), "", minutes,
+            lastPlayed ? DateTimeOffset.UnixEpoch : null);
+    }
 
     [Fact]
     public void Compute_CountsPlayedShareOutOfGamesWithPlaytimeData()
@@ -90,7 +100,7 @@ public class LibraryStatsTests
         var stats = LibraryStats.Compute([
             Game("Portal", 750),
             Game("Unplayed", 0),
-            Game("Halo", null, lastPlayed: true, platform: "Xbox"),
+            Game("Halo", null, true, "Xbox"),
             Game("Gwent", null, platform: "GOG"),
             Game("Witcher 3", 6000, platform: "Steam/GOG")
         ]);
@@ -128,10 +138,15 @@ public class LibraryStatsTests
 
 public class SheetLinksAndCoversTests
 {
-    private static IList<IList<object>> Sheet(params object[][] rows) =>
-        rows.Select(r => (IList<object>)r.ToList()).ToList();
+    private static IList<IList<object>> Sheet(params object[][] rows)
+    {
+        return rows.Select(r => (IList<object>)r.ToList()).ToList();
+    }
 
-    private static CsvGameExportRow Steam(string name, string id) => CsvFormat.CreateRow("Steam", name, "Steam:" + id);
+    private static CsvGameExportRow Steam(string name, string id)
+    {
+        return CsvFormat.CreateRow("Steam", name, "Steam:" + id);
+    }
 
     [Fact]
     public void LinkAndCoverColumns_AreFoundByHeader_AndFilledWhenEmpty()
@@ -188,6 +203,8 @@ public class SheetLinksAndCoversTests
     }
 
     [Fact]
-    public void CoverFormula_DoublesQuotes() =>
+    public void CoverFormula_DoublesQuotes()
+    {
         Assert.Equal("=IMAGE(\"https://a/b\"\"c.jpg\")", GoogleSheetsSyncPlanner.CoverFormula("https://a/b\"c.jpg"));
+    }
 }

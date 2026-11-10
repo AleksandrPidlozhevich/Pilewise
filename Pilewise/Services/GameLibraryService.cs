@@ -118,7 +118,9 @@ public sealed class GameLibraryService : IGameLibraryService
 
         var loading = new List<string>();
         var combined = progress == null ? null : new CombinedProgress(progress);
-        async Task<List<T>?> Load<T>(bool include, string store, Func<IProgress<StoreFetchProgress>?, Task<List<T>>> fetch)
+
+        async Task<List<T>?> Load<T>(bool include, string store,
+            Func<IProgress<StoreFetchProgress>?, Task<List<T>>> fetch)
         {
             if (!include || !_selection.Includes(store)) return null;
             loading.Add(store); // runs before the first await, so the status below lists it
@@ -162,19 +164,25 @@ public sealed class GameLibraryService : IGameLibraryService
     {
         private readonly Dictionary<string, StoreFetchProgress> _latest = [];
 
-        public IProgress<StoreFetchProgress> For(string store) => new Sink(value =>
+        public IProgress<StoreFetchProgress> For(string store)
         {
-            lock (_latest)
+            return new Sink(value =>
             {
-                _latest[store] = value;
-                target.Report(new StoreFetchProgress(
-                    _latest.Values.Sum(p => p.Completed), _latest.Values.Sum(p => p.Total), value.Stage));
-            }
-        });
+                lock (_latest)
+                {
+                    _latest[store] = value;
+                    target.Report(new StoreFetchProgress(
+                        _latest.Values.Sum(p => p.Completed), _latest.Values.Sum(p => p.Total), value.Stage));
+                }
+            });
+        }
 
         private sealed class Sink(Action<StoreFetchProgress> report) : IProgress<StoreFetchProgress>
         {
-            public void Report(StoreFetchProgress value) => report(value);
+            public void Report(StoreFetchProgress value)
+            {
+                report(value);
+            }
         }
     }
 }

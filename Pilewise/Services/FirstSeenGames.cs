@@ -75,8 +75,10 @@ public sealed class FirstSeenGames
         return added;
     }
 
-    public static bool IsRecent(DateOnly? addedOn, DateOnly today) =>
-        addedOn is { } day && today.DayNumber - day.DayNumber <= RecentDays;
+    public static bool IsRecent(DateOnly? addedOn, DateOnly today)
+    {
+        return addedOn is { } day && today.DayNumber - day.DayNumber <= RecentDays;
+    }
 
     private DateOnly? Baseline(string key)
     {
@@ -87,12 +89,17 @@ public sealed class FirstSeenGames
         return Parse(_state.Baselines.GetValueOrDefault(store));
     }
 
-    private static string Format(DateOnly day) => day.ToString(DateFormat, CultureInfo.InvariantCulture);
+    private static string Format(DateOnly day)
+    {
+        return day.ToString(DateFormat, CultureInfo.InvariantCulture);
+    }
 
-    private static DateOnly? Parse(string? value) =>
-        DateOnly.TryParseExact(value, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var day)
+    private static DateOnly? Parse(string? value)
+    {
+        return DateOnly.TryParseExact(value, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var day)
             ? day
             : null;
+    }
 
     private void Reload()
     {
@@ -110,7 +117,10 @@ public sealed class FirstSeenGames
         _state.Keys ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     }
 
-    private void Save() => _store?.Save(StateKey, JsonConvert.SerializeObject(_state));
+    private void Save()
+    {
+        _store?.Save(StateKey, JsonConvert.SerializeObject(_state));
+    }
 
     private sealed class State
     {

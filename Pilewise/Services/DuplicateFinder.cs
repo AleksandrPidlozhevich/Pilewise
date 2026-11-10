@@ -24,7 +24,8 @@ public sealed record DuplicateMatch<T>(T Keep, IReadOnlyList<T> Remove, CsvGameE
 /// </summary>
 public static class DuplicateFinder
 {
-    public static IReadOnlyList<DuplicateMatch<T>> Find<T>(IEnumerable<T> itemsInKeepOrder, Func<T, CsvGameExportRow> rowOf)
+    public static IReadOnlyList<DuplicateMatch<T>> Find<T>(IEnumerable<T> itemsInKeepOrder,
+        Func<T, CsvGameExportRow> rowOf)
     {
         var groups = new List<Group<T>>();
         var byId = new Dictionary<(string Platform, string Key), Group<T>>();
@@ -80,11 +81,15 @@ public static class DuplicateFinder
             .ToList();
     }
 
-    public static string Describe(string platforms, string id) =>
-        string.Join(" · ", new[] { platforms, id }.Where(s => !string.IsNullOrWhiteSpace(s)));
+    public static string Describe(string platforms, string id)
+    {
+        return string.Join(" · ", new[] { platforms, id }.Where(s => !string.IsNullOrWhiteSpace(s)));
+    }
 
-    private static bool Conflicts(CsvGameExportRow a, CsvGameExportRow b) =>
-        PlatformCatalog.All.Any(d => d.MatchKey(a) is { } ka && d.MatchKey(b) is { } kb && ka != kb);
+    private static bool Conflicts(CsvGameExportRow a, CsvGameExportRow b)
+    {
+        return PlatformCatalog.All.Any(d => d.MatchKey(a) is { } ka && d.MatchKey(b) is { } kb && ka != kb);
+    }
 
     private sealed class Group<T>(CsvGameExportRow merged)
     {
